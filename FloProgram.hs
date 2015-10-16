@@ -88,8 +88,21 @@ createApplication boxDef boxID leftSide
 convertLiteral :: BoxInterface -> FloExpression
 convertLiteral boxInterface = FloLit literal
   where boxName = getBoxName boxInterface
-        literal | boxName =~ "\".*\"" = LitString (init $ tail boxName)
-                | boxName =~ "'.'" = LitChar (read boxName)
-                | boxName =~ "[:digit:]+" = LitInt (read boxName)
-                | boxName =~ "[:digit:]*\\.[:digit:]+" = LitFloat (read boxName)
+        literal | isLitString boxName = LitString (init $ tail boxName)
+                | isLitChar boxName = LitChar (read boxName)
+                | isLitInt boxName = LitInt (read boxName)
+                | isLitFloat boxName = LitFloat (read boxName)
                 | otherwise = error "Not valid literal"
+
+isLitString :: String -> Bool
+isLitString = (=~ "^\".*\"$")   -- ^".*"$
+
+isLitChar :: String -> Bool
+isLitChar = (=~ "^'[^\\']'$|^'\\\\['trn]'$|^'\\\\\\\\'$")
+              -- ^'[^\']'$|^'\\['trn]'$|^'\\\\'$
+
+isLitInt :: String -> Bool
+isLitInt = (=~ "^[0-9]+$")    -- ^[0-9]+$
+
+isLitFloat :: String -> Bool
+isLitFloat = (=~ "^[0-9]*\\.[0-9]+$")     -- ^[0-9]*\.[0-9]+$
