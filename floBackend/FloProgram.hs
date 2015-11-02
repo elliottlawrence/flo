@@ -32,16 +32,30 @@ data FloDefinition = FloDefinition {
 
 {- A module consists of a list of definitions. In turn, a flo program is simply
    a list of modules. -}
-type FloModule = [FloDefinition]
-type FloProgram = [FloModule]
+data FloModule = FloModule {
+  getFloModuleName :: Name,
+  getFloModuleDefinitions :: [FloDefinition]
+}
+data FloProgram = FloProgram {
+  getFloProgramName :: Name,
+  getFloProgramModules :: [FloModule]
+}
 
 {- The following functions convert the graphical representation of a program
    into a format composed of expressions and definitions. -}
 convertFloGraph :: FloGraph -> FloProgram
-convertFloGraph = map convertModule
+convertFloGraph fg = FloProgram {
+  getFloProgramName = name,
+  getFloProgramModules = map convertModule modules }
+  where name = getFloGraphName fg
+        modules = getFloGraphModules fg
 
 convertModule :: Module -> FloModule
-convertModule = map convertBoxDefinition
+convertModule m = FloModule {
+  getFloModuleName = name,
+  getFloModuleDefinitions = map convertBoxDefinition defs }
+  where name = getModuleName m
+        defs = getModuleDefinitions m
 
 {- The expression component of a box definition is the expression determined by
    the output box. In addition, if a box has local definitions, these are

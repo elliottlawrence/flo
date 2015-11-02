@@ -77,5 +77,11 @@ getAppliedInputs boxDef boxID = concatMap filterCables cables
 
 {- A module consists of a list of definitions. In turn, a flo graph is a
    graphical representation of a program, consisting of a list of modules. -}
-type Module = [BoxDefinition]
-type FloGraph = [Module]
+data Module = Module {
+  getModuleName :: Name,
+  getModuleDefinitions :: [BoxDefinition]
+}
+data FloGraph = FloGraph {
+  getFloGraphName :: Name,
+  getFloGraphModules :: [Module]
+}

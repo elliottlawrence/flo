@@ -1,3 +1,13 @@
-.cabal-sandbox
-cabal.sandbox.config
-dist
+floBackend/.cabal-sandbox
+floBackend/cabal.sandbox.config
+floBackend/dist
+
+.recommenders
+.metadata
+flo IDE/.settings
+flo IDE/bin
+flo IDE/.classpath
+flo IDE/.project
+flo IDE/swing2swt.jar
+
+org.eclipse.swt
