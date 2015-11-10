@@ -10,5 +10,5 @@ public enum FloGraphChange {
 	ModuleRenamed,
 	BoxDefinitionAdded,
 	BoxDefinitionRemoved,
-	BoxDefinitionRenamed
+	BoxInterfaceRenamed
 }

@@ -1,6 +1,7 @@
 package flo;
 
 import java.util.ArrayList;
+import java.util.Observable;
 
 /**
  * A box is a generic representation of functions, constructors,
@@ -8,7 +9,7 @@ import java.util.ArrayList;
  * boxes", and only their interface is visible. This consists of a
  * name, a set of inputs, and an output.
  */
-public class BoxInterface {
+public class BoxInterface extends Observable {
 
 	private BoxFlavor flavor;
 	private String name;
@@ -26,6 +27,13 @@ public class BoxInterface {
 	
 	public String getName() {
 		return name;
+	}
+	
+	public void setName(String name) {
+		this.name = name;
+		
+		setChanged();
+		notifyObservers(new Object[] {FloGraphChange.BoxInterfaceRenamed});
 	}
 	
 	public ArrayList<Input> getInputs() {

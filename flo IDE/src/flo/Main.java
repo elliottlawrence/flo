@@ -2,10 +2,10 @@ package flo;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.events.KeyEvent;
+import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.TreeEvent;
-import org.eclipse.swt.events.TreeListener;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
@@ -25,6 +25,7 @@ public class Main {
 
 	protected Shell shell;
 	private Tree tree;
+	private Canvas canvas;
 	
 	/**
 	 * Launch the application.
@@ -116,17 +117,12 @@ public class Main {
 			public void widgetSelected(SelectionEvent e) {
 				TreeItem[] selectedItems = tree.getSelection();
 				if (selectedItems.length == 0) return;
-
-				TreeItem selectedItem = selectedItems[0];
-				Object selectedObject = findFloGraphObjectFromTreeItem(selectedItem, currentFloGraph);
 				
-				if (selectedObject instanceof Module) {
-					Module selectedModule = (Module) selectedObject;
-					selectedModule.addBoxDefinition("boxDefinition" + (selectedModule.getBoxDefinitions().size()+1));
-				} else if (selectedObject instanceof BoxDefinition) {
-					BoxDefinition selectedBoxDefinition = (BoxDefinition) selectedObject;
-					selectedBoxDefinition.addLocalDefinition("boxDefinition" + (selectedBoxDefinition.getLocalDefinitions().size()+1));
-				}
+				TreeItem selectedItem = selectedItems[0];
+				BoxDefinitionContainer selectedContainer =
+						findBoxDefContainerFromTreeItem(selectedItem, currentFloGraph);
+				selectedContainer.addBoxDefinition("boxDefinition" +
+						(selectedContainer.getBoxDefinitions().size()+1));
 			}
 		});
 		tiNewBoxDefinition.setText("New Box Definition");
@@ -149,27 +145,36 @@ public class Main {
 		sashForm.setLayoutData(BorderLayout.CENTER);
 		
 		tree = new Tree(sashForm, SWT.BORDER);
-		tree.addTreeListener(new TreeListener() {
+		new FloGraphTreeListener(currentFloGraph, tree);
+		tree.addKeyListener(new KeyListener() {
+			final static int DELETE = 8;
+			
 			@Override
-			public void treeCollapsed(TreeEvent e) {
-				treeExpandedCollapsed(e, false);
+			public void keyPressed(KeyEvent e) {
+				// Delete an item in the tree
+				if (e.keyCode == DELETE) {
+					TreeItem[] selectedItems = tree.getSelection();
+					if (selectedItems.length == 0) return;
+
+					TreeItem selectedItem = selectedItems[0];
+					TreeItem parentItem = selectedItem.getParentItem();
+					
+					// Item is a module
+					if (parentItem == null) currentFloGraph.removeModule(selectedItem.getText());
+					// Item is a box definition
+					else {
+						BoxDefinitionContainer parentContainer =
+								findBoxDefContainerFromTreeItem(parentItem, currentFloGraph);
+						parentContainer.removeBoxDefinition(selectedItem.getText());
+					}
+				}
 			}
 
 			@Override
-			public void treeExpanded(TreeEvent e) {
-				treeExpandedCollapsed(e, true);
-			}
-			
-			private void treeExpandedCollapsed(TreeEvent e, boolean expanded) {
-				TreeItem ti = (TreeItem) e.item;
-				Object object = findFloGraphObjectFromTreeItem(ti, currentFloGraph);
-				if (object instanceof Module) ((Module) object).setExpanded(expanded);
-				else if (object instanceof BoxDefinition) ((BoxDefinition) object).setExpanded(expanded);
-			}
+			public void keyReleased(KeyEvent e) { }	
 		});
-		new FloGraphTreeListener(currentFloGraph, tree);
 		
-		Canvas canvas = new Canvas(sashForm, SWT.NONE);
+		canvas = new Canvas(sashForm, SWT.NONE);
 		sashForm.setWeights(new int[] {1, 3});
 	}
 	
@@ -179,16 +184,13 @@ public class Main {
 	 * @param floGraph
 	 * @return The corresponding object
 	 */
-	private static Object findFloGraphObjectFromTreeItem(TreeItem ti, FloGraph floGraph) {
+	private static BoxDefinitionContainer findBoxDefContainerFromTreeItem(TreeItem ti, FloGraph floGraph) {
 		TreeItem parent = ti.getParentItem();
-		if (parent == null) {
-			// Item is a module
-			return floGraph.getModule(ti.getText());
-		}
+		// Item is a module
+		if (parent == null) return floGraph.getModule(ti.getText());
 		
 		// Item is a box definition
-		Object parentObject = findFloGraphObjectFromTreeItem(parent, floGraph);
-		if (parentObject instanceof Module) return ((Module) parentObject).getBoxDefinition(ti.getText());
-		return ((BoxDefinition) parentObject).getLocalDefinition(ti.getText());
+		BoxDefinitionContainer parentContainer = findBoxDefContainerFromTreeItem(parent, floGraph);
+		return parentContainer.getBoxDefinition(ti.getText());
 	}
 }

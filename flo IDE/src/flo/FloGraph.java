@@ -2,13 +2,12 @@ package flo;
 
 import java.util.ArrayList;
 import java.util.Observable;
-import java.util.Observer;
 
 /**
  * A FloGraph is a graphical representation of a program, consisting
  * of a list of modules.
  */
-public class FloGraph extends Observable implements Observer {
+public class FloGraph extends Observable {
 	
 	private String name;
 	private ArrayList<Module> modules;
@@ -47,21 +46,27 @@ public class FloGraph extends Observable implements Observer {
 	 */
 	public Module addModule(String name) {
 		Module m = new Module(name);
-		m.addObserver(this);
 		modules.add(m);
 		
 		setChanged();
-		notifyObservers();
+		notifyObservers(new Object[] {FloGraphChange.ModuleAdded, m});
 		
 		return m;
 	}
-
+	
+	public void removeModule(String name) {
+		removeModule(getModule(name));
+	}
+	
 	/**
-	 * If a module changes, then the Flo Graph has also changed.
+	 * Removes a module from the Flo Graph
+	 * @param m
 	 */
-	@Override
-	public void update(Observable o, Object arg) {
+	public void removeModule(Module m) {
+		int index = modules.indexOf(m);
+		modules.remove(m);
+		
 		setChanged();
-		notifyObservers(arg);
+		notifyObservers(new Object[] {FloGraphChange.ModuleRemoved, index});
 	}
 }
