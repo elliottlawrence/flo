@@ -8,15 +8,15 @@ package flo;
  */
 public abstract class Cable {
 	
-	boolean hasStartOnly;
+	private boolean hasStartOnly;
 
-	int startID;
+	private int startID;
 	
 	/**
 	 * Valid if !hasStartOnly
 	 */
-	int endID;
-	Input endInput;
+	private int endID;
+	private Input endInput;
 	
 	public Cable() {
 	}

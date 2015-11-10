@@ -6,18 +6,18 @@ package flo;
  */
 public class Type {
 	
-	boolean isRawType;
+	private boolean isRawType;
 	
 	/**
 	 * Valid if isRawType
 	 */
-	String name;
+	private String name;
 	
 	/**
 	 * Valid if !isRawType
 	 */
-	Type type1;
-	Type type2;
+	private Type type1;
+	private Type type2;
 	
 	public Type() {
 		

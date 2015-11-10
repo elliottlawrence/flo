@@ -10,12 +10,13 @@ import java.util.ArrayList;
  */
 public class BoxInterface {
 
-	BoxFlavor flavor;
-	String name;
-	ArrayList<Input> inputs;
-	Output output;
-	
-	public BoxInterface() {
+	private BoxFlavor flavor;
+	private String name;
+	private ArrayList<Input> inputs;
+	private Output output;
+
+	public BoxInterface(String name) {
+		this.name = name;
 		inputs = new ArrayList<Input>();
 	}
 	

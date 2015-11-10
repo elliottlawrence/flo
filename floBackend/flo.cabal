@@ -13,7 +13,7 @@ maintainer:          elliottlawrence7@gmail.com
 -- copyright:
 category:            Language
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  ../README.md
 cabal-version:       >=1.10
 
 

@@ -5,8 +5,8 @@ package flo;
  */
 public class Input {
 
-	String name;
-	Type type;
+	private String name;
+	private Type type;
 	
 	public Input() {	
 	}

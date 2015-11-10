@@ -5,7 +5,7 @@ package flo;
  */
 public class Output {
 
-	Type type;
+	private Type type;
 	
 	public Output() {
 	}
