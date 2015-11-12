@@ -8,6 +8,7 @@ import java.util.Observable;
  * contain other Box Definitions.
  */
 public abstract class BoxDefinitionContainer extends Observable {
+
 	protected ArrayList<BoxDefinition> boxDefinitions;
 	
 	public ArrayList<BoxDefinition> getBoxDefinitions() {

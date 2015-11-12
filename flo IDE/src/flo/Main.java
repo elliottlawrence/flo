@@ -2,18 +2,14 @@ package flo;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
-import org.eclipse.swt.events.KeyEvent;
-import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
-import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.wb.swt.SWTResourceManager;
 
@@ -24,8 +20,8 @@ public class Main {
 	private static FloGraph currentFloGraph;
 
 	protected Shell shell;
-	private Tree tree;
-	private Canvas canvas;
+	private FloTree tree;
+	private FloCanvas canvas;
 	
 	/**
 	 * Launch the application.
@@ -115,11 +111,11 @@ public class Main {
 		tiNewBoxDefinition.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				TreeItem[] selectedItems = tree.getSelection();
+				TreeItem[] selectedItems = tree.getTree().getSelection();
 				if (selectedItems.length == 0) return;
 				
 				TreeItem selectedItem = selectedItems[0];
-				BoxDefinitionContainer selectedContainer =
+				BoxDefinitionContainer selectedContainer = FloTree.
 						findBoxDefContainerFromTreeItem(selectedItem, currentFloGraph);
 				selectedContainer.addBoxDefinition("boxDefinition" +
 						(selectedContainer.getBoxDefinitions().size()+1));
@@ -144,53 +140,10 @@ public class Main {
 		SashForm sashForm = new SashForm(shell, SWT.NONE);
 		sashForm.setLayoutData(BorderLayout.CENTER);
 		
-		tree = new Tree(sashForm, SWT.BORDER);
-		new FloGraphTreeListener(currentFloGraph, tree);
-		tree.addKeyListener(new KeyListener() {
-			final static int DELETE = 8;
-			
-			@Override
-			public void keyPressed(KeyEvent e) {
-				// Delete an item in the tree
-				if (e.keyCode == DELETE) {
-					TreeItem[] selectedItems = tree.getSelection();
-					if (selectedItems.length == 0) return;
-
-					TreeItem selectedItem = selectedItems[0];
-					TreeItem parentItem = selectedItem.getParentItem();
-					
-					// Item is a module
-					if (parentItem == null) currentFloGraph.removeModule(selectedItem.getText());
-					// Item is a box definition
-					else {
-						BoxDefinitionContainer parentContainer =
-								findBoxDefContainerFromTreeItem(parentItem, currentFloGraph);
-						parentContainer.removeBoxDefinition(selectedItem.getText());
-					}
-				}
-			}
-
-			@Override
-			public void keyReleased(KeyEvent e) { }	
-		});
+		tree = new FloTree(sashForm, SWT.BORDER, currentFloGraph);
 		
-		canvas = new Canvas(sashForm, SWT.NONE);
+		canvas = new FloCanvas(sashForm, SWT.NONE, currentFloGraph);
+		
 		sashForm.setWeights(new int[] {1, 3});
-	}
-	
-	/**
-	 * Given a TreeItem, find the corresponding object in the Flo Graph.
-	 * @param ti
-	 * @param floGraph
-	 * @return The corresponding object
-	 */
-	private static BoxDefinitionContainer findBoxDefContainerFromTreeItem(TreeItem ti, FloGraph floGraph) {
-		TreeItem parent = ti.getParentItem();
-		// Item is a module
-		if (parent == null) return floGraph.getModule(ti.getText());
-		
-		// Item is a box definition
-		BoxDefinitionContainer parentContainer = findBoxDefContainerFromTreeItem(parent, floGraph);
-		return parentContainer.getBoxDefinition(ti.getText());
 	}
 }

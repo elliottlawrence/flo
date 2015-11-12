@@ -13,7 +13,7 @@ import org.eclipse.swt.widgets.TreeItem;
  */
 public class FloGraphTreeListener implements Observer {
 
-	private Tree tree;
+	private final Tree tree;
 	
 	public FloGraphTreeListener(FloGraph floGraph, Tree tree) {
 		floGraph.addObserver(this);

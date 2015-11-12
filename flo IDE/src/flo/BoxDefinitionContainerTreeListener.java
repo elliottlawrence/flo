@@ -8,7 +8,7 @@ import org.eclipse.swt.widgets.TreeItem;
 
 public class BoxDefinitionContainerTreeListener implements Observer {
 
-	private TreeItem treeItem;
+	private final TreeItem treeItem;
 	
 	public BoxDefinitionContainerTreeListener(BoxDefinitionContainer container, TreeItem treeItem) {
 		container.addObserver(this);
