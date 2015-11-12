@@ -12,6 +12,12 @@ public class FloGraph extends Observable {
 	private String name;
 	private ArrayList<Module> modules;
 	
+	/**
+	 * The box definition that is either selected in the tree or
+	 * displayed in the canvas
+	 */
+	private BoxDefinition currentBoxDefinition;
+	
 	public FloGraph(String name) {
 		this.name = name;
 		modules = new ArrayList<Module>();
@@ -69,4 +75,16 @@ public class FloGraph extends Observable {
 		setChanged();
 		notifyObservers(new Object[] {FloGraphChange.ModuleRemoved, index});
 	}
+	
+	public BoxDefinition getCurrentBoxDefinition() {
+		return currentBoxDefinition;
+	}
+	
+	public void setCurrentBoxDefinition(BoxDefinition bd) {
+		currentBoxDefinition = bd;
+		
+		setChanged();
+		notifyObservers(new Object[] {FloGraphChange.BoxDefinitionSelected, bd});
+	}
+	
 }

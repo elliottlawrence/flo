@@ -16,9 +16,8 @@ public class FloGraphTreeListener implements Observer {
 	private final Tree tree;
 	
 	public FloGraphTreeListener(FloGraph floGraph, Tree tree) {
-		floGraph.addObserver(this);
 		this.tree = tree;
-		
+		floGraph.addObserver(this);
 		setInitialContents(floGraph);
 	}
 	
@@ -32,6 +31,7 @@ public class FloGraphTreeListener implements Observer {
 	
 	@Override
 	public void update(Observable o, Object arg) {
+		FloGraph floGraph = (FloGraph) o;
 		Object[] args = (Object []) arg;
 		FloGraphChange change = (FloGraphChange) args[0];
 		
@@ -56,6 +56,14 @@ public class FloGraphTreeListener implements Observer {
 			// Select another module (if there is one)
 			if (tree.getItemCount() > index) tree.select(tree.getItem(index));
 			else if (tree.getItemCount() == index && index > 0) tree.select(tree.getItem(index-1));
+			break;
+			
+		case BoxDefinitionSelected:
+			if (!tree.isFocusControl()) {
+				BoxDefinition bd = (BoxDefinition) args[1];
+				ti = FloTree.findTreeItemFromBoxDefContainer(bd, tree, floGraph);
+				tree.select(ti);
+			}
 			break;
 			
 		default:

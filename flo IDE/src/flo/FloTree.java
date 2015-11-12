@@ -4,13 +4,13 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.TreeEditor;
 import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
-import org.eclipse.swt.events.KeyEvent;
-import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.TraverseEvent;
 import org.eclipse.swt.events.TraverseListener;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
@@ -21,51 +21,73 @@ import org.eclipse.swt.widgets.TreeItem;
  */
 public class FloTree {
 	
+	private final FloGraph floGraph;
 	private final Tree tree;
-	private FloGraph floGraph;
 	private final TreeEditor editor;
 
-	public FloTree(Composite parent, int style, FloGraph floGraph) {
-		tree = new Tree(parent, style);
+	public FloTree(Composite parent, FloGraph floGraph) {
+		tree = new Tree(parent, SWT.BORDER);
+		tree.addSelectionListener(selectionListener);
 		this.floGraph = floGraph;
 		
+		new FloGraphTreeListener(floGraph, tree);
+		
+		// Create the editor for renaming tree items
 		editor = new TreeEditor(tree);
 		editor.grabHorizontal = true;
 		
-		new FloGraphTreeListener(this.floGraph, tree);
-		tree.addKeyListener(keyListener);
-		tree.addSelectionListener(selectionListener);
+		// Add the context menu
+		Menu menu = new Menu(tree);
+		tree.setMenu(menu);
+		
+		MenuItem miDelete = new MenuItem(menu, SWT.NONE);
+		miDelete.setText("Delete");
+		miDelete.addSelectionListener(deleteListener);
 	}
 
-	private final KeyListener keyListener = new KeyListener() {
-		final static int DELETE = 8;
-		
+	/**
+	 * Delete a tree item
+	 */
+	private final SelectionAdapter deleteListener = new SelectionAdapter() {
 		@Override
-		public void keyPressed(KeyEvent e) {
-			// Delete an item in the tree
-			if (e.keyCode == DELETE) {
-				TreeItem[] selectedItems = tree.getSelection();
-				if (selectedItems.length == 0) return;
+		public void widgetSelected(SelectionEvent e) {
+			TreeItem[] selectedItems = tree.getSelection();
+			if (selectedItems.length == 0) return;
 
-				TreeItem selectedItem = selectedItems[0];
-				TreeItem parentItem = selectedItem.getParentItem();
-				
-				// Item is a module
-				if (parentItem == null) floGraph.removeModule(selectedItem.getText());
-				// Item is a box definition
-				else {
-					BoxDefinitionContainer parentContainer =
-							findBoxDefContainerFromTreeItem(parentItem, floGraph);
-					parentContainer.removeBoxDefinition(selectedItem.getText());
-				}
+			TreeItem selectedItem = selectedItems[0];
+			TreeItem parentItem = selectedItem.getParentItem();
+			
+			// Item is a module
+			if (parentItem == null) floGraph.removeModule(selectedItem.getText());
+			// Item is a box definition
+			else {
+				BoxDefinitionContainer parentContainer =
+						findBoxDefContainerFromTreeItem(parentItem, floGraph);
+				parentContainer.removeBoxDefinition(selectedItem.getText());
 			}
 		}
-
-		@Override
-		public void keyReleased(KeyEvent e) { }	
 	};
 	
 	private final SelectionAdapter selectionListener = new SelectionAdapter() {
+		/**
+		 * Change the currently selected box definition
+		 */
+		@Override
+		public void widgetSelected(SelectionEvent e) {
+			TreeItem[] selectedItems = tree.getSelection();
+			if (selectedItems.length == 0) return;
+
+			BoxDefinitionContainer selectedContainer =
+					findBoxDefContainerFromTreeItem(selectedItems[0], floGraph);
+			if (selectedContainer instanceof BoxDefinition) {
+				floGraph.setCurrentBoxDefinition((BoxDefinition) selectedContainer);
+			}
+		}
+		
+		/**
+		 * Rename a tree item when double clicked
+		 */
+		@Override
 		public void widgetDefaultSelected(SelectionEvent e) {
 			// Identify the selected row
 			final TreeItem item = (TreeItem) e.item;
@@ -121,9 +143,8 @@ public class FloTree {
 	}
 	
 	/**
-	 * Given a TreeItem, find the corresponding object in the Flo Graph.
+	 * Given a TreeItem, find the corresponding object in the Flo Graph
 	 * @param ti
-	 * @param floGraph
 	 * @return The corresponding object
 	 */
 	public static BoxDefinitionContainer findBoxDefContainerFromTreeItem(TreeItem ti, FloGraph floGraph) {
@@ -134,5 +155,24 @@ public class FloTree {
 		// Item is a box definition
 		BoxDefinitionContainer parentContainer = findBoxDefContainerFromTreeItem(parent, floGraph);
 		return parentContainer.getBoxDefinition(ti.getText());
+	}
+	
+	/**
+	 * Given a BoxDefinitionContainer, find the corresponding TreeItem in the Tree
+	 * @param container
+	 * @param tree
+	 * @param floGraph
+	 * @return The corresponding TreeItem
+	 */
+	public static TreeItem findTreeItemFromBoxDefContainer(BoxDefinitionContainer container, Tree tree, FloGraph floGraph) {
+		// This is a module
+		if (container.getParent() == null) {
+			return tree.getItem(floGraph.getModules().indexOf(container));
+		}
+		
+		// This is a box definition
+		BoxDefinitionContainer parentContainer = container.getParent();
+		return findTreeItemFromBoxDefContainer(parentContainer, tree, floGraph).
+				getItem(parentContainer.getBoxDefinitions().indexOf(container));
 	}
 }

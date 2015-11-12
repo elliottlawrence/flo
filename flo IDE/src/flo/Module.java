@@ -12,6 +12,9 @@ public class Module extends BoxDefinitionContainer {
 	public Module(String name) {
 		this.name = name;
 		boxDefinitions = new ArrayList<BoxDefinition>();
+		
+		// Modules are not contained in anything (other than the FloGraph)
+		this.parent = null;
 	}
 	
 	public String getName() {

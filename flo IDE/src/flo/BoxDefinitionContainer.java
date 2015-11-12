@@ -10,6 +10,7 @@ import java.util.Observable;
 public abstract class BoxDefinitionContainer extends Observable {
 
 	protected ArrayList<BoxDefinition> boxDefinitions;
+	protected BoxDefinitionContainer parent;
 	
 	public ArrayList<BoxDefinition> getBoxDefinitions() {
 		return boxDefinitions;
@@ -35,7 +36,7 @@ public abstract class BoxDefinitionContainer extends Observable {
 	 * @return The new box definition
 	 */
 	public BoxDefinition addBoxDefinition(String name) {
-		BoxDefinition bd = new BoxDefinition(name);
+		BoxDefinition bd = new BoxDefinition(name, this);
 		boxDefinitions.add(bd);
 		
 		setChanged();
@@ -58,5 +59,9 @@ public abstract class BoxDefinitionContainer extends Observable {
 		
 		setChanged();
 		notifyObservers(new Object[] {FloGraphChange.BoxDefinitionRemoved, index});
+	}
+	
+	public BoxDefinitionContainer getParent() {
+		return parent;
 	}
 }

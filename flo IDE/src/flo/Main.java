@@ -17,11 +17,10 @@ import swing2swt.layout.BorderLayout;
 
 public class Main {
 	
-	private static FloGraph currentFloGraph;
-
 	protected Shell shell;
-	private FloTree tree;
-	private FloCanvas canvas;
+	
+	private static FloGraph currentFloGraph;
+	private static FloTree tree;
 	
 	/**
 	 * Launch the application.
@@ -139,10 +138,9 @@ public class Main {
 		
 		SashForm sashForm = new SashForm(shell, SWT.NONE);
 		sashForm.setLayoutData(BorderLayout.CENTER);
-		
-		tree = new FloTree(sashForm, SWT.BORDER, currentFloGraph);
-		
-		canvas = new FloCanvas(sashForm, SWT.NONE, currentFloGraph);
+
+		tree = new FloTree(sashForm, currentFloGraph);
+		new FloCanvas(sashForm, currentFloGraph);
 		
 		sashForm.setWeights(new int[] {1, 3});
 	}

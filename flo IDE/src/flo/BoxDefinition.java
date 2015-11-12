@@ -16,11 +16,14 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	private Map<Integer, BoxInterface> boxes;
 	private ArrayList<Cable> cables;
 	
-	public BoxDefinition(String name) {
+	public BoxDefinition(String name, BoxDefinitionContainer parent) {
 		boxInterface = new BoxInterface(name);
 		boxes = new HashMap<Integer, BoxInterface>();
 		cables = new ArrayList<Cable>();
 		boxDefinitions = new ArrayList<BoxDefinition>();
+		
+		// The box definition or module this box definition is contained in
+		this.parent = parent;
 	}
 	
 	public BoxInterface getBoxInterface() {
