@@ -8,23 +8,23 @@ import java.util.ArrayList;
 public class Module extends BoxDefinitionContainer {
 
 	private String name;
-	
-	public Module(String name) {
+
+	public Module(final String name) {
 		this.name = name;
 		boxDefinitions = new ArrayList<BoxDefinition>();
-		
+
 		// Modules are not contained in anything (other than the FloGraph)
-		this.parent = null;
+		parent = null;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
-	
-	public void setName(String name) {
+
+	public void setName(final String name) {
 		this.name = name;
-		
+
 		setChanged();
-		notifyObservers(new Object[] {FloGraphChange.ModuleRenamed});
+		notifyObservers(new Object[] { FloGraphChange.ModuleRenamed });
 	}
 }

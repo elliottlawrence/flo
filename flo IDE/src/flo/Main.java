@@ -1,41 +1,47 @@
 package flo;
 
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.layout.FormAttachment;
+import org.eclipse.swt.layout.FormData;
+import org.eclipse.swt.layout.FormLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.Sash;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
+import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.wb.swt.SWTResourceManager;
 
-import swing2swt.layout.BorderLayout;
-
 public class Main {
-	
+
 	protected Shell shell;
-	
+
 	private static FloGraph currentFloGraph;
 	private static FloTree tree;
-	
+
+	private static final int minTreeWidth = 80;
+
 	/**
 	 * Launch the application.
+	 *
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		currentFloGraph = new FloGraph("Untitled");
 		currentFloGraph.addModule("Main").addBoxDefinition("main");
 		currentFloGraph.addModule("Utils").addBoxDefinition("helper");
 		currentFloGraph.addModule("Library").addBoxDefinition("max");
-		
+
 		try {
-			Main window = new Main();
+			final Main window = new Main();
 			window.open();
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -45,15 +51,13 @@ public class Main {
 	 */
 	public void open() {
 		Display.setAppName("flo");
-		Display display = Display.getDefault();
+		final Display display = Display.getDefault();
 		createContents();
 		shell.open();
 		shell.layout();
-		while (!shell.isDisposed()) {
-			if (!display.readAndDispatch()) {
+		while (!shell.isDisposed())
+			if (!display.readAndDispatch())
 				display.sleep();
-			}
-		}
 	}
 
 	/**
@@ -62,86 +66,131 @@ public class Main {
 	protected void createContents() {
 		shell = new Shell();
 		shell.setImage(SWTResourceManager.getImage(Main.class, "/Icons/flo.png"));
-		shell.setSize(660, 434);
+		shell.setSize(743, 514);
+		shell.setMinimumSize(300, 200);
 		shell.setText("flo");
-		shell.setLayout(new BorderLayout(0, 0));
-		
-		Menu menu = new Menu(shell, SWT.BAR);
+		shell.setLayout(new FormLayout());
+
+		final Menu menu = new Menu(shell, SWT.BAR);
 		shell.setMenuBar(menu);
-		
-		MenuItem miFile = new MenuItem(menu, SWT.CASCADE);
+
+		final MenuItem miFile = new MenuItem(menu, SWT.CASCADE);
 		miFile.setText("File");
-		
-		Menu mFile = new Menu(miFile);
+
+		final Menu mFile = new Menu(miFile);
 		miFile.setMenu(mFile);
-		
-		MenuItem miNew = new MenuItem(mFile, SWT.NONE);
+
+		final MenuItem miNew = new MenuItem(mFile, SWT.NONE);
 		miNew.setText("New");
-		
-		MenuItem miOpen = new MenuItem(mFile, SWT.NONE);
+
+		final MenuItem miOpen = new MenuItem(mFile, SWT.NONE);
 		miOpen.setText("Open");
-		
-		MenuItem miClose = new MenuItem(mFile, SWT.NONE);
+
+		final MenuItem miClose = new MenuItem(mFile, SWT.NONE);
 		miClose.setText("Close");
-		
+
 		new MenuItem(mFile, SWT.SEPARATOR);
-		
-		MenuItem miSave = new MenuItem(mFile, SWT.NONE);
+
+		final MenuItem miSave = new MenuItem(mFile, SWT.NONE);
 		miSave.setText("Save");
-		
-		MenuItem miSaveAs = new MenuItem(mFile, SWT.NONE);
+
+		final MenuItem miSaveAs = new MenuItem(mFile, SWT.NONE);
 		miSaveAs.setText("Save as");
-		
-		ToolBar toolBar = new ToolBar(shell, SWT.FLAT | SWT.RIGHT);
-		toolBar.setLayoutData(BorderLayout.NORTH);
-		
-		ToolItem tiNewModule = new ToolItem(toolBar, SWT.NONE);
+
+		final ToolBar toolBar = new ToolBar(shell, SWT.FLAT | SWT.RIGHT);
+		final FormData fd_toolBar = new FormData();
+		fd_toolBar.right = new FormAttachment(0, 743);
+		fd_toolBar.top = new FormAttachment(0);
+		fd_toolBar.left = new FormAttachment(0);
+		toolBar.setLayoutData(fd_toolBar);
+
+		final ToolItem tiNewModule = new ToolItem(toolBar, SWT.NONE);
 		tiNewModule.setImage(SWTResourceManager.getImage(Main.class, "/Icons/module.png"));
 		tiNewModule.addSelectionListener(new SelectionAdapter() {
 			@Override
-			public void widgetSelected(SelectionEvent e) {
+			public void widgetSelected(final SelectionEvent e) {
 				currentFloGraph.addModule("Module " + currentFloGraph.getModules().size());
 			}
 		});
 		tiNewModule.setText("New Module");
-		
-		ToolItem tiNewBoxDefinition = new ToolItem(toolBar, SWT.NONE);
+
+		final ToolItem tiNewBoxDefinition = new ToolItem(toolBar, SWT.NONE);
 		tiNewBoxDefinition.setImage(SWTResourceManager.getImage(Main.class, "/Icons/box definition.png"));
 		tiNewBoxDefinition.addSelectionListener(new SelectionAdapter() {
 			@Override
-			public void widgetSelected(SelectionEvent e) {
-				TreeItem[] selectedItems = tree.getTree().getSelection();
-				if (selectedItems.length == 0) return;
-				
-				TreeItem selectedItem = selectedItems[0];
-				BoxDefinitionContainer selectedContainer = FloTree.
-						findBoxDefContainerFromTreeItem(selectedItem, currentFloGraph);
-				selectedContainer.addBoxDefinition("boxDefinition" +
-						(selectedContainer.getBoxDefinitions().size()+1));
+			public void widgetSelected(final SelectionEvent e) {
+				final TreeItem[] selectedItems = tree.getTree().getSelection();
+				if (selectedItems.length == 0)
+					return;
+
+				final TreeItem selectedItem = selectedItems[0];
+				final BoxDefinitionContainer selectedContainer = FloTree.findBoxDefContainerFromTreeItem(selectedItem,
+						currentFloGraph);
+				final BoxDefinition newBoxDefinition = selectedContainer
+						.addBoxDefinition("boxDefinition" + (selectedContainer.getBoxDefinitions().size() + 1));
+				currentFloGraph.setCurrentBoxDefinition(newBoxDefinition);
 			}
 		});
 		tiNewBoxDefinition.setText("New Box Definition");
-		
-		ToolItem tiNewBox = new ToolItem(toolBar, SWT.NONE);
+
+		final ToolItem tiNewBox = new ToolItem(toolBar, SWT.NONE);
 		tiNewBox.setImage(SWTResourceManager.getImage(Main.class, "/Icons/box.png"));
+		tiNewBox.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				final BoxInterface bi = new BoxInterface("newBox");
+				currentFloGraph.getCurrentBoxDefinition().addBox(bi);
+			}
+		});
 		tiNewBox.setText("New Box");
-		
+
 		new ToolItem(toolBar, SWT.SEPARATOR);
-		
-		ToolItem tiCompile = new ToolItem(toolBar, SWT.NONE);
+
+		final ToolItem tiCompile = new ToolItem(toolBar, SWT.NONE);
 		tiCompile.setImage(SWTResourceManager.getImage(Main.class, "/Icons/compile.png"));
 		tiCompile.setText("Compile");
-		
-		ToolItem tiRun = new ToolItem(toolBar, SWT.NONE);
+
+		final ToolItem tiRun = new ToolItem(toolBar, SWT.NONE);
 		tiRun.setImage(SWTResourceManager.getImage(Main.class, "/Icons/run.png"));
 		tiRun.setText("Run");
-		
-		SashForm sashForm = new SashForm(shell, SWT.NONE);
-		sashForm.setLayoutData(BorderLayout.CENTER);
 
-		tree = new FloTree(sashForm, currentFloGraph);
-		new FloCanvas(sashForm, currentFloGraph);
-		
-		sashForm.setWeights(new int[] {1, 3});
+		tree = new FloTree(shell, currentFloGraph);
+		final Sash sash = new Sash(shell, SWT.VERTICAL);
+		final FloCanvas floCanvas = new FloCanvas(shell, currentFloGraph);
+
+		final Tree treetree = tree.getTree();
+		final FormData fd_tree = new FormData();
+		fd_tree.top = new FormAttachment(toolBar);
+		fd_tree.bottom = new FormAttachment(100);
+		fd_tree.right = new FormAttachment(sash);
+		fd_tree.left = new FormAttachment(0);
+		treetree.setLayoutData(fd_tree);
+
+		final FormData fd_sash = new FormData();
+		fd_sash.width = 4;
+		fd_sash.top = new FormAttachment(toolBar);
+		fd_sash.bottom = new FormAttachment(100);
+		fd_sash.left = new FormAttachment(0, 200);
+		sash.setLayoutData(fd_sash);
+		sash.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				final Rectangle sashRect = sash.getBounds();
+				final Rectangle shellRect = shell.getClientArea();
+				final int right = shellRect.width - sashRect.width - minTreeWidth;
+				e.x = Math.max(Math.min(e.x, right), minTreeWidth);
+				if (e.x != sashRect.x) {
+					fd_sash.left = new FormAttachment(0, e.x);
+					shell.layout();
+				}
+			}
+		});
+
+		final FormData fd_floCanvas = new FormData();
+		fd_floCanvas.top = new FormAttachment(toolBar);
+		fd_floCanvas.bottom = new FormAttachment(100);
+		fd_floCanvas.right = new FormAttachment(100);
+		fd_floCanvas.left = new FormAttachment(sash);
+		floCanvas.setLayoutData(fd_floCanvas);
 	}
 }
