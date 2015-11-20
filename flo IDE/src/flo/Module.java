@@ -2,12 +2,21 @@ package flo;
 
 import java.util.ArrayList;
 
+import flo.Observable.ModuleRenamedEvent;
+import flo.Observable.Observable;
+import flo.Observable.Observer;
+
 /**
  * A module consists of a list of definitions.
  */
 public class Module extends BoxDefinitionContainer {
 
 	private String name;
+
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<ModuleRenamedEvent> moduleRenamedObservable = new Observable<ModuleRenamedEvent>();
 
 	public Module(final String name) {
 		this.name = name;
@@ -24,7 +33,10 @@ public class Module extends BoxDefinitionContainer {
 	public void setName(final String name) {
 		this.name = name;
 
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.ModuleRenamed });
+		moduleRenamedObservable.notifyObservers(new ModuleRenamedEvent());
+	}
+
+	public void addModuleRenamedObserver(final Observer<ModuleRenamedEvent> o) {
+		moduleRenamedObservable.addObserver(o);
 	}
 }

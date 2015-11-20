@@ -25,7 +25,7 @@ public class Main {
 	private static FloGraph currentFloGraph;
 	private static FloTree tree;
 
-	private static final int minTreeWidth = 80;
+	private static final int MIN_TREE_WIDTH = 80;
 
 	/**
 	 * Launch the application.
@@ -139,7 +139,9 @@ public class Main {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
 				final BoxInterface bi = new BoxInterface("newBox");
-				currentFloGraph.getCurrentBoxDefinition().addBox(bi);
+				final BoxDefinition currentBoxDefinition = currentFloGraph.getCurrentBoxDefinition();
+				if (currentBoxDefinition != null)
+					currentBoxDefinition.addBox(bi);
 			}
 		});
 		tiNewBox.setText("New Box");
@@ -158,6 +160,7 @@ public class Main {
 		final Sash sash = new Sash(shell, SWT.VERTICAL);
 		final FloCanvas floCanvas = new FloCanvas(shell, currentFloGraph);
 
+		// Set FormData properties
 		final Tree treetree = tree.getTree();
 		final FormData fd_tree = new FormData();
 		fd_tree.top = new FormAttachment(toolBar);
@@ -177,8 +180,8 @@ public class Main {
 			public void widgetSelected(final SelectionEvent e) {
 				final Rectangle sashRect = sash.getBounds();
 				final Rectangle shellRect = shell.getClientArea();
-				final int right = shellRect.width - sashRect.width - minTreeWidth;
-				e.x = Math.max(Math.min(e.x, right), minTreeWidth);
+				final int right = shellRect.width - sashRect.width - MIN_TREE_WIDTH;
+				e.x = Math.max(Math.min(e.x, right), MIN_TREE_WIDTH);
 				if (e.x != sashRect.x) {
 					fd_sash.left = new FormAttachment(0, e.x);
 					shell.layout();

@@ -1,13 +1,18 @@
 package flo;
 
 import java.util.ArrayList;
-import java.util.Observable;
+
+import flo.Observable.BoxDefinitionSelectedEvent;
+import flo.Observable.ModuleAddedEvent;
+import flo.Observable.ModuleRemovedEvent;
+import flo.Observable.Observable;
+import flo.Observable.Observer;
 
 /**
  * A FloGraph is a graphical representation of a program, consisting of a list
  * of modules.
  */
-public class FloGraph extends Observable {
+public class FloGraph {
 
 	private final String name;
 	private final ArrayList<Module> modules;
@@ -17,6 +22,13 @@ public class FloGraph extends Observable {
 	 * the canvas
 	 */
 	private BoxDefinition currentBoxDefinition;
+
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<ModuleAddedEvent> moduleAddedObservable = new Observable<ModuleAddedEvent>();
+	private final Observable<ModuleRemovedEvent> moduleRemovedObservable = new Observable<ModuleRemovedEvent>();
+	private final Observable<BoxDefinitionSelectedEvent> boxDefinitionSelectedObservable = new Observable<BoxDefinitionSelectedEvent>();
 
 	public FloGraph(final String name) {
 		this.name = name;
@@ -54,9 +66,7 @@ public class FloGraph extends Observable {
 		final Module m = new Module(name);
 		modules.add(m);
 
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.ModuleAdded, m });
-
+		moduleAddedObservable.notifyObservers(new ModuleAddedEvent(m));
 		return m;
 	}
 
@@ -73,8 +83,7 @@ public class FloGraph extends Observable {
 		final int index = modules.indexOf(m);
 		modules.remove(m);
 
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.ModuleRemoved, index });
+		moduleRemovedObservable.notifyObservers(new ModuleRemovedEvent(index));
 	}
 
 	public BoxDefinition getCurrentBoxDefinition() {
@@ -83,9 +92,18 @@ public class FloGraph extends Observable {
 
 	public void setCurrentBoxDefinition(final BoxDefinition bd) {
 		currentBoxDefinition = bd;
-
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.BoxDefinitionSelected, bd });
+		boxDefinitionSelectedObservable.notifyObservers(new BoxDefinitionSelectedEvent(bd));
 	}
 
+	public void addModuleAddedObserver(final Observer<ModuleAddedEvent> o) {
+		moduleAddedObservable.addObserver(o);
+	}
+
+	public void addModuleRemovedObserver(final Observer<ModuleRemovedEvent> o) {
+		moduleRemovedObservable.addObserver(o);
+	}
+
+	public void addBoxDefinitionSelectedObserver(final Observer<BoxDefinitionSelectedEvent> o) {
+		boxDefinitionSelectedObservable.addObserver(o);
+	}
 }

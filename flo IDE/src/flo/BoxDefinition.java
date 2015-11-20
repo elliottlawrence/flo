@@ -6,6 +6,10 @@ import java.util.Map;
 
 import org.eclipse.swt.graphics.Point;
 
+import flo.Observable.BoxAddedEvent;
+import flo.Observable.Observable;
+import flo.Observable.Observer;
+
 /**
  * A box definition consists of the box's interface augmented with a set of
  * boxes and cables connecting nodes on the boxes. In addition, a box may have
@@ -16,6 +20,11 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	private final BoxInterface boxInterface;
 	private final Map<Integer, Pair<BoxInterface, Point>> boxes;
 	private final ArrayList<Cable> cables;
+
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxAddedEvent> boxAddedObservable = new Observable<BoxAddedEvent>();
 
 	public BoxDefinition(final String name, final BoxDefinitionContainer parent) {
 		boxInterface = new BoxInterface(name);
@@ -36,13 +45,16 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	}
 
 	public void addBox(final BoxInterface bi) {
-		boxes.put(boxes.size(), new Pair(bi, new Point(10, 10)));
+		boxes.put(boxes.size(), new Pair<BoxInterface, Point>(bi, new Point(10, 10)));
 
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.BoxAdded });
+		boxAddedObservable.notifyObservers(new BoxAddedEvent());
 	}
 
 	public ArrayList<Cable> getCables() {
 		return cables;
+	}
+
+	public void addBoxAddedObserver(final Observer<BoxAddedEvent> o) {
+		boxAddedObservable.addObserver(o);
 	}
 }

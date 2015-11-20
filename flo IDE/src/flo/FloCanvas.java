@@ -1,8 +1,5 @@
 package flo;
 
-import java.util.Observable;
-import java.util.Observer;
-
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
@@ -13,7 +10,7 @@ import org.eclipse.swt.widgets.Composite;
 /**
  * The canvas where code is primarily edited.
  */
-public class FloCanvas extends Canvas implements Observer {
+public class FloCanvas extends Canvas {
 
 	private final FloGraph floGraph;
 
@@ -25,12 +22,17 @@ public class FloCanvas extends Canvas implements Observer {
 	public FloCanvas(final Composite parent, final FloGraph floGraph) {
 		super(parent, SWT.NO_BACKGROUND);
 		this.floGraph = floGraph;
-		this.floGraph.addObserver(this);
+
+		// Listen for when the current box definition changes
+		this.floGraph.addBoxDefinitionSelectedObserver(e -> redraw());
 
 		final BoxDefinition currentBoxDefinition = this.floGraph.getCurrentBoxDefinition();
 		if (currentBoxDefinition != null) {
-			currentBoxDefinition.addObserver(this);
-			currentBoxDefinition.getBoxInterface().addObserver(this);
+			// Listen for when new boxes are added
+			currentBoxDefinition.addBoxAddedObserver(e -> redraw());
+
+			// Listen for when the box interface is renamed
+			currentBoxDefinition.getBoxInterface().addBoxInterfaceRenamedObserver(e -> redraw());
 		}
 
 		addPaintListener(e -> paintCanvas(e.gc));
@@ -67,30 +69,6 @@ public class FloCanvas extends Canvas implements Observer {
 			final BoxInterface box = pair.x;
 			final Point point = pair.y;
 			gc.fillRoundRectangle(point.x, point.y, 100, 75, 15, 15);
-		}
-	}
-
-	@Override
-	public void update(final Observable o, final Object arg) {
-		final Object[] args = (Object[]) arg;
-		final FloGraphChange change = (FloGraphChange) args[0];
-
-		switch (change) {
-		case BoxDefinitionSelected:
-			floGraph.getCurrentBoxDefinition().getBoxInterface().addObserver(this);
-			redraw();
-			break;
-
-		case BoxAdded:
-			redraw();
-			break;
-
-		case BoxInterfaceRenamed:
-			redraw();
-			break;
-
-		default:
-			break;
 		}
 	}
 }

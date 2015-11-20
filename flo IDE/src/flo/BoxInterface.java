@@ -1,7 +1,10 @@
 package flo;
 
 import java.util.ArrayList;
-import java.util.Observable;
+
+import flo.Observable.BoxInterfaceRenamedEvent;
+import flo.Observable.Observable;
+import flo.Observable.Observer;
 
 /**
  * A box is a generic representation of functions, constructors, and literals.
@@ -9,12 +12,17 @@ import java.util.Observable;
  * interface is visible. This consists of a name, a set of inputs, and an
  * output.
  */
-public class BoxInterface extends Observable {
+public class BoxInterface {
 
 	private BoxFlavor flavor;
 	private String name;
 	private final ArrayList<Input> inputs;
 	private Output output;
+
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxInterfaceRenamedEvent> boxInterfaceRenamedObservable = new Observable<BoxInterfaceRenamedEvent>();
 
 	public BoxInterface(final String name) {
 		this.name = name;
@@ -32,8 +40,7 @@ public class BoxInterface extends Observable {
 	public void setName(final String name) {
 		this.name = name;
 
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.BoxInterfaceRenamed });
+		boxInterfaceRenamedObservable.notifyObservers(new BoxInterfaceRenamedEvent());
 	}
 
 	public ArrayList<Input> getInputs() {
@@ -46,5 +53,9 @@ public class BoxInterface extends Observable {
 
 	public Output getOutput() {
 		return output;
+	}
+
+	public void addBoxInterfaceRenamedObserver(final Observer<BoxInterfaceRenamedEvent> o) {
+		boxInterfaceRenamedObservable.addObserver(o);
 	}
 }

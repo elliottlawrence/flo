@@ -61,6 +61,11 @@ public class FloTree {
 				floGraph.removeModule(selectedItem.getText());
 			// Item is a box definition
 			else {
+				// If this was the current box definition, set that to null
+				if (floGraph.getCurrentBoxDefinition() == findBoxDefContainerFromTreeItem(selectedItem, floGraph))
+					floGraph.setCurrentBoxDefinition(null);
+
+				// Now delete it
 				final BoxDefinitionContainer parentContainer = findBoxDefContainerFromTreeItem(parentItem, floGraph);
 				parentContainer.removeBoxDefinition(selectedItem.getText());
 			}
@@ -167,6 +172,8 @@ public class FloTree {
 	 */
 	public static TreeItem findTreeItemFromBoxDefContainer(final BoxDefinitionContainer container, final Tree tree,
 			final FloGraph floGraph) {
+		if (container == null)
+			throw new IllegalArgumentException();
 		final BoxDefinitionContainer parentContainer = container.getParent();
 		// This is a module
 		if (parentContainer == null)

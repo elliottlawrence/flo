@@ -1,16 +1,26 @@
 package flo;
 
 import java.util.ArrayList;
-import java.util.Observable;
+
+import flo.Observable.BoxDefinitionAddedEvent;
+import flo.Observable.BoxDefinitionRemovedEvent;
+import flo.Observable.Observable;
+import flo.Observable.Observer;
 
 /**
  * A common superclass for Modules and Box Definitions, both of which can
  * contain other Box Definitions.
  */
-public abstract class BoxDefinitionContainer extends Observable {
+public abstract class BoxDefinitionContainer {
 
 	protected ArrayList<BoxDefinition> boxDefinitions;
 	protected BoxDefinitionContainer parent;
+
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxDefinitionAddedEvent> boxDefinitionAddedObservable = new Observable<BoxDefinitionAddedEvent>();
+	private final Observable<BoxDefinitionRemovedEvent> boxDefinitionRemovedObservable = new Observable<BoxDefinitionRemovedEvent>();
 
 	public ArrayList<BoxDefinition> getBoxDefinitions() {
 		return boxDefinitions;
@@ -18,7 +28,7 @@ public abstract class BoxDefinitionContainer extends Observable {
 
 	/**
 	 * Search for a box definition by name
-	 * 
+	 *
 	 * @param name
 	 * @return The box definition or null if it doesn't exist
 	 */
@@ -31,7 +41,7 @@ public abstract class BoxDefinitionContainer extends Observable {
 
 	/**
 	 * Adds a new box definition to the module
-	 * 
+	 *
 	 * @param name
 	 * @return The new box definition
 	 */
@@ -39,9 +49,7 @@ public abstract class BoxDefinitionContainer extends Observable {
 		final BoxDefinition bd = new BoxDefinition(name, this);
 		boxDefinitions.add(bd);
 
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.BoxDefinitionAdded, bd });
-
+		boxDefinitionAddedObservable.notifyObservers(new BoxDefinitionAddedEvent(bd));
 		return bd;
 	}
 
@@ -51,18 +59,25 @@ public abstract class BoxDefinitionContainer extends Observable {
 
 	/**
 	 * Remove a box definition from a box definition container
-	 * 
+	 *
 	 * @param bd
 	 */
 	public void removeBoxDefinition(final BoxDefinition bd) {
 		final int index = boxDefinitions.indexOf(bd);
 		boxDefinitions.remove(bd);
 
-		setChanged();
-		notifyObservers(new Object[] { FloGraphChange.BoxDefinitionRemoved, index });
+		boxDefinitionRemovedObservable.notifyObservers(new BoxDefinitionRemovedEvent(index));
 	}
 
 	public BoxDefinitionContainer getParent() {
 		return parent;
+	}
+
+	public void addBoxDefinitionAddedObserver(final Observer<BoxDefinitionAddedEvent> o) {
+		boxDefinitionAddedObservable.addObserver(o);
+	}
+
+	public void addBoxDefinitionRemovedObserver(final Observer<BoxDefinitionRemovedEvent> o) {
+		boxDefinitionRemovedObservable.addObserver(o);
 	}
 }
