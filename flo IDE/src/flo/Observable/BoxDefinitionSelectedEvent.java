@@ -1,6 +1,6 @@
 package flo.Observable;
 
-import flo.BoxDefinition;
+import flo.floGraph.BoxDefinition;
 
 public class BoxDefinitionSelectedEvent {
 

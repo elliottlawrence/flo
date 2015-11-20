@@ -13,6 +13,11 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 
+import flo.floGraph.BoxDefinition;
+import flo.floGraph.BoxDefinitionContainer;
+import flo.floGraph.FloGraph;
+import flo.floGraph.Module;
+
 /**
  * The tree component that displays the modules and box definitions in the Flo
  * Graph.
@@ -59,15 +64,14 @@ public class FloTree {
 			// Item is a module
 			if (parentItem == null)
 				floGraph.removeModule(selectedItem.getText());
-			// Item is a box definition
 			else {
-				// If this was the current box definition, set that to null
-				if (floGraph.getCurrentBoxDefinition() == findBoxDefContainerFromTreeItem(selectedItem, floGraph))
+				// If this is the current box definition, set that to null
+				final BoxDefinition bd = (BoxDefinition) findBoxDefContainerFromTreeItem(selectedItem, floGraph);
+				if (floGraph.getCurrentBoxDefinition() == bd)
 					floGraph.setCurrentBoxDefinition(null);
 
-				// Now delete it
 				final BoxDefinitionContainer parentContainer = findBoxDefContainerFromTreeItem(parentItem, floGraph);
-				parentContainer.removeBoxDefinition(selectedItem.getText());
+				parentContainer.removeBoxDefinition(bd);
 			}
 		}
 	};

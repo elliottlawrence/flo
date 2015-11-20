@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 /**
  * A cable connects the output of one box to the input of another.

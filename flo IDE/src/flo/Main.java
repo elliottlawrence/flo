@@ -18,6 +18,11 @@ import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.wb.swt.SWTResourceManager;
 
+import flo.floGraph.BoxDefinition;
+import flo.floGraph.BoxDefinitionContainer;
+import flo.floGraph.BoxInterface;
+import flo.floGraph.FloGraph;
+
 public class Main {
 
 	protected Shell shell;
@@ -105,6 +110,7 @@ public class Main {
 		toolBar.setLayoutData(fd_toolBar);
 
 		final ToolItem tiNewModule = new ToolItem(toolBar, SWT.NONE);
+		tiNewModule.setText("New Module");
 		tiNewModule.setImage(SWTResourceManager.getImage(Main.class, "/Icons/module.png"));
 		tiNewModule.addSelectionListener(new SelectionAdapter() {
 			@Override
@@ -112,9 +118,9 @@ public class Main {
 				currentFloGraph.addModule("Module " + currentFloGraph.getModules().size());
 			}
 		});
-		tiNewModule.setText("New Module");
 
 		final ToolItem tiNewBoxDefinition = new ToolItem(toolBar, SWT.NONE);
+		tiNewBoxDefinition.setText("New Box Definition");
 		tiNewBoxDefinition.setImage(SWTResourceManager.getImage(Main.class, "/Icons/box definition.png"));
 		tiNewBoxDefinition.addSelectionListener(new SelectionAdapter() {
 			@Override
@@ -131,9 +137,9 @@ public class Main {
 				currentFloGraph.setCurrentBoxDefinition(newBoxDefinition);
 			}
 		});
-		tiNewBoxDefinition.setText("New Box Definition");
 
 		final ToolItem tiNewBox = new ToolItem(toolBar, SWT.NONE);
+		tiNewBox.setText("New Box");
 		tiNewBox.setImage(SWTResourceManager.getImage(Main.class, "/Icons/box.png"));
 		tiNewBox.addSelectionListener(new SelectionAdapter() {
 			@Override
@@ -144,7 +150,6 @@ public class Main {
 					currentBoxDefinition.addBox(bi);
 			}
 		});
-		tiNewBox.setText("New Box");
 
 		new ToolItem(toolBar, SWT.SEPARATOR);
 

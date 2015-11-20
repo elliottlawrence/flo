@@ -1,8 +1,9 @@
-package flo;
+package flo.floGraph;
 
 import java.util.ArrayList;
 
 import flo.Observable.BoxDefinitionSelectedEvent;
+import flo.Observable.CurrentBoxDefinitionChangedEvent;
 import flo.Observable.ModuleAddedEvent;
 import flo.Observable.ModuleRemovedEvent;
 import flo.Observable.Observable;
@@ -22,13 +23,6 @@ public class FloGraph {
 	 * the canvas
 	 */
 	private BoxDefinition currentBoxDefinition;
-
-	/**
-	 * Observables corresponding to the different events this object can emit
-	 */
-	private final Observable<ModuleAddedEvent> moduleAddedObservable = new Observable<ModuleAddedEvent>();
-	private final Observable<ModuleRemovedEvent> moduleRemovedObservable = new Observable<ModuleRemovedEvent>();
-	private final Observable<BoxDefinitionSelectedEvent> boxDefinitionSelectedObservable = new Observable<BoxDefinitionSelectedEvent>();
 
 	public FloGraph(final String name) {
 		this.name = name;
@@ -81,6 +75,7 @@ public class FloGraph {
 	 */
 	public void removeModule(final Module m) {
 		final int index = modules.indexOf(m);
+		m.deleteObservers();
 		modules.remove(m);
 
 		moduleRemovedObservable.notifyObservers(new ModuleRemovedEvent(index));
@@ -92,8 +87,19 @@ public class FloGraph {
 
 	public void setCurrentBoxDefinition(final BoxDefinition bd) {
 		currentBoxDefinition = bd;
+		System.out.println("huii");
+
 		boxDefinitionSelectedObservable.notifyObservers(new BoxDefinitionSelectedEvent(bd));
+		currentBoxDefinitionChangedObservable.notifyObservers(new CurrentBoxDefinitionChangedEvent());
 	}
+
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<ModuleAddedEvent> moduleAddedObservable = new Observable<ModuleAddedEvent>();
+	private final Observable<ModuleRemovedEvent> moduleRemovedObservable = new Observable<ModuleRemovedEvent>();
+	private final Observable<BoxDefinitionSelectedEvent> boxDefinitionSelectedObservable = new Observable<BoxDefinitionSelectedEvent>();
+	private final Observable<CurrentBoxDefinitionChangedEvent> currentBoxDefinitionChangedObservable = new Observable<CurrentBoxDefinitionChangedEvent>();
 
 	public void addModuleAddedObserver(final Observer<ModuleAddedEvent> o) {
 		moduleAddedObservable.addObserver(o);
@@ -106,4 +112,16 @@ public class FloGraph {
 	public void addBoxDefinitionSelectedObserver(final Observer<BoxDefinitionSelectedEvent> o) {
 		boxDefinitionSelectedObservable.addObserver(o);
 	}
+
+	public void addCurrentBoxDefinitionChangedObserver(final Observer<CurrentBoxDefinitionChangedEvent> o) {
+		currentBoxDefinitionChangedObservable.addObserver(o);
+	}
+
+	public void deleteObservers() {
+		moduleAddedObservable.deleteObservers();
+		moduleRemovedObservable.deleteObservers();
+		boxDefinitionSelectedObservable.deleteObservers();
+		currentBoxDefinitionChangedObservable.deleteObservers();
+	}
+
 }

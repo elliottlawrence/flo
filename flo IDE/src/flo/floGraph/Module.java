@@ -1,6 +1,4 @@
-package flo;
-
-import java.util.ArrayList;
+package flo.floGraph;
 
 import flo.Observable.ModuleRenamedEvent;
 import flo.Observable.Observable;
@@ -13,17 +11,10 @@ public class Module extends BoxDefinitionContainer {
 
 	private String name;
 
-	/**
-	 * Observables corresponding to the different events this object can emit
-	 */
-	private final Observable<ModuleRenamedEvent> moduleRenamedObservable = new Observable<ModuleRenamedEvent>();
-
 	public Module(final String name) {
-		this.name = name;
-		boxDefinitions = new ArrayList<BoxDefinition>();
-
 		// Modules are not contained in anything (other than the FloGraph)
-		parent = null;
+		super(null);
+		this.name = name;
 	}
 
 	public String getName() {
@@ -36,7 +27,18 @@ public class Module extends BoxDefinitionContainer {
 		moduleRenamedObservable.notifyObservers(new ModuleRenamedEvent());
 	}
 
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<ModuleRenamedEvent> moduleRenamedObservable = new Observable<ModuleRenamedEvent>();
+
 	public void addModuleRenamedObserver(final Observer<ModuleRenamedEvent> o) {
 		moduleRenamedObservable.addObserver(o);
+	}
+
+	@Override
+	public void deleteObservers() {
+		super.deleteObservers();
+		moduleRenamedObservable.deleteObservers();
 	}
 }

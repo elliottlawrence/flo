@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 import java.util.ArrayList;
 
@@ -18,11 +18,6 @@ public class BoxInterface {
 	private String name;
 	private final ArrayList<Input> inputs;
 	private Output output;
-
-	/**
-	 * Observables corresponding to the different events this object can emit
-	 */
-	private final Observable<BoxInterfaceRenamedEvent> boxInterfaceRenamedObservable = new Observable<BoxInterfaceRenamedEvent>();
 
 	public BoxInterface(final String name) {
 		this.name = name;
@@ -55,7 +50,16 @@ public class BoxInterface {
 		return output;
 	}
 
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxInterfaceRenamedEvent> boxInterfaceRenamedObservable = new Observable<BoxInterfaceRenamedEvent>();
+
 	public void addBoxInterfaceRenamedObserver(final Observer<BoxInterfaceRenamedEvent> o) {
 		boxInterfaceRenamedObservable.addObserver(o);
+	}
+
+	public void deleteObservers() {
+		boxInterfaceRenamedObservable.deleteObservers();
 	}
 }

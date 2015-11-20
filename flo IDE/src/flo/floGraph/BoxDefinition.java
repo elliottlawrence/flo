@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.eclipse.swt.graphics.Point;
 
+import flo.Pair;
 import flo.Observable.BoxAddedEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
@@ -21,19 +22,11 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	private final Map<Integer, Pair<BoxInterface, Point>> boxes;
 	private final ArrayList<Cable> cables;
 
-	/**
-	 * Observables corresponding to the different events this object can emit
-	 */
-	private final Observable<BoxAddedEvent> boxAddedObservable = new Observable<BoxAddedEvent>();
-
 	public BoxDefinition(final String name, final BoxDefinitionContainer parent) {
+		super(parent);
 		boxInterface = new BoxInterface(name);
 		boxes = new HashMap<Integer, Pair<BoxInterface, Point>>();
 		cables = new ArrayList<Cable>();
-		boxDefinitions = new ArrayList<BoxDefinition>();
-
-		// The box definition or module this box definition is contained in
-		this.parent = parent;
 	}
 
 	public BoxInterface getBoxInterface() {
@@ -54,7 +47,18 @@ public class BoxDefinition extends BoxDefinitionContainer {
 		return cables;
 	}
 
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxAddedEvent> boxAddedObservable = new Observable<BoxAddedEvent>();
+
 	public void addBoxAddedObserver(final Observer<BoxAddedEvent> o) {
 		boxAddedObservable.addObserver(o);
+	}
+
+	@Override
+	public void deleteObservers() {
+		super.deleteObservers();
+		boxAddedObservable.deleteObservers();
 	}
 }

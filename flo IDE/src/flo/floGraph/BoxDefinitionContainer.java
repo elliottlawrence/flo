@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 import java.util.ArrayList;
 
@@ -13,14 +13,13 @@ import flo.Observable.Observer;
  */
 public abstract class BoxDefinitionContainer {
 
-	protected ArrayList<BoxDefinition> boxDefinitions;
-	protected BoxDefinitionContainer parent;
+	private final ArrayList<BoxDefinition> boxDefinitions;
+	private final BoxDefinitionContainer parent;
 
-	/**
-	 * Observables corresponding to the different events this object can emit
-	 */
-	private final Observable<BoxDefinitionAddedEvent> boxDefinitionAddedObservable = new Observable<BoxDefinitionAddedEvent>();
-	private final Observable<BoxDefinitionRemovedEvent> boxDefinitionRemovedObservable = new Observable<BoxDefinitionRemovedEvent>();
+	public BoxDefinitionContainer(final BoxDefinitionContainer parent) {
+		boxDefinitions = new ArrayList<BoxDefinition>();
+		this.parent = parent;
+	}
 
 	public ArrayList<BoxDefinition> getBoxDefinitions() {
 		return boxDefinitions;
@@ -64,6 +63,7 @@ public abstract class BoxDefinitionContainer {
 	 */
 	public void removeBoxDefinition(final BoxDefinition bd) {
 		final int index = boxDefinitions.indexOf(bd);
+		bd.deleteObservers();
 		boxDefinitions.remove(bd);
 
 		boxDefinitionRemovedObservable.notifyObservers(new BoxDefinitionRemovedEvent(index));
@@ -73,11 +73,22 @@ public abstract class BoxDefinitionContainer {
 		return parent;
 	}
 
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxDefinitionAddedEvent> boxDefinitionAddedObservable = new Observable<BoxDefinitionAddedEvent>();
+	private final Observable<BoxDefinitionRemovedEvent> boxDefinitionRemovedObservable = new Observable<BoxDefinitionRemovedEvent>();
+
 	public void addBoxDefinitionAddedObserver(final Observer<BoxDefinitionAddedEvent> o) {
 		boxDefinitionAddedObservable.addObserver(o);
 	}
 
 	public void addBoxDefinitionRemovedObserver(final Observer<BoxDefinitionRemovedEvent> o) {
 		boxDefinitionRemovedObservable.addObserver(o);
+	}
+
+	public void deleteObservers() {
+		boxDefinitionAddedObservable.deleteObservers();
+		boxDefinitionRemovedObservable.deleteObservers();
 	}
 }

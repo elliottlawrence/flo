@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 /**
  * Outputs are unnamed but have types nonetheless.

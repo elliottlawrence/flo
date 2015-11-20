@@ -7,6 +7,10 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
 
+import flo.floGraph.BoxDefinition;
+import flo.floGraph.BoxInterface;
+import flo.floGraph.FloGraph;
+
 /**
  * The canvas where code is primarily edited.
  */
@@ -23,17 +27,8 @@ public class FloCanvas extends Canvas {
 		super(parent, SWT.NO_BACKGROUND);
 		this.floGraph = floGraph;
 
-		// Listen for when the current box definition changes
-		this.floGraph.addBoxDefinitionSelectedObserver(e -> redraw());
-
-		final BoxDefinition currentBoxDefinition = this.floGraph.getCurrentBoxDefinition();
-		if (currentBoxDefinition != null) {
-			// Listen for when new boxes are added
-			currentBoxDefinition.addBoxAddedObserver(e -> redraw());
-
-			// Listen for when the box interface is renamed
-			currentBoxDefinition.getBoxInterface().addBoxInterfaceRenamedObserver(e -> redraw());
-		}
+		// Listen for when the current box definition changes in any way
+		this.floGraph.addCurrentBoxDefinitionChangedObserver(e -> redraw());
 
 		addPaintListener(e -> paintCanvas(e.gc));
 	}
@@ -51,6 +46,7 @@ public class FloCanvas extends Canvas {
 			gc.drawLine(i, 0, i, size.y);
 		for (int i = lineSeparationWidth; i < size.y; i += lineSeparationWidth)
 			gc.drawLine(0, i, size.x, i);
+		System.out.println("okkk");
 
 		// Draw the box interface
 		final BoxDefinition bd = floGraph.getCurrentBoxDefinition();

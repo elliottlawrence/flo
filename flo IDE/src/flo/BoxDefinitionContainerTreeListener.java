@@ -3,6 +3,10 @@ package flo;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.TreeItem;
 
+import flo.floGraph.BoxDefinition;
+import flo.floGraph.BoxDefinitionContainer;
+import flo.floGraph.Module;
+
 /**
  * A listener that keeps the contents of a tree item up to date with the
  * contents of a Box Definition Container

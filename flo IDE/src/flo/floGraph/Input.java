@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 /**
  * An input to a function has a name and a type.

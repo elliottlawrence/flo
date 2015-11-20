@@ -1,6 +1,6 @@
 package flo.Observable;
 
-import flo.Module;
+import flo.floGraph.Module;
 
 public class ModuleAddedEvent {
 

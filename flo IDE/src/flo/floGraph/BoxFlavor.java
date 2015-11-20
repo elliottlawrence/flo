@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 /**
  * Boxes are a generic representation of functions,

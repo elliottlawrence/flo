@@ -1,4 +1,4 @@
-package flo;
+package flo.floGraph;
 
 /**
  * A type can either be an atomic, raw type, or a function from one type to
