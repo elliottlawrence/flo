@@ -26,7 +26,7 @@ public class FloGraphTreeListener {
 			final Module m = e.module;
 			final TreeItem ti = new TreeItem(tree, SWT.NONE);
 			ti.setText(m.getName());
-			new BoxDefinitionContainerTreeListener(m, ti);
+			new BoxDefinitionContainerTreeListener(floGraph, m, ti);
 
 			// Select the module
 			tree.select(ti);
@@ -63,7 +63,7 @@ public class FloGraphTreeListener {
 		for (final Module m : floGraph.getModules()) {
 			ti = new TreeItem(tree, SWT.NONE);
 			ti.setText(m.getName());
-			new BoxDefinitionContainerTreeListener(m, ti);
+			new BoxDefinitionContainerTreeListener(floGraph, m, ti);
 		}
 
 		// Select the first box definition if there is one

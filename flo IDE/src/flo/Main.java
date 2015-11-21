@@ -29,6 +29,7 @@ public class Main {
 
 	private static FloGraph currentFloGraph;
 	private static FloTree tree;
+	private static FloCanvas floCanvas;
 
 	private static final int MIN_TREE_WIDTH = 80;
 
@@ -71,8 +72,9 @@ public class Main {
 	protected void createContents() {
 		shell = new Shell();
 		shell.setImage(SWTResourceManager.getImage(Main.class, "/Icons/flo.png"));
-		shell.setSize(743, 514);
+		shell.setSize(1000, 600);
 		shell.setMinimumSize(300, 200);
+		shell.setLocation(200, 50);
 		shell.setText("flo");
 		shell.setLayout(new FormLayout());
 
@@ -104,9 +106,9 @@ public class Main {
 
 		final ToolBar toolBar = new ToolBar(shell, SWT.FLAT | SWT.RIGHT);
 		final FormData fd_toolBar = new FormData();
+		fd_toolBar.left = new FormAttachment(0);
 		fd_toolBar.right = new FormAttachment(0, 743);
 		fd_toolBar.top = new FormAttachment(0);
-		fd_toolBar.left = new FormAttachment(0);
 		toolBar.setLayoutData(fd_toolBar);
 
 		final ToolItem tiNewModule = new ToolItem(toolBar, SWT.NONE);
@@ -145,6 +147,10 @@ public class Main {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
 				final BoxInterface bi = new BoxInterface("newBox");
+				bi.addInput("hello");
+				bi.addInput("input2");
+				bi.addInput("reallyLongInputName");
+				bi.addInput("another input");
 				final BoxDefinition currentBoxDefinition = currentFloGraph.getCurrentBoxDefinition();
 				if (currentBoxDefinition != null)
 					currentBoxDefinition.addBox(bi);
@@ -161,9 +167,19 @@ public class Main {
 		tiRun.setImage(SWTResourceManager.getImage(Main.class, "/Icons/run.png"));
 		tiRun.setText("Run");
 
+		new ToolItem(toolBar, SWT.SEPARATOR);
+
+		final ToolItem tiZoomIn = new ToolItem(toolBar, SWT.NONE);
+		tiZoomIn.setImage(SWTResourceManager.getImage(Main.class, "/Icons/zoomin.png"));
+		tiZoomIn.setText("Zoom In");
+
+		final ToolItem tiZoomOut = new ToolItem(toolBar, SWT.NONE);
+		tiZoomOut.setImage(SWTResourceManager.getImage(Main.class, "/Icons/zoomout.png"));
+		tiZoomOut.setText("Zoom Out");
+
 		tree = new FloTree(shell, currentFloGraph);
 		final Sash sash = new Sash(shell, SWT.VERTICAL);
-		final FloCanvas floCanvas = new FloCanvas(shell, currentFloGraph);
+		floCanvas = new FloCanvas(shell, currentFloGraph);
 
 		// Set FormData properties
 		final Tree treetree = tree.getTree();
@@ -175,9 +191,9 @@ public class Main {
 		treetree.setLayoutData(fd_tree);
 
 		final FormData fd_sash = new FormData();
-		fd_sash.width = 4;
 		fd_sash.top = new FormAttachment(toolBar);
 		fd_sash.bottom = new FormAttachment(100);
+		fd_sash.width = 4;
 		fd_sash.left = new FormAttachment(0, 200);
 		sash.setLayoutData(fd_sash);
 		sash.addSelectionListener(new SelectionAdapter() {

@@ -3,6 +3,7 @@ package flo.floGraph;
 import java.util.ArrayList;
 
 import flo.Observable.BoxInterfaceRenamedEvent;
+import flo.Observable.CurrentBoxDefinitionEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
 
@@ -36,6 +37,7 @@ public class BoxInterface {
 		this.name = name;
 
 		boxInterfaceRenamedObservable.notifyObservers(new BoxInterfaceRenamedEvent());
+		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
 	}
 
 	public ArrayList<Input> getInputs() {
@@ -54,12 +56,23 @@ public class BoxInterface {
 	 * Observables corresponding to the different events this object can emit
 	 */
 	private final Observable<BoxInterfaceRenamedEvent> boxInterfaceRenamedObservable = new Observable<BoxInterfaceRenamedEvent>();
+	private final Observable<CurrentBoxDefinitionEvent> currentBoxDefinitionObservable = new Observable<CurrentBoxDefinitionEvent>();
 
 	public void addBoxInterfaceRenamedObserver(final Observer<BoxInterfaceRenamedEvent> o) {
 		boxInterfaceRenamedObservable.addObserver(o);
 	}
 
+	public void addCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
+		currentBoxDefinitionObservable.addObserver(o);
+	}
+
 	public void deleteObservers() {
 		boxInterfaceRenamedObservable.deleteObservers();
+		currentBoxDefinitionObservable.deleteObservers();
 	}
+
+	public void deleteCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
+		currentBoxDefinitionObservable.deleteObserver(o);
+	}
+
 }

@@ -8,6 +8,7 @@ import org.eclipse.swt.graphics.Point;
 
 import flo.Pair;
 import flo.Observable.BoxAddedEvent;
+import flo.Observable.CurrentBoxDefinitionEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
 
@@ -38,9 +39,23 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	}
 
 	public void addBox(final BoxInterface bi) {
-		boxes.put(boxes.size(), new Pair<BoxInterface, Point>(bi, new Point(10, 10)));
+		boxes.put(getUniqueID(), new Pair<BoxInterface, Point>(bi, new Point(100, 100)));
 
 		boxAddedObservable.notifyObservers(new BoxAddedEvent());
+		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
+	}
+
+	private int getUniqueID() {
+		for (int i = 0;; i++)
+			if (!boxes.keySet().contains(i))
+				return i;
+	}
+
+	public void setBoxLocation(final Integer ID, final Point point) {
+		final BoxInterface bi = boxes.get(ID).x;
+		boxes.put(ID, new Pair<BoxInterface, Point>(bi, point));
+
+		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
 	}
 
 	public ArrayList<Cable> getCables() {
@@ -51,14 +66,24 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	 * Observables corresponding to the different events this object can emit
 	 */
 	private final Observable<BoxAddedEvent> boxAddedObservable = new Observable<BoxAddedEvent>();
+	private final Observable<CurrentBoxDefinitionEvent> currentBoxDefinitionObservable = new Observable<CurrentBoxDefinitionEvent>();
 
 	public void addBoxAddedObserver(final Observer<BoxAddedEvent> o) {
 		boxAddedObservable.addObserver(o);
+	}
+
+	public void addCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
+		currentBoxDefinitionObservable.addObserver(o);
 	}
 
 	@Override
 	public void deleteObservers() {
 		super.deleteObservers();
 		boxAddedObservable.deleteObservers();
+		currentBoxDefinitionObservable.deleteObservers();
+	}
+
+	public void deleteCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
+		currentBoxDefinitionObservable.deleteObserver(o);
 	}
 }

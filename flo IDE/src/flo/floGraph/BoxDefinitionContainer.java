@@ -74,6 +74,19 @@ public abstract class BoxDefinitionContainer {
 	}
 
 	/**
+	 * Returns true if this contains a certain box definition, at any level
+	 * 
+	 * @param boxDefinition
+	 * @return
+	 */
+	public boolean contains(final BoxDefinition boxDefinition) {
+		for (final BoxDefinition bd : boxDefinitions)
+			if (bd == boxDefinition || bd.contains(boxDefinition))
+				return true;
+		return false;
+	}
+
+	/**
 	 * Observables corresponding to the different events this object can emit
 	 */
 	private final Observable<BoxDefinitionAddedEvent> boxDefinitionAddedObservable = new Observable<BoxDefinitionAddedEvent>();

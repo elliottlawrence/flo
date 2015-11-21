@@ -5,6 +5,7 @@ import org.eclipse.swt.widgets.TreeItem;
 
 import flo.floGraph.BoxDefinition;
 import flo.floGraph.BoxDefinitionContainer;
+import flo.floGraph.FloGraph;
 import flo.floGraph.Module;
 
 /**
@@ -15,7 +16,8 @@ public class BoxDefinitionContainerTreeListener {
 
 	private final TreeItem treeItem;
 
-	public BoxDefinitionContainerTreeListener(final BoxDefinitionContainer container, final TreeItem treeItem) {
+	public BoxDefinitionContainerTreeListener(final FloGraph floGraph, final BoxDefinitionContainer container,
+			final TreeItem treeItem) {
 		this.treeItem = treeItem;
 
 		// Listen for when box definitions are added
@@ -23,7 +25,7 @@ public class BoxDefinitionContainerTreeListener {
 			final BoxDefinition bd = e.boxDefinition;
 			final TreeItem ti = new TreeItem(treeItem, SWT.NONE);
 			ti.setText(bd.getBoxInterface().getName());
-			new BoxDefinitionContainerTreeListener(bd, ti);
+			new BoxDefinitionContainerTreeListener(floGraph, bd, ti);
 
 			// Expand the parent
 			treeItem.setExpanded(true);
@@ -38,11 +40,19 @@ public class BoxDefinitionContainerTreeListener {
 
 			// Select another box definition (if there is one)
 			if (treeItem.getItemCount() > index)
-				treeItem.getParent().select(treeItem.getItem(index));
-			else if (treeItem.getItemCount() == index && index > 0)
+				floGraph.setCurrentBoxDefinition(
+						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(treeItem.getItem(index), floGraph));
+			// treeItem.getParent().select(treeItem.getItem(index));
+			else if (treeItem.getItemCount() == index && index > 0) {
+				floGraph.setCurrentBoxDefinition(
+						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(treeItem.getItem(index - 1), floGraph));
 				treeItem.getParent().select(treeItem.getItem(index - 1));
-			else
-				treeItem.getParent().select(treeItem);
+			} else {
+				final BoxDefinitionContainer bdc = FloTree.findBoxDefContainerFromTreeItem(treeItem, floGraph);
+				if (bdc instanceof BoxDefinition)
+					floGraph.setCurrentBoxDefinition((BoxDefinition) bdc);
+				// treeItem.getParent().select(treeItem);
+			}
 		});
 
 		// For modules, listen for when the module is renamed
@@ -57,15 +67,15 @@ public class BoxDefinitionContainerTreeListener {
 				treeItem.setText(((BoxDefinition) container).getBoxInterface().getName());
 			});
 
-		setInitialContents(container);
+		setInitialContents(container, floGraph);
 	}
 
-	private void setInitialContents(final BoxDefinitionContainer container) {
+	private void setInitialContents(final BoxDefinitionContainer container, final FloGraph floGraph) {
 		TreeItem tiBd;
 		for (final BoxDefinition bd : container.getBoxDefinitions()) {
 			tiBd = new TreeItem(treeItem, SWT.NONE);
 			tiBd.setText(bd.getBoxInterface().getName());
-			new BoxDefinitionContainerTreeListener(bd, tiBd);
+			new BoxDefinitionContainerTreeListener(floGraph, bd, tiBd);
 		}
 	}
 }

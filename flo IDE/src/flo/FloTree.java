@@ -60,18 +60,22 @@ public class FloTree {
 
 			final TreeItem selectedItem = selectedItems[0];
 			final TreeItem parentItem = selectedItem.getParentItem();
+			final BoxDefinitionContainer bdc = findBoxDefContainerFromTreeItem(selectedItem, floGraph);
 
-			// Item is a module
-			if (parentItem == null)
-				floGraph.removeModule(selectedItem.getText());
-			else {
+			if (bdc instanceof Module) {
+				// If this module contains the current box definition, set that
+				// to null
+				if (((Module) bdc).contains(floGraph.getCurrentBoxDefinition()))
+					floGraph.setCurrentBoxDefinition(null);
+
+				floGraph.removeModule((Module) bdc);
+			} else {
 				// If this is the current box definition, set that to null
-				final BoxDefinition bd = (BoxDefinition) findBoxDefContainerFromTreeItem(selectedItem, floGraph);
-				if (floGraph.getCurrentBoxDefinition() == bd)
+				if (floGraph.getCurrentBoxDefinition() == bdc)
 					floGraph.setCurrentBoxDefinition(null);
 
 				final BoxDefinitionContainer parentContainer = findBoxDefContainerFromTreeItem(parentItem, floGraph);
-				parentContainer.removeBoxDefinition(bd);
+				parentContainer.removeBoxDefinition((BoxDefinition) bdc);
 			}
 		}
 	};
