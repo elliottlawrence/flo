@@ -6,6 +6,7 @@ import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.events.MouseMoveListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
@@ -23,7 +24,7 @@ import flo.floGraph.Input;
  */
 public class FloCanvas extends Canvas {
 
-	private final FloGraph floGraph;
+	private FloGraph floGraph;
 
 	public FloCanvas(final Composite parent, final FloGraph floGraph) {
 		super(parent, SWT.NO_BACKGROUND);
@@ -32,8 +33,69 @@ public class FloCanvas extends Canvas {
 		// Listen for when the current box definition changes in any way
 		this.floGraph.addCurrentBoxDefinitionObserver(e -> redraw());
 
+		// Draw the canvas
 		addPaintListener(e -> paintCanvas(e.gc));
+
+		// Listen for mouse clicks and drags
+		addMouseListener(mouseAdapter);
+		addMouseMoveListener(mouseMoveListener);
+
+		// final DropTarget target = new DropTarget(this, DND.DROP_COPY);
+		// target.setTransfer(new Transfer[] {});
+		// target.addDropListener(new DropTargetAdapter() {
+		//
+		// @Override
+		// public void dragEnter(final DropTargetEvent event) {
+		// // TODO Auto-generated method stub
+		//
+		// }
+		//
+		// @Override
+		// public void drop(final DropTargetEvent event) {
+		// if (event.data != null)
+		// System.out.println("Holy shit!");
+		// }
+		// });
 	}
+
+	/**
+	 * Variables for mouse events
+	 */
+	private boolean drag = false;
+	private int draggedBoxID;
+	private final Point dragOffset = new Point(0, 0);
+	private ArrayList<Pair<Rectangle, Integer>> rectangles = new ArrayList<Pair<Rectangle, Integer>>();
+
+	/**
+	 * Listen for mouse down and drag events so the use can move boxes around.
+	 */
+	private final MouseAdapter mouseAdapter = new MouseAdapter() {
+		@Override
+		public void mouseDown(final MouseEvent e) {
+			for (int i = rectangles.size() - 1; i >= 0; i--) {
+				final Pair<Rectangle, Integer> pair = rectangles.get(i);
+				final Rectangle rect = pair.x;
+				if (rect.contains(e.x, e.y)) {
+					drag = true;
+					draggedBoxID = pair.y;
+					dragOffset.x = rect.x - e.x;
+					dragOffset.y = rect.y - e.y;
+					break;
+				}
+			}
+		}
+
+		@Override
+		public void mouseUp(final MouseEvent e) {
+			drag = false;
+		}
+	};
+
+	private final MouseMoveListener mouseMoveListener = e -> {
+		if (drag)
+			floGraph.getCurrentBoxDefinition().setBoxLocation(draggedBoxID,
+					new Point(dragOffset.x + e.x, dragOffset.y + e.y));
+	};
 
 	private final Color black = new Color(getDisplay(), 0, 0, 0);
 	private final Color darkGray = new Color(getDisplay(), 50, 50, 50);
@@ -42,6 +104,9 @@ public class FloCanvas extends Canvas {
 	private final Color blue = new Color(getDisplay(), 59, 91, 180);
 	private final Color darkBlue = new Color(getDisplay(), 39, 71, 180);
 
+	/**
+	 * Constants required for drawing boxes etc.
+	 */
 	private static final int CIRCLE_RADIUS = 7;
 	private static final int ARC_RADIUS = 10;
 	private static final int SHADOW_OFFSET = 4;
@@ -78,16 +143,7 @@ public class FloCanvas extends Canvas {
 			rectangles.add(new Pair<Rectangle, Integer>(drawBox(gc, pair.x, pair.y), ID));
 		}
 
-		addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseDown(final MouseEvent e) {
-				for (final Pair<Rectangle, Integer> pair : rectangles) {
-					final Rectangle rect = pair.x;
-					if (rect.contains(e.x, e.y))
-						bd.setBoxLocation(pair.y, new Point(e.x - rect.width / 2, e.y - rect.height / 2));
-				}
-			}
-		});
+		this.rectangles = rectangles;
 	}
 
 	private void drawBoxInterface(final GC gc, final BoxInterface bi) {
@@ -182,5 +238,10 @@ public class FloCanvas extends Canvas {
 	private void drawCenteredString(final GC gc, final String string, final int x, final int y) {
 		final Point stringExtent = gc.textExtent(string);
 		gc.drawText(string, x - stringExtent.x / 2, y - stringExtent.y / 2, true);
+	}
+
+	// Because Eclipse is retarded
+	private void removeFinal(final FloGraph fg) {
+		floGraph = fg;
 	}
 }

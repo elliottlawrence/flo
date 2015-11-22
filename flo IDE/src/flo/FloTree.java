@@ -31,6 +31,28 @@ public class FloTree {
 	public FloTree(final Composite parent, final FloGraph floGraph) {
 		tree = new Tree(parent, SWT.BORDER);
 		tree.addSelectionListener(selectionListener);
+
+		/*
+		 * final DragSource source = new DragSource(tree, DND.DROP_COPY);
+		 * source.setTransfer(new Transfer[] { TextTransfer.getInstance() });
+		 * source.addDragListener(new DragSourceListener() {
+		 * 
+		 * @Override public void dragStart(final DragSourceEvent event) { final
+		 * TreeItem[] selection = tree.getSelection(); if (selection.length > 0
+		 * && selection[0].getParent() != null) event.doit = true; else
+		 * event.doit = false; }
+		 * 
+		 * @Override public void dragSetData(final DragSourceEvent event) {
+		 * event.data = tree.getSelection()[0]; System.out.println("Wutfff"); }
+		 * 
+		 * @Override public void dragFinished(final DragSourceEvent event) { //
+		 * TODO Auto-generated method stub
+		 * 
+		 * }
+		 * 
+		 * });
+		 */
+
 		this.floGraph = floGraph;
 
 		new FloGraphTreeListener(floGraph, tree);
