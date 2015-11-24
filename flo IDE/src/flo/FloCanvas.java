@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.MouseAdapter;
+import org.eclipse.swt.events.FocusAdapter;
+import org.eclipse.swt.events.FocusEvent;
 import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.events.MouseListener;
 import org.eclipse.swt.events.MouseMoveListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
@@ -13,6 +15,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Text;
 
 import flo.floGraph.BoxDefinition;
 import flo.floGraph.BoxInterface;
@@ -25,6 +28,9 @@ import flo.floGraph.Input;
 public class FloCanvas extends Canvas {
 
 	private FloGraph floGraph;
+
+	// Reference to the current instance so other controls can reference it
+	private final FloCanvas thisCanvas = this;
 
 	public FloCanvas(final Composite parent, final FloGraph floGraph) {
 		super(parent, SWT.NO_BACKGROUND);
@@ -39,41 +45,30 @@ public class FloCanvas extends Canvas {
 		// Listen for mouse clicks and drags
 		addMouseListener(mouseAdapter);
 		addMouseMoveListener(mouseMoveListener);
-
-		// final DropTarget target = new DropTarget(this, DND.DROP_COPY);
-		// target.setTransfer(new Transfer[] {});
-		// target.addDropListener(new DropTargetAdapter() {
-		//
-		// @Override
-		// public void dragEnter(final DropTargetEvent event) {
-		// // TODO Auto-generated method stub
-		//
-		// }
-		//
-		// @Override
-		// public void drop(final DropTargetEvent event) {
-		// if (event.data != null)
-		// System.out.println("Holy shit!");
-		// }
-		// });
 	}
 
 	/**
-	 * Variables for mouse events
+	 * Variables for drag events
 	 */
 	private boolean drag = false;
 	private int draggedBoxID;
 	private final Point dragOffset = new Point(0, 0);
-	private ArrayList<Pair<Rectangle, Integer>> rectangles = new ArrayList<Pair<Rectangle, Integer>>();
 
 	/**
-	 * Listen for mouse down and drag events so the use can move boxes around.
+	 * Hotspots for mouse events
 	 */
-	private final MouseAdapter mouseAdapter = new MouseAdapter() {
+	private ArrayList<Pair<Rectangle, Integer>> boxRectangles;
+	private ArrayList<Pair<Rectangle, Integer>> boxNameRectangles;
+
+	/**
+	 * Listen for mouse down and drag events so the user can move boxes around.
+	 * Also listen for double clicks so the user can edit box names.
+	 */
+	private final MouseListener mouseAdapter = new MouseListener() {
 		@Override
 		public void mouseDown(final MouseEvent e) {
-			for (int i = rectangles.size() - 1; i >= 0; i--) {
-				final Pair<Rectangle, Integer> pair = rectangles.get(i);
+			for (int i = boxRectangles.size() - 1; i >= 0; i--) {
+				final Pair<Rectangle, Integer> pair = boxRectangles.get(i);
 				final Rectangle rect = pair.x;
 				if (rect.contains(e.x, e.y)) {
 					drag = true;
@@ -88,6 +83,56 @@ public class FloCanvas extends Canvas {
 		@Override
 		public void mouseUp(final MouseEvent e) {
 			drag = false;
+		}
+
+		@Override
+		public void mouseDoubleClick(final MouseEvent e) {
+			for (int i = boxNameRectangles.size() - 1; i >= 0; i--) {
+				final Pair<Rectangle, Integer> pair = boxNameRectangles.get(i);
+				final Rectangle rect = pair.x;
+				if (rect.contains(e.x, e.y)) {
+					final int ID = pair.y;
+
+					// Create new editor
+					final Text textEditor = new Text(thisCanvas, SWT.NONE);
+					textEditor.setLocation(rect.x, rect.y);
+					textEditor.setSize(rect.width, rect.height);
+					textEditor.selectAll();
+					textEditor.setFocus();
+
+					// Save text when focus is lost
+					textEditor.addFocusListener(new FocusAdapter() {
+						@Override
+						public void focusLost(final FocusEvent event) {
+							setBoxName(ID, textEditor.getText());
+							textEditor.dispose();
+						}
+					});
+
+					// Save text on Return, discard on Escape
+					textEditor.addTraverseListener(e1 -> {
+						switch (e1.detail) {
+						case SWT.TRAVERSE_RETURN:
+							setBoxName(ID, textEditor.getText());
+							// fall through
+						case SWT.TRAVERSE_ESCAPE:
+							textEditor.dispose();
+							e1.doit = false;
+						}
+					});
+
+					break;
+				}
+			}
+		}
+
+		/**
+		 * Change a box's name
+		 */
+		private void setBoxName(final int ID, final String name) {
+			final Pair<BoxInterface, Point> bip = floGraph.getCurrentBoxDefinition().getBoxes().get(ID);
+			final BoxInterface bi = bip.x;
+			bi.setName(name);
 		}
 	};
 
@@ -136,14 +181,13 @@ public class FloCanvas extends Canvas {
 		drawBoxInterface(gc, bd.getBoxInterface());
 
 		// Draw the boxes
-		final ArrayList<Pair<Rectangle, Integer>> rectangles = new ArrayList<Pair<Rectangle, Integer>>();
+		boxRectangles = new ArrayList<Pair<Rectangle, Integer>>();
+		boxNameRectangles = new ArrayList<Pair<Rectangle, Integer>>();
 		final Map<Integer, Pair<BoxInterface, Point>> boxes = bd.getBoxes();
 		for (final Integer ID : boxes.keySet()) {
 			final Pair<BoxInterface, Point> pair = boxes.get(ID);
-			rectangles.add(new Pair<Rectangle, Integer>(drawBox(gc, pair.x, pair.y), ID));
+			drawBox(gc, pair.x, pair.y, ID);
 		}
-
-		this.rectangles = rectangles;
 	}
 
 	private void drawBoxInterface(final GC gc, final BoxInterface bi) {
@@ -174,7 +218,7 @@ public class FloCanvas extends Canvas {
 		gc.fillOval(x + CIRCLE_PADDING, OUTPUT_Y_OFFSET + (height - CIRCLE_RADIUS) / 2, CIRCLE_RADIUS, CIRCLE_RADIUS);
 	}
 
-	private Rectangle drawBox(final GC gc, final BoxInterface bi, final Point point) {
+	private void drawBox(final GC gc, final BoxInterface bi, final Point point, final int ID) {
 		final Point stringExtent = gc.textExtent(bi.getName());
 
 		// Calculate the size of the box
@@ -197,7 +241,9 @@ public class FloCanvas extends Canvas {
 			height = stringExtent.y * (numInputs + 1) + TEXT_PADDING * (numInputs + 3);
 		}
 
-		final Rectangle rect = new Rectangle(point.x, point.y, width, height);
+		// Add this to the list of box rectangles
+		final Rectangle boxRect = new Rectangle(point.x, point.y, width, height);
+		boxRectangles.add(new Pair<Rectangle, Integer>(boxRect, ID));
 
 		// Draw the shadow
 		gc.setAlpha(50);
@@ -216,7 +262,11 @@ public class FloCanvas extends Canvas {
 		}
 
 		// Draw box name
-		drawCenteredString(gc, bi.getName(), point.x + width / 2, point.y + topHeight / 2);
+		final Rectangle boxNameRect = drawCenteredString(gc, bi.getName(), point.x + width / 2,
+				point.y + topHeight / 2);
+
+		// Add this to the list of box name rectangles
+		boxNameRectangles.add(new Pair<Rectangle, Integer>(boxNameRect, ID));
 
 		// Draw output
 		gc.setBackground(white);
@@ -231,16 +281,27 @@ public class FloCanvas extends Canvas {
 			gc.drawText(i.getName(), point.x + CIRCLE_PADDING + 2 * TEXT_PADDING, y - stringExtent.y / 2, true);
 			y += stringExtent.y + TEXT_PADDING;
 		}
-
-		return rect;
 	}
 
-	private void drawCenteredString(final GC gc, final String string, final int x, final int y) {
+	/**
+	 * Draw a string centered at a point
+	 *
+	 * @param gc
+	 * @param string
+	 * @param x
+	 * @param y
+	 * @return The string's bounding rectangle
+	 */
+	private Rectangle drawCenteredString(final GC gc, final String string, final int x, final int y) {
 		final Point stringExtent = gc.textExtent(string);
-		gc.drawText(string, x - stringExtent.x / 2, y - stringExtent.y / 2, true);
+		final int rectX = x - stringExtent.x / 2;
+		final int rectY = y - stringExtent.y / 2;
+		gc.drawText(string, rectX, rectY, true);
+		return new Rectangle(rectX, rectY, stringExtent.x, stringExtent.y);
 	}
 
 	// Because Eclipse is retarded
+	@SuppressWarnings("unused")
 	private void removeFinal(final FloGraph fg) {
 		floGraph = fg;
 	}
