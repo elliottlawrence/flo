@@ -28,6 +28,8 @@ import flo.floGraph.Input;
 public class FloCanvas extends Canvas {
 
 	private FloGraph floGraph;
+	// private final Menu menu;
+	// private final MenuItem miAddInput;
 
 	// Reference to the current instance so other controls can reference it
 	private final FloCanvas thisCanvas = this;
@@ -45,6 +47,20 @@ public class FloCanvas extends Canvas {
 		// Listen for mouse clicks and drags
 		addMouseListener(mouseAdapter);
 		addMouseMoveListener(mouseMoveListener);
+
+		// Add context menu
+		// menu = new Menu(this);
+		// menu.addMenuListener(menuListener);
+		// setMenu(menu);
+		//
+		// miAddInput = new MenuItem(menu, SWT.NONE);
+		// miAddInput.setText("Add Input");
+		// miAddInput.addSelectionListener(new SelectionAdapter() {
+		// @Override
+		// public void widgetSelected(final SelectionEvent e) {
+		// System.out.println("Clicked!");
+		// }
+		// });
 	}
 
 	/**
@@ -55,10 +71,16 @@ public class FloCanvas extends Canvas {
 	private final Point dragOffset = new Point(0, 0);
 
 	/**
+	 * Variables for right click events
+	 */
+	private final Point lastRightClick = new Point(0, 0);
+
+	/**
 	 * Hotspots for mouse events
 	 */
-	private ArrayList<Pair<Rectangle, Integer>> boxRectangles;
-	private ArrayList<Pair<Rectangle, Integer>> boxNameRectangles;
+	private ArrayList<Pair<Rectangle, Integer>> boxRectangles = new ArrayList<Pair<Rectangle, Integer>>();
+	private ArrayList<Pair<Rectangle, Integer>> boxNameRectangles = new ArrayList<Pair<Rectangle, Integer>>();
+	private ArrayList<Pair<Rectangle, Input>> inputRectangles = new ArrayList<Pair<Rectangle, Input>>();
 
 	/**
 	 * Listen for mouse down and drag events so the user can move boxes around.
@@ -67,6 +89,12 @@ public class FloCanvas extends Canvas {
 	private final MouseListener mouseAdapter = new MouseListener() {
 		@Override
 		public void mouseDown(final MouseEvent e) {
+			if (e.button == 3) {
+				lastRightClick.x = e.x;
+				lastRightClick.y = e.y;
+				return;
+			}
+
 			for (int i = boxRectangles.size() - 1; i >= 0; i--) {
 				final Pair<Rectangle, Integer> pair = boxRectangles.get(i);
 				final Rectangle rect = pair.x;
@@ -121,7 +149,45 @@ public class FloCanvas extends Canvas {
 						}
 					});
 
-					break;
+					return;
+				}
+			}
+
+			for (int i = inputRectangles.size() - 1; i >= 0; i--) {
+				final Pair<Rectangle, Input> triple = inputRectangles.get(i);
+				final Rectangle rect = triple.x;
+				if (rect.contains(e.x, e.y)) {
+					final Input input = triple.y;
+
+					// Create new editor
+					final Text textEditor = new Text(thisCanvas, SWT.NONE);
+					textEditor.setLocation(rect.x, rect.y);
+					textEditor.setSize(rect.width, rect.height);
+					textEditor.selectAll();
+					textEditor.setFocus();
+
+					// Save text when focus is lost
+					textEditor.addFocusListener(new FocusAdapter() {
+						@Override
+						public void focusLost(final FocusEvent event) {
+							setInputName(input, textEditor.getText());
+							textEditor.dispose();
+						}
+					});
+
+					// Save text on Return, discard on Escape
+					textEditor.addTraverseListener(e1 -> {
+						switch (e1.detail) {
+						case SWT.TRAVERSE_RETURN:
+							setInputName(input, textEditor.getText());
+							// fall through
+						case SWT.TRAVERSE_ESCAPE:
+							textEditor.dispose();
+							e1.doit = false;
+						}
+					});
+
+					return;
 				}
 			}
 		}
@@ -134,6 +200,13 @@ public class FloCanvas extends Canvas {
 			final BoxInterface bi = bip.x;
 			bi.setName(name);
 		}
+
+		/**
+		 * Change an input's name
+		 */
+		private void setInputName(final Input input, final String name) {
+			input.setName(name);
+		}
 	};
 
 	private final MouseMoveListener mouseMoveListener = e -> {
@@ -141,6 +214,21 @@ public class FloCanvas extends Canvas {
 			floGraph.getCurrentBoxDefinition().setBoxLocation(draggedBoxID,
 					new Point(dragOffset.x + e.x, dragOffset.y + e.y));
 	};
+
+	// private final MenuListener menuListener = new MenuAdapter() {
+	// @Override
+	// public void menuShown(final MenuEvent e) {
+	// menu.setVisible(false);
+	// for (int i = boxRectangles.size() - 1; i >= 0; i--) {
+	// final Pair<Rectangle, Integer> pair = boxRectangles.get(i);
+	// final Rectangle rect = pair.x;
+	// if (rect.contains(lastRightClick)) {
+	// menu.setVisible(true);
+	// break;
+	// }
+	// }
+	// }
+	// };
 
 	private final Color black = new Color(getDisplay(), 0, 0, 0);
 	private final Color darkGray = new Color(getDisplay(), 50, 50, 50);
@@ -183,6 +271,7 @@ public class FloCanvas extends Canvas {
 		// Draw the boxes
 		boxRectangles = new ArrayList<Pair<Rectangle, Integer>>();
 		boxNameRectangles = new ArrayList<Pair<Rectangle, Integer>>();
+		inputRectangles = new ArrayList<Pair<Rectangle, Input>>();
 		final Map<Integer, Pair<BoxInterface, Point>> boxes = bd.getBoxes();
 		for (final Integer ID : boxes.keySet()) {
 			final Pair<BoxInterface, Point> pair = boxes.get(ID);
@@ -276,10 +365,18 @@ public class FloCanvas extends Canvas {
 		// Draw inputs
 		int y = point.y + topHeight + TEXT_PADDING + stringExtent.y / 2;
 		for (final Input i : bi.getInputs()) {
+			final int rectX = point.x + CIRCLE_PADDING + 2 * TEXT_PADDING;
+			final int rectY = y - stringExtent.y / 2;
+			final Point textExtent = gc.textExtent(i.getName());
+
 			gc.fillOval(point.x + CIRCLE_PADDING - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS,
 					CIRCLE_RADIUS);
-			gc.drawText(i.getName(), point.x + CIRCLE_PADDING + 2 * TEXT_PADDING, y - stringExtent.y / 2, true);
+			gc.drawText(i.getName(), rectX, rectY, true);
 			y += stringExtent.y + TEXT_PADDING;
+
+			// Add this to the list of input rectangles
+			final Rectangle inputRect = new Rectangle(rectX, rectY, textExtent.x, textExtent.y);
+			inputRectangles.add(new Pair<Rectangle, Input>(inputRect, i));
 		}
 	}
 

@@ -5,7 +5,7 @@ package flo.floGraph;
  */
 public class Input {
 
-	private final String name;
+	private String name;
 	private Type type;
 
 	public Input(final String name) {
@@ -14,6 +14,10 @@ public class Input {
 
 	public String getName() {
 		return name;
+	}
+
+	public void setName(final String name) {
+		this.name = name;
 	}
 
 	public Type getType() {
