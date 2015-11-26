@@ -42,7 +42,6 @@ public class BoxDefinitionContainerTreeListener {
 			if (treeItem.getItemCount() > index)
 				floGraph.setCurrentBoxDefinition(
 						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(treeItem.getItem(index), floGraph));
-			// treeItem.getParent().select(treeItem.getItem(index));
 			else if (treeItem.getItemCount() == index && index > 0) {
 				floGraph.setCurrentBoxDefinition(
 						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(treeItem.getItem(index - 1), floGraph));
@@ -51,7 +50,6 @@ public class BoxDefinitionContainerTreeListener {
 				final BoxDefinitionContainer bdc = FloTree.findBoxDefContainerFromTreeItem(treeItem, floGraph);
 				if (bdc instanceof BoxDefinition)
 					floGraph.setCurrentBoxDefinition((BoxDefinition) bdc);
-				// treeItem.getParent().select(treeItem);
 			}
 		});
 
