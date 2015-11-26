@@ -19,9 +19,9 @@ import org.eclipse.swt.widgets.Text;
 
 import flo.floGraph.BoxDefinition;
 import flo.floGraph.BoxInterface;
+import flo.floGraph.Cable;
 import flo.floGraph.FloGraph;
 import flo.floGraph.Input;
-import flo.floGraph.Output;
 
 /**
  * The canvas where code is primarily edited.
@@ -50,7 +50,9 @@ public class FloCanvas extends Canvas {
 		// Listen for double clicks so the user can rename things
 		addMouseListener(renameDoubleClickListener);
 
+		// Listen for clicks on inputs and outputs so users can make cables
 		addMouseListener(cableClickListener);
+		addMouseMoveListener(cableMouseMoveListener);
 	}
 
 	/**
@@ -60,8 +62,8 @@ public class FloCanvas extends Canvas {
 	private final ArrayList<Pair<Rectangle, Integer>> boxRectangles = new ArrayList<Pair<Rectangle, Integer>>();
 	private final ArrayList<Pair<Rectangle, Integer>> boxNameRectangles = new ArrayList<Pair<Rectangle, Integer>>();
 	private final ArrayList<Pair<Rectangle, Input>> inputNameRectangles = new ArrayList<Pair<Rectangle, Input>>();
-	private final ArrayList<Pair<Circle, Input>> inputCircles = new ArrayList<Pair<Circle, Input>>();
-	private final ArrayList<Pair<Circle, Output>> outputCircles = new ArrayList<Pair<Circle, Output>>();
+	private final ArrayList<Triple<Circle, Integer, Input>> inputCircles = new ArrayList<Triple<Circle, Integer, Input>>();
+	private final ArrayList<Pair<Circle, Integer>> outputCircles = new ArrayList<Pair<Circle, Integer>>();
 
 	/**
 	 * Variables for drag events
@@ -147,6 +149,8 @@ public class FloCanvas extends Canvas {
 							e1.doit = false;
 						}
 					});
+
+					return;
 				}
 			}
 
@@ -185,6 +189,7 @@ public class FloCanvas extends Canvas {
 						}
 					});
 
+					return;
 				}
 			}
 
@@ -217,6 +222,8 @@ public class FloCanvas extends Canvas {
 						e1.doit = false;
 					}
 				});
+
+				return;
 			}
 		}
 
@@ -244,8 +251,17 @@ public class FloCanvas extends Canvas {
 		}
 	};
 
+	/**
+	 * Variables for input/output click events
+	 */
 	private boolean inputHasBeenClicked = false;
+	private int endID;
+	private Input endInput;
+
 	private boolean outputHasBeenClicked = false;
+	private int startID;
+
+	private final Point cableEnd = new Point(0, 0);
 
 	private final MouseAdapter cableClickListener = new MouseAdapter() {
 		@Override
@@ -254,27 +270,50 @@ public class FloCanvas extends Canvas {
 				return;
 
 			for (int i = inputCircles.size() - 1; i >= 0; i--) {
-				final Pair<Circle, Input> pair = inputCircles.get(i);
+				final Triple<Circle, Integer, Input> pair = inputCircles.get(i);
 				final Circle circle = pair.x;
 				if (circle.contains(e.x, e.y)) {
-					if (outputHasBeenClicked)
+					if (outputHasBeenClicked) {
+						// Make cable
+						endID = pair.y;
+						endInput = pair.z;
+
+						final Cable cable = new Cable(startID, endID, endInput);
+						floGraph.getCurrentBoxDefinition().addCable(cable);
+
 						// Reset variables
 						inputHasBeenClicked = outputHasBeenClicked = false;
-					else
+
+						redraw();
+					} else {
 						inputHasBeenClicked = true;
+						endID = pair.y;
+						endInput = pair.z;
+					}
+
 					return;
 				}
 			}
 
 			for (int i = outputCircles.size() - 1; i >= 0; i--) {
-				final Pair<Circle, Output> pair = outputCircles.get(i);
+				final Pair<Circle, Integer> pair = outputCircles.get(i);
 				final Circle circle = pair.x;
 				if (circle.contains(e.x, e.y)) {
-					if (inputHasBeenClicked)
+					if (inputHasBeenClicked) {
+						// Make cable
+						startID = pair.y;
+
+						final Cable cable = new Cable(startID, endID, endInput);
+						floGraph.getCurrentBoxDefinition().addCable(cable);
+
 						// Reset variables
 						inputHasBeenClicked = outputHasBeenClicked = false;
-					else
+
+						redraw();
+					} else {
 						outputHasBeenClicked = true;
+						startID = pair.y;
+					}
 					return;
 				}
 			}
@@ -282,6 +321,9 @@ public class FloCanvas extends Canvas {
 	};
 
 	private final MouseMoveListener cableMouseMoveListener = e -> {
+		cableEnd.x = e.x;
+		cableEnd.y = e.y;
+		redraw();
 	};
 
 	private final Color black = new Color(getDisplay(), 0, 0, 0);
@@ -330,6 +372,9 @@ public class FloCanvas extends Canvas {
 			final Pair<BoxInterface, Point> pair = boxes.get(ID);
 			drawBox(gc, pair.x, pair.y, ID);
 		}
+
+		// Draw the cables
+		drawCables(gc);
 	}
 
 	private void resetHotspots() {
@@ -441,7 +486,7 @@ public class FloCanvas extends Canvas {
 		// Add this to the list of output circles
 		final Circle outputCircle = new Circle(point.x + width - CIRCLE_PADDING + CIRCLE_RADIUS / 2,
 				point.y + topHeight / 2, CIRCLE_RADIUS);
-		outputCircles.add(new Pair<Circle, Output>(outputCircle, bi.getOutput()));
+		outputCircles.add(new Pair<Circle, Integer>(outputCircle, ID));
 
 		// Draw inputs
 		int y = point.y + topHeight + TEXT_PADDING + stringExtent.y / 2;
@@ -460,10 +505,69 @@ public class FloCanvas extends Canvas {
 
 			// Add this to the list of input circles
 			final Circle inputCircle = new Circle(point.x + CIRCLE_PADDING, y, CIRCLE_RADIUS);
-			inputCircles.add(new Pair<Circle, Input>(inputCircle, i));
+			inputCircles.add(new Triple<Circle, Integer, Input>(inputCircle, ID, i));
 
 			y += stringExtent.y + TEXT_PADDING;
 		}
+	}
+
+	private void drawCables(final GC gc) {
+		gc.setAlpha(175);
+		gc.setForeground(black);
+		gc.setLineWidth(2);
+
+		final ArrayList<Cable> cables = floGraph.getCurrentBoxDefinition().getCables();
+
+		for (final Cable cable : cables)
+			if (!cable.getHasStartOnly()) {
+				Circle outputCircle = new Circle(0, 0, 0), inputCircle = new Circle(0, 0, 0);
+
+				final int startID = cable.getStartID();
+				for (final Pair<Circle, Integer> pair : outputCircles)
+					if (pair.y == startID)
+						outputCircle = pair.x;
+
+				final int endID = cable.getEndID();
+				final Input endInput = cable.getEndInput();
+				for (final Triple<Circle, Integer, Input> triple : inputCircles)
+					if (triple.y == endID && triple.z == endInput)
+						inputCircle = triple.x;
+
+				// Draw the cable
+				drawCableBetweenPoints(gc, outputCircle.center, inputCircle.center);
+			}
+
+		// Draw the temporary cable if there is one
+		if (inputHasBeenClicked && !outputHasBeenClicked) {
+			Circle inputCircle = new Circle(0, 0, 0);
+			for (final Triple<Circle, Integer, Input> triple : inputCircles)
+				if (triple.y == endID && triple.z == endInput)
+					inputCircle = triple.x;
+
+			drawCableBetweenPoints(gc, cableEnd, inputCircle.center);
+
+		} else if (outputHasBeenClicked && !inputHasBeenClicked) {
+			Circle outputCircle = new Circle(0, 0, 0);
+			for (final Pair<Circle, Integer> pair : outputCircles)
+				if (pair.y == startID)
+					outputCircle = pair.x;
+
+			drawCableBetweenPoints(gc, outputCircle.center, cableEnd);
+		}
+
+		gc.setAlpha(255);
+	}
+
+	private void drawCableBetweenPoints(final GC gc, final Point start, final Point end) {
+		final int x1 = start.x;
+		final int y1 = start.y;
+		final int x4 = end.x;
+		final int y4 = end.y;
+		final int x2 = Math.abs(x4 + x1) / 2;
+		final int y2 = y1;
+		final int x3 = x2;
+		final int y3 = y4;
+		gc.drawPolyline(new int[] { x1, y1, x2, y2, x3, y3, x4, y4 });
 	}
 
 	/**

@@ -62,6 +62,10 @@ public class BoxDefinition extends BoxDefinitionContainer {
 		return cables;
 	}
 
+	public void addCable(final Cable cable) {
+		cables.add(cable);
+	}
+
 	/**
 	 * Observables corresponding to the different events this object can emit
 	 */
