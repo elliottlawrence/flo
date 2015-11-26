@@ -2,42 +2,23 @@ package flo.floGraph;
 
 /**
  * A cable connects the output of one box to the input of another.
- * Alternatively, a cable can start from a single output, indicating that the
- * other end will be connected to the output of the surrounding function.
  */
 public class Cable {
 
-	private final boolean hasStartOnly;
+	private final Output output;
+	private final Input input;
 
-	private final int startID;
-
-	/**
-	 * Valid if !hasStartOnly
-	 */
-	private final int endID;
-	private final Input endInput;
-
-	public Cable(final int startID, final int endID, final Input endInput) {
-		this.startID = startID;
-		this.endID = endID;
-		this.endInput = endInput;
-
-		hasStartOnly = false;
+	public Cable(final Output output, final Input input) {
+		this.output = output;
+		this.input = input;
 	}
 
-	public boolean getHasStartOnly() {
-		return hasStartOnly;
+	public Input getInput() {
+		return input;
 	}
 
-	public int getStartID() {
-		return startID;
+	public Output getOutput() {
+		return output;
 	}
 
-	public int getEndID() {
-		return endID;
-	}
-
-	public Input getEndInput() {
-		return endInput;
-	}
 }

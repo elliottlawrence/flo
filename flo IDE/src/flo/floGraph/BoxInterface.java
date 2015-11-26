@@ -11,18 +11,22 @@ import flo.Observable.Observer;
  * A box is a generic representation of functions, constructors, and literals.
  * When used in expressions, these appear as "black boxes", and only their
  * interface is visible. This consists of a name, a set of inputs, and an
- * output.
+ * output. (For symmetry, there is an end input connected to the output so that
+ * the last box's output can be connected to an input.)
  */
 public class BoxInterface {
 
 	private BoxFlavor flavor;
 	private String name;
 	private final ArrayList<Input> inputs;
-	private Output output;
+	private final Output output;
+	private final Input endInput;
 
 	public BoxInterface(final String name) {
 		this.name = name;
 		inputs = new ArrayList<Input>();
+		output = new Output();
+		endInput = new Input(name);
 	}
 
 	public BoxFlavor getFlavor() {
@@ -50,6 +54,10 @@ public class BoxInterface {
 
 	public Output getOutput() {
 		return output;
+	}
+
+	public Input getEndInput() {
+		return endInput;
 	}
 
 	/**

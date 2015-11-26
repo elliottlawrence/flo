@@ -22,6 +22,7 @@ import flo.floGraph.BoxInterface;
 import flo.floGraph.Cable;
 import flo.floGraph.FloGraph;
 import flo.floGraph.Input;
+import flo.floGraph.Output;
 
 /**
  * The canvas where code is primarily edited.
@@ -62,8 +63,8 @@ public class FloCanvas extends Canvas {
 	private final ArrayList<Pair<Rectangle, Integer>> boxRectangles = new ArrayList<Pair<Rectangle, Integer>>();
 	private final ArrayList<Pair<Rectangle, Integer>> boxNameRectangles = new ArrayList<Pair<Rectangle, Integer>>();
 	private final ArrayList<Pair<Rectangle, Input>> inputNameRectangles = new ArrayList<Pair<Rectangle, Input>>();
-	private final ArrayList<Triple<Circle, Integer, Input>> inputCircles = new ArrayList<Triple<Circle, Integer, Input>>();
-	private final ArrayList<Pair<Circle, Integer>> outputCircles = new ArrayList<Pair<Circle, Integer>>();
+	private final ArrayList<Pair<Circle, Input>> inputCircles = new ArrayList<Pair<Circle, Input>>();
+	private final ArrayList<Pair<Circle, Output>> outputCircles = new ArrayList<Pair<Circle, Output>>();
 
 	/**
 	 * Variables for drag events
@@ -255,11 +256,10 @@ public class FloCanvas extends Canvas {
 	 * Variables for input/output click events
 	 */
 	private boolean inputHasBeenClicked = false;
-	private int endID;
-	private Input endInput;
+	private Input clickedInput;
 
 	private boolean outputHasBeenClicked = false;
-	private int startID;
+	private Output clickedOutput;
 
 	private final Point cableEnd = new Point(0, 0);
 
@@ -270,49 +270,42 @@ public class FloCanvas extends Canvas {
 				return;
 
 			for (int i = inputCircles.size() - 1; i >= 0; i--) {
-				final Triple<Circle, Integer, Input> pair = inputCircles.get(i);
+				final Pair<Circle, Input> pair = inputCircles.get(i);
 				final Circle circle = pair.x;
 				if (circle.contains(e.x, e.y)) {
+					inputHasBeenClicked = true;
+					clickedInput = pair.y;
+
 					if (outputHasBeenClicked) {
 						// Make cable
-						endID = pair.y;
-						endInput = pair.z;
-
-						final Cable cable = new Cable(startID, endID, endInput);
+						final Cable cable = new Cable(clickedOutput, clickedInput);
 						floGraph.getCurrentBoxDefinition().addCable(cable);
 
 						// Reset variables
 						inputHasBeenClicked = outputHasBeenClicked = false;
 
 						redraw();
-					} else {
-						inputHasBeenClicked = true;
-						endID = pair.y;
-						endInput = pair.z;
 					}
-
 					return;
 				}
 			}
 
 			for (int i = outputCircles.size() - 1; i >= 0; i--) {
-				final Pair<Circle, Integer> pair = outputCircles.get(i);
+				final Pair<Circle, Output> pair = outputCircles.get(i);
 				final Circle circle = pair.x;
 				if (circle.contains(e.x, e.y)) {
+					outputHasBeenClicked = true;
+					clickedOutput = pair.y;
+
 					if (inputHasBeenClicked) {
 						// Make cable
-						startID = pair.y;
-
-						final Cable cable = new Cable(startID, endID, endInput);
+						final Cable cable = new Cable(clickedOutput, clickedInput);
 						floGraph.getCurrentBoxDefinition().addCable(cable);
 
 						// Reset variables
 						inputHasBeenClicked = outputHasBeenClicked = false;
 
 						redraw();
-					} else {
-						outputHasBeenClicked = true;
-						startID = pair.y;
 					}
 					return;
 				}
@@ -421,6 +414,11 @@ public class FloCanvas extends Canvas {
 		// Draw the circle
 		gc.setBackground(white);
 		gc.fillOval(x + CIRCLE_PADDING, OUTPUT_Y_OFFSET + (height - CIRCLE_RADIUS) / 2, CIRCLE_RADIUS, CIRCLE_RADIUS);
+
+		// Add to the list of inputs
+		final Circle inputCircle = new Circle(x + CIRCLE_PADDING + CIRCLE_RADIUS / 2, OUTPUT_Y_OFFSET + height / 2,
+				CIRCLE_RADIUS);
+		inputCircles.add(new Pair<Circle, Input>(inputCircle, bi.getEndInput()));
 	}
 
 	private void drawBox(final GC gc, final BoxInterface bi, final Point point, final int ID) {
@@ -486,7 +484,7 @@ public class FloCanvas extends Canvas {
 		// Add this to the list of output circles
 		final Circle outputCircle = new Circle(point.x + width - CIRCLE_PADDING + CIRCLE_RADIUS / 2,
 				point.y + topHeight / 2, CIRCLE_RADIUS);
-		outputCircles.add(new Pair<Circle, Integer>(outputCircle, ID));
+		outputCircles.add(new Pair<Circle, Output>(outputCircle, bi.getOutput()));
 
 		// Draw inputs
 		int y = point.y + topHeight + TEXT_PADDING + stringExtent.y / 2;
@@ -505,7 +503,7 @@ public class FloCanvas extends Canvas {
 
 			// Add this to the list of input circles
 			final Circle inputCircle = new Circle(point.x + CIRCLE_PADDING, y, CIRCLE_RADIUS);
-			inputCircles.add(new Triple<Circle, Integer, Input>(inputCircle, ID, i));
+			inputCircles.add(new Pair<Circle, Input>(inputCircle, i));
 
 			y += stringExtent.y + TEXT_PADDING;
 		}
@@ -518,38 +516,36 @@ public class FloCanvas extends Canvas {
 
 		final ArrayList<Cable> cables = floGraph.getCurrentBoxDefinition().getCables();
 
-		for (final Cable cable : cables)
-			if (!cable.getHasStartOnly()) {
-				Circle outputCircle = new Circle(0, 0, 0), inputCircle = new Circle(0, 0, 0);
+		for (final Cable cable : cables) {
+			Circle outputCircle = new Circle(0, 0, 0), inputCircle = new Circle(0, 0, 0);
 
-				final int startID = cable.getStartID();
-				for (final Pair<Circle, Integer> pair : outputCircles)
-					if (pair.y == startID)
-						outputCircle = pair.x;
+			final Output output = cable.getOutput();
+			for (final Pair<Circle, Output> pair : outputCircles)
+				if (pair.y == output)
+					outputCircle = pair.x;
 
-				final int endID = cable.getEndID();
-				final Input endInput = cable.getEndInput();
-				for (final Triple<Circle, Integer, Input> triple : inputCircles)
-					if (triple.y == endID && triple.z == endInput)
-						inputCircle = triple.x;
+			final Input input = cable.getInput();
+			for (final Pair<Circle, Input> pair : inputCircles)
+				if (pair.y == input)
+					inputCircle = pair.x;
 
-				// Draw the cable
-				drawCableBetweenPoints(gc, outputCircle.center, inputCircle.center);
-			}
+			// Draw the cable
+			drawCableBetweenPoints(gc, outputCircle.center, inputCircle.center);
+		}
 
 		// Draw the temporary cable if there is one
 		if (inputHasBeenClicked && !outputHasBeenClicked) {
 			Circle inputCircle = new Circle(0, 0, 0);
-			for (final Triple<Circle, Integer, Input> triple : inputCircles)
-				if (triple.y == endID && triple.z == endInput)
-					inputCircle = triple.x;
+			for (final Pair<Circle, Input> pair : inputCircles)
+				if (pair.y == clickedInput)
+					inputCircle = pair.x;
 
 			drawCableBetweenPoints(gc, cableEnd, inputCircle.center);
 
 		} else if (outputHasBeenClicked && !inputHasBeenClicked) {
 			Circle outputCircle = new Circle(0, 0, 0);
-			for (final Pair<Circle, Integer> pair : outputCircles)
-				if (pair.y == startID)
+			for (final Pair<Circle, Output> pair : outputCircles)
+				if (pair.y == clickedOutput)
 					outputCircle = pair.x;
 
 			drawCableBetweenPoints(gc, outputCircle.center, cableEnd);
@@ -563,7 +559,7 @@ public class FloCanvas extends Canvas {
 		final int y1 = start.y;
 		final int x4 = end.x;
 		final int y4 = end.y;
-		final int x2 = Math.abs(x4 + x1) / 2;
+		final int x2 = (x4 + x1) / 2;
 		final int y2 = y1;
 		final int x3 = x2;
 		final int y3 = y4;
