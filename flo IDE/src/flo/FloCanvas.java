@@ -11,6 +11,7 @@ import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseMoveListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Path;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Canvas;
@@ -54,6 +55,12 @@ public class FloCanvas extends Canvas {
 		// Listen for clicks on inputs and outputs so users can make cables
 		addMouseListener(cableClickListener);
 		addMouseMoveListener(cableMouseMoveListener);
+
+		// Listen for mouse moves to highlight inputs and outputs
+		addMouseMoveListener(inputOutputMouseOverListener);
+
+		// Redraw on mouse moves
+		addMouseMoveListener(e -> redraw());
 	}
 
 	/**
@@ -241,9 +248,15 @@ public class FloCanvas extends Canvas {
 		 * Change an input's name, or delete the input if its name was cleared
 		 */
 		private void setInputName(final Input input, final String name) {
-			if (name.isEmpty())
+			if (name.isEmpty()) {
+				// Remove input from box interface
 				input.getParent().removeInput(input);
-			else
+
+				// Remove cables attached to input
+				final Cable cable = input.getCable();
+				if (cable != null)
+					cable.getParent().removeCable(cable);
+			} else
 				input.setName(name);
 		}
 
@@ -282,7 +295,7 @@ public class FloCanvas extends Canvas {
 
 					if (outputHasBeenClicked) {
 						// Make cable
-						final Cable cable = new Cable(clickedOutput, clickedInput);
+						final Cable cable = new Cable(clickedOutput, clickedInput, floGraph.getCurrentBoxDefinition());
 						floGraph.getCurrentBoxDefinition().addCable(cable);
 
 						// Reset variables
@@ -313,22 +326,13 @@ public class FloCanvas extends Canvas {
 
 					if (inputHasBeenClicked) {
 						// Make cable
-						final Cable cable = new Cable(clickedOutput, clickedInput);
+						final Cable cable = new Cable(clickedOutput, clickedInput, floGraph.getCurrentBoxDefinition());
 						floGraph.getCurrentBoxDefinition().addCable(cable);
 
 						// Reset variables
 						inputHasBeenClicked = outputHasBeenClicked = false;
 
 						redraw();
-					} else if (clickedOutput.hasCable()) {
-						// Delete cable
-						final Cable cable = clickedOutput.getCables().get(0);
-						floGraph.getCurrentBoxDefinition().removeCable(cable);
-
-						// Set variables
-						inputHasBeenClicked = true;
-						outputHasBeenClicked = false;
-						clickedInput = cable.getInput();
 					}
 					return;
 				}
@@ -343,7 +347,33 @@ public class FloCanvas extends Canvas {
 	private final MouseMoveListener cableMouseMoveListener = e -> {
 		cableEnd.x = e.x;
 		cableEnd.y = e.y;
-		redraw();
+	};
+
+	private Input mousedOverInput;
+	private Output mousedOverOutput;
+
+	private final MouseMoveListener inputOutputMouseOverListener = e -> {
+		// See if user moused over an input
+		mousedOverInput = null;
+		for (int i = inputCircles.size() - 1; i >= 0; i--) {
+			final Pair<Circle, Input> pair = inputCircles.get(i);
+			final Circle circle = pair.x;
+			if (circle.contains(e.x, e.y)) {
+				mousedOverInput = pair.y;
+				return;
+			}
+		}
+
+		// See if user moused over an output
+		mousedOverOutput = null;
+		for (int i = outputCircles.size() - 1; i >= 0; i--) {
+			final Pair<Circle, Output> pair = outputCircles.get(i);
+			final Circle circle = pair.x;
+			if (circle.contains(e.x, e.y)) {
+				mousedOverOutput = pair.y;
+				return;
+			}
+		}
 	};
 
 	private final Color black = new Color(getDisplay(), 0, 0, 0);
@@ -352,6 +382,7 @@ public class FloCanvas extends Canvas {
 	private final Color white = new Color(getDisplay(), 255, 255, 255);
 	private final Color blue = new Color(getDisplay(), 59, 91, 180);
 	private final Color darkBlue = new Color(getDisplay(), 39, 71, 180);
+	private final Color yellow = new Color(getDisplay(), 254, 205, 60);
 
 	/**
 	 * Constants required for drawing boxes etc.
@@ -439,13 +470,7 @@ public class FloCanvas extends Canvas {
 		boxInterfaceRectangle.height = stringExtent.y;
 
 		// Draw the circle
-		gc.setBackground(white);
-		gc.fillOval(x + CIRCLE_PADDING, OUTPUT_Y_OFFSET + (height - CIRCLE_RADIUS) / 2, CIRCLE_RADIUS, CIRCLE_RADIUS);
-
-		// Add to the list of inputs
-		final Circle inputCircle = new Circle(x + CIRCLE_PADDING + CIRCLE_RADIUS / 2, OUTPUT_Y_OFFSET + height / 2,
-				CIRCLE_RADIUS);
-		inputCircles.add(new Pair<Circle, Input>(inputCircle, bi.getEndInput()));
+		drawInput(gc, bi.getEndInput(), x + CIRCLE_PADDING, OUTPUT_Y_OFFSET + height / 2);
 	}
 
 	private void drawBox(final GC gc, final BoxInterface bi, final Point point, final int ID) {
@@ -504,14 +529,7 @@ public class FloCanvas extends Canvas {
 		boxNameRectangles.add(new Pair<Rectangle, Integer>(boxNameRect, ID));
 
 		// Draw output
-		gc.setBackground(white);
-		gc.fillOval(point.x + width - CIRCLE_PADDING, point.y + (topHeight - CIRCLE_RADIUS) / 2, CIRCLE_RADIUS,
-				CIRCLE_RADIUS);
-
-		// Add this to the list of output circles
-		final Circle outputCircle = new Circle(point.x + width - CIRCLE_PADDING + CIRCLE_RADIUS / 2,
-				point.y + topHeight / 2, CIRCLE_RADIUS);
-		outputCircles.add(new Pair<Circle, Output>(outputCircle, bi.getOutput()));
+		drawOutput(gc, bi.getOutput(), point.x + width - CIRCLE_PADDING + CIRCLE_RADIUS / 2, point.y + topHeight / 2);
 
 		// Draw inputs
 		int y = point.y + topHeight + TEXT_PADDING + stringExtent.y / 2;
@@ -520,26 +538,46 @@ public class FloCanvas extends Canvas {
 			final int rectY = y - stringExtent.y / 2;
 			final Point textExtent = gc.textExtent(i.getName());
 
-			gc.fillOval(point.x + CIRCLE_PADDING - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS,
-					CIRCLE_RADIUS);
+			drawInput(gc, i, point.x + CIRCLE_PADDING, y);
+
 			gc.drawText(i.getName(), rectX, rectY, true);
 
 			// Add this to the list of input name rectangles
 			final Rectangle inputRect = new Rectangle(rectX, rectY, textExtent.x, textExtent.y);
 			inputNameRectangles.add(new Pair<Rectangle, Input>(inputRect, i));
 
-			// Add this to the list of input circles
-			final Circle inputCircle = new Circle(point.x + CIRCLE_PADDING, y, CIRCLE_RADIUS);
-			inputCircles.add(new Pair<Circle, Input>(inputCircle, i));
-
 			y += stringExtent.y + TEXT_PADDING;
 		}
 	}
 
+	private void drawInput(final GC gc, final Input input, final int x, final int y) {
+		// Draw circle
+		if (input.hasCable() || input == mousedOverInput)
+			gc.setBackground(yellow);
+		else
+			gc.setBackground(white);
+		gc.fillOval(x - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS, CIRCLE_RADIUS);
+
+		// Add this to the list of input circles
+		final Circle inputCircle = new Circle(x, y, CIRCLE_RADIUS);
+		inputCircles.add(new Pair<Circle, Input>(inputCircle, input));
+	}
+
+	private void drawOutput(final GC gc, final Output output, final int x, final int y) {
+		// Draw circle
+		if (output.hasCable() || output == mousedOverOutput)
+			gc.setBackground(yellow);
+		else
+			gc.setBackground(white);
+		gc.fillOval(x - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS, CIRCLE_RADIUS);
+
+		// Add this to the list of output circles
+		final Circle outputCircle = new Circle(x, y, CIRCLE_RADIUS);
+		outputCircles.add(new Pair<Circle, Output>(outputCircle, output));
+	}
+
 	private void drawCables(final GC gc) {
 		gc.setAlpha(175);
-		gc.setForeground(black);
-		gc.setLineWidth(2);
 
 		final ArrayList<Cable> cables = floGraph.getCurrentBoxDefinition().getCables();
 
@@ -582,15 +620,28 @@ public class FloCanvas extends Canvas {
 	}
 
 	private void drawCableBetweenPoints(final GC gc, final Point start, final Point end) {
-		final int x1 = start.x;
-		final int y1 = start.y;
-		final int x4 = end.x;
-		final int y4 = end.y;
-		final int x2 = (x4 + x1) / 2;
-		final int y2 = y1;
-		final int x3 = x2;
-		final int y3 = y4;
-		gc.drawPolyline(new int[] { x1, y1, x2, y2, x3, y3, x4, y4 });
+		final double xWeight = .5;
+		final double yWeight = .9;
+		final int midX = (start.x + end.x) / 2;
+		final int midY = (start.y + end.y) / 2;
+		final int cx1 = (int) (xWeight * start.x + (1 - xWeight) * midX);
+		final int cy1 = (int) (yWeight * start.y + (1 - yWeight) * midY);
+		final int cx2 = (int) ((1 - xWeight) * midX + xWeight * end.x);
+		final int cy2 = (int) ((1 - yWeight) * midY + yWeight * end.y);
+
+		final Path path = new Path(getDisplay());
+		gc.setLineCap(SWT.CAP_ROUND);
+		path.moveTo(start.x, start.y);
+		path.quadTo(cx1, cy1, midX, midY);
+		path.quadTo(cx2, cy2, end.x, end.y);
+
+		gc.setLineWidth(4);
+		gc.setForeground(black);
+		gc.drawPath(path);
+
+		gc.setLineWidth(2);
+		gc.setForeground(yellow);
+		gc.drawPath(path);
 	}
 
 	/**
