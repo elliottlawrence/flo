@@ -46,6 +46,20 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	}
 
 	public void removeBox(final int ID) {
+		final BoxInterface bi = boxes.get(ID).x;
+
+		// Remove any cables attached to box
+		for (final Input i : bi.getInputs())
+			if (i.hasCable())
+				removeCable(i.getCable());
+
+		final Output o = bi.getOutput();
+		if (o.hasCable()) {
+			final ArrayList<Cable> cablesToRemove = new ArrayList<Cable>(o.getCables());
+			for (final Cable c : cablesToRemove)
+				removeCable(c);
+		}
+
 		boxes.remove(ID);
 	}
 

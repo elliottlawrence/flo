@@ -54,6 +54,11 @@ public class BoxInterface {
 
 	public void removeInput(final Input input) {
 		inputs.remove(input);
+
+		// Remove cables attached to input
+		final Cable cable = input.getCable();
+		if (cable != null)
+			cable.getParent().removeCable(cable);
 	}
 
 	public Output getOutput() {

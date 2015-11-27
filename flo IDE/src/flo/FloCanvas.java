@@ -289,15 +289,10 @@ public class FloCanvas extends Canvas {
 		 * Change an input's name, or delete the input if its name was cleared
 		 */
 		private void setInputName(final Input input, final String name) {
-			if (name.isEmpty()) {
+			if (name.isEmpty())
 				// Remove input from box interface
 				input.getParent().removeInput(input);
-
-				// Remove cables attached to input
-				final Cable cable = input.getCable();
-				if (cable != null)
-					cable.getParent().removeCable(cable);
-			} else
+			else
 				input.setName(name);
 		}
 
