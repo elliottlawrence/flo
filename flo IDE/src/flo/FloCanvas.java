@@ -233,12 +233,29 @@ public class FloCanvas extends Canvas {
 
 				return;
 			}
+
+			// Listen for double clicks on boxes (but not on anything else)
+			for (int i = boxRectangles.size() - 1; i >= 0; i--) {
+				final Pair<Rectangle, Integer> pair = boxRectangles.get(i);
+				final Rectangle rect = pair.x;
+				if (rect.contains(e.x, e.y)) {
+					final int ID = pair.y;
+					final BoxInterface bi = floGraph.getCurrentBoxDefinition().getBoxes().get(ID).x;
+					bi.addInput("newInput");
+					redraw();
+					return;
+				}
+			}
 		}
 
 		/**
 		 * Change a box's name
 		 */
 		private void setBoxName(final int ID, final String name) {
+			// Can't rename to nothing
+			if (name.isEmpty())
+				return;
+
 			final Pair<BoxInterface, Point> bip = floGraph.getCurrentBoxDefinition().getBoxes().get(ID);
 			final BoxInterface bi = bip.x;
 			bi.setName(name);
@@ -349,6 +366,9 @@ public class FloCanvas extends Canvas {
 		cableEnd.y = e.y;
 	};
 
+	/**
+	 * Variables for mousing over inputs/outputs
+	 */
 	private Input mousedOverInput;
 	private Output mousedOverOutput;
 

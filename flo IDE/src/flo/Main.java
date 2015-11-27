@@ -147,10 +147,6 @@ public class Main {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
 				final BoxInterface bi = new BoxInterface("newBox");
-				bi.addInput("hello");
-				bi.addInput("input2");
-				bi.addInput("reallyLongInputName");
-				bi.addInput("another input");
 				final BoxDefinition currentBoxDefinition = currentFloGraph.getCurrentBoxDefinition();
 				if (currentBoxDefinition != null)
 					currentBoxDefinition.addBox(bi);
