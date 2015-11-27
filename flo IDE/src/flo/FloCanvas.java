@@ -6,6 +6,8 @@ import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
+import org.eclipse.swt.events.KeyAdapter;
+import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseMoveListener;
@@ -59,6 +61,9 @@ public class FloCanvas extends Canvas {
 		// Listen for mouse moves to highlight inputs and outputs
 		addMouseMoveListener(inputOutputMouseOverListener);
 
+		// Listen for keystrokes
+		addKeyListener(keyListener);
+
 		// Redraw on mouse moves
 		addMouseMoveListener(e -> redraw());
 	}
@@ -72,6 +77,22 @@ public class FloCanvas extends Canvas {
 	private final ArrayList<Pair<Rectangle, Input>> inputNameRectangles = new ArrayList<Pair<Rectangle, Input>>();
 	private final ArrayList<Pair<Circle, Input>> inputCircles = new ArrayList<Pair<Circle, Input>>();
 	private final ArrayList<Pair<Circle, Output>> outputCircles = new ArrayList<Pair<Circle, Output>>();
+
+	/**
+	 * The currently selected box (if there is one)
+	 */
+	private int clickedBoxID = -1;
+
+	private final KeyAdapter keyListener = new KeyAdapter() {
+		@Override
+		public void keyPressed(final KeyEvent e) {
+			// Delete the currently selected box when the user presses backspace
+			if (e.keyCode == 8 && clickedBoxID != -1) {
+				floGraph.getCurrentBoxDefinition().removeBox(clickedBoxID);
+				redraw();
+			}
+		}
+	};
 
 	/**
 	 * Variables for drag events
@@ -89,10 +110,13 @@ public class FloCanvas extends Canvas {
 			if (e.button != 1)
 				return;
 
+			clickedBoxID = -1;
 			for (int i = boxRectangles.size() - 1; i >= 0; i--) {
 				final Pair<Rectangle, Integer> pair = boxRectangles.get(i);
 				final Rectangle rect = pair.x;
 				if (rect.contains(e.x, e.y)) {
+					clickedBoxID = pair.y;
+
 					drag = true;
 					draggedBoxID = pair.y;
 					dragOffset.x = rect.x - e.x;
@@ -528,6 +552,14 @@ public class FloCanvas extends Canvas {
 		// Draw the outline
 		gc.setForeground(black);
 		gc.drawRoundRectangle(point.x - 1, point.y - 1, width + 1, height + 1, ARC_RADIUS, ARC_RADIUS);
+
+		// Draw a yellow outline if this is the currently selected box
+		if (ID == clickedBoxID) {
+			gc.setAlpha(200);
+			gc.setForeground(yellow);
+			gc.setLineWidth(2);
+			gc.drawRoundRectangle(point.x - 1, point.y - 1, width + 2, height + 2, ARC_RADIUS, ARC_RADIUS);
+		}
 
 		// Draw the background
 		gc.setAlpha(255);

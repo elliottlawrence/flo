@@ -45,6 +45,10 @@ public class BoxDefinition extends BoxDefinitionContainer {
 		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
 	}
 
+	public void removeBox(final int ID) {
+		boxes.remove(ID);
+	}
+
 	private int getUniqueID() {
 		for (int i = 0;; i++)
 			if (!boxes.keySet().contains(i))
