@@ -66,6 +66,11 @@ public class BoxDefinition extends BoxDefinitionContainer {
 		cables.add(cable);
 	}
 
+	public void removeCable(final Cable cable) {
+		cable.deleteConnections();
+		cables.remove(cable);
+	}
+
 	/**
 	 * Observables corresponding to the different events this object can emit
 	 */

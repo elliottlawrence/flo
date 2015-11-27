@@ -11,6 +11,10 @@ public class Cable {
 	public Cable(final Output output, final Input input) {
 		this.output = output;
 		this.input = input;
+
+		// Set connections
+		this.input.setCable(this);
+		this.output.addCable(this);
 	}
 
 	public Input getInput() {
@@ -19,6 +23,11 @@ public class Cable {
 
 	public Output getOutput() {
 		return output;
+	}
+
+	public void deleteConnections() {
+		input.setCable(null);
+		output.removeCable(this);
 	}
 
 }

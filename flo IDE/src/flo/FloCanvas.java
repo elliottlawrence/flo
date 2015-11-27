@@ -238,10 +238,13 @@ public class FloCanvas extends Canvas {
 		}
 
 		/**
-		 * Change an input's name
+		 * Change an input's name, or delete the input if its name was cleared
 		 */
 		private void setInputName(final Input input, final String name) {
-			input.setName(name);
+			if (name.isEmpty())
+				input.getParent().removeInput(input);
+			else
+				input.setName(name);
 		}
 
 		/**
@@ -269,6 +272,7 @@ public class FloCanvas extends Canvas {
 			if (e.button != 1)
 				return;
 
+			// See if user clicked an input
 			for (int i = inputCircles.size() - 1; i >= 0; i--) {
 				final Pair<Circle, Input> pair = inputCircles.get(i);
 				final Circle circle = pair.x;
@@ -285,11 +289,21 @@ public class FloCanvas extends Canvas {
 						inputHasBeenClicked = outputHasBeenClicked = false;
 
 						redraw();
+					} else if (clickedInput.hasCable()) {
+						// Delete cable
+						final Cable cable = clickedInput.getCable();
+						floGraph.getCurrentBoxDefinition().removeCable(cable);
+
+						// Set variables
+						inputHasBeenClicked = false;
+						outputHasBeenClicked = true;
+						clickedOutput = cable.getOutput();
 					}
 					return;
 				}
 			}
 
+			// See if user clicked an output
 			for (int i = outputCircles.size() - 1; i >= 0; i--) {
 				final Pair<Circle, Output> pair = outputCircles.get(i);
 				final Circle circle = pair.x;
@@ -306,10 +320,23 @@ public class FloCanvas extends Canvas {
 						inputHasBeenClicked = outputHasBeenClicked = false;
 
 						redraw();
+					} else if (clickedOutput.hasCable()) {
+						// Delete cable
+						final Cable cable = clickedOutput.getCables().get(0);
+						floGraph.getCurrentBoxDefinition().removeCable(cable);
+
+						// Set variables
+						inputHasBeenClicked = true;
+						outputHasBeenClicked = false;
+						clickedInput = cable.getInput();
 					}
 					return;
 				}
 			}
+
+			// Delete existing cable otherwise
+			inputHasBeenClicked = outputHasBeenClicked = false;
+			redraw();
 		}
 	};
 

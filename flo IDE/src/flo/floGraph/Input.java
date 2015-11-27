@@ -8,8 +8,19 @@ public class Input {
 	private String name;
 	private Type type;
 
-	public Input(final String name) {
+	/**
+	 * The box interface in which this input is defined
+	 */
+	private final BoxInterface parent;
+
+	/**
+	 * The cable attached to this input, if there is one
+	 */
+	private Cable cable;
+
+	public Input(final String name, final BoxInterface parent) {
 		this.name = name;
+		this.parent = parent;
 	}
 
 	public String getName() {
@@ -22,5 +33,21 @@ public class Input {
 
 	public Type getType() {
 		return type;
+	}
+
+	public BoxInterface getParent() {
+		return parent;
+	}
+
+	public boolean hasCable() {
+		return cable != null;
+	}
+
+	public Cable getCable() {
+		return cable;
+	}
+
+	public void setCable(final Cable cable) {
+		this.cable = cable;
 	}
 }

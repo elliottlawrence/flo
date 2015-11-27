@@ -26,7 +26,7 @@ public class BoxInterface {
 		this.name = name;
 		inputs = new ArrayList<Input>();
 		output = new Output();
-		endInput = new Input(name);
+		endInput = new Input(name, this);
 	}
 
 	public BoxFlavor getFlavor() {
@@ -49,7 +49,11 @@ public class BoxInterface {
 	}
 
 	public void addInput(final String name) {
-		inputs.add(new Input(name));
+		inputs.add(new Input(name, this));
+	}
+
+	public void removeInput(final Input input) {
+		inputs.remove(input);
 	}
 
 	public Output getOutput() {
