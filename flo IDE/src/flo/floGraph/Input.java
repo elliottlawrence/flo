@@ -1,9 +1,14 @@
 package flo.floGraph;
 
+import javax.json.Json;
+import javax.json.JsonObjectBuilder;
+
+import flo.Util.Jsonable;
+
 /**
  * An input to a function has a name and a type.
  */
-public class Input {
+public class Input implements Jsonable {
 
 	private String name;
 	private Type type;
@@ -49,5 +54,13 @@ public class Input {
 
 	public void setCable(final Cable cable) {
 		this.cable = cable;
+	}
+
+	/**
+	 * Convert this input to JSON
+	 */
+	@Override
+	public JsonObjectBuilder toJsonObjectBuilder() {
+		return Json.createObjectBuilder().add("parentID", parent.getID()).add("name", name);
 	}
 }

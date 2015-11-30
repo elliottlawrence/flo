@@ -11,7 +11,8 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Text;
 
-import flo.Pair;
+import flo.Util.Pair;
+import flo.Util.Rect;
 import flo.floGraph.BoxInterface;
 import flo.floGraph.Input;
 
@@ -29,22 +30,22 @@ public class DoubleClickListener extends MouseAdapter {
 	@Override
 	public void mouseDoubleClick(final MouseEvent e) {
 		// Listen for double clicks on the box names
-		final Pair<Rectangle, Integer> pair1 = floCanvas.getContainingBoxName(e.x, e.y);
+		final Pair<Rect, Integer> pair1 = floCanvas.getContainingBoxName(e.x, e.y);
 		if (pair1 != null) {
-			final Rectangle rect = pair1.x;
+			final Rect rect = pair1.x;
 			final int ID = pair1.y;
 
-			createEditor(rect, textEditor -> setBoxName(ID, textEditor.getText()));
+			createEditor(rect.rect, textEditor -> setBoxName(ID, textEditor.getText()));
 			return;
 		}
 
 		// Listen for double clicks on the input names
-		final Pair<Rectangle, Input> pair2 = floCanvas.getContainingInputName(e.x, e.y);
+		final Pair<Rect, Input> pair2 = floCanvas.getContainingInputName(e.x, e.y);
 		if (pair2 != null) {
-			final Rectangle rect = pair2.x;
+			final Rect rect = pair2.x;
 			final Input input = pair2.y;
 
-			createEditor(rect, textEditor -> setInputName(input, textEditor.getText()));
+			createEditor(rect.rect, textEditor -> setInputName(input, textEditor.getText()));
 			return;
 		}
 
@@ -56,7 +57,7 @@ public class DoubleClickListener extends MouseAdapter {
 		}
 
 		// Listen for double clicks on boxes (but not on anything else)
-		final Pair<Rectangle, Integer> pair3 = floCanvas.getContainingBox(e.x, e.y);
+		final Pair<Rect, Integer> pair3 = floCanvas.getContainingBox(e.x, e.y);
 		if (pair3 != null) {
 			final int ID = pair3.y;
 			final BoxInterface bi = floCanvas.getFloGraph().getCurrentBoxDefinition().getBoxes().get(ID).x;

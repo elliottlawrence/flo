@@ -12,8 +12,10 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
 
-import flo.Circle;
-import flo.Pair;
+import flo.Util.Circle;
+import flo.Util.Hotspots;
+import flo.Util.Pair;
+import flo.Util.Rect;
 import flo.floGraph.BoxDefinition;
 import flo.floGraph.BoxInterface;
 import flo.floGraph.Cable;
@@ -56,36 +58,6 @@ public class FloCanvas extends Canvas {
 	CanvasKeyListener canvasKeyListener = new CanvasKeyListener(this);
 
 	/**
-	 * Rectangular hotspots
-	 */
-	private class RectHotspots<T> extends ArrayList<Pair<Rectangle, T>> {
-		public Pair<Rectangle, T> getContainingRect(final int x, final int y) {
-			for (int i = size() - 1; i >= 0; i--) {
-				final Pair<Rectangle, T> pair = get(i);
-				final Rectangle rect = pair.x;
-				if (rect.contains(x, y))
-					return pair;
-			}
-			return null;
-		}
-	}
-
-	/**
-	 * Circular hotspots
-	 */
-	private class CircleHotspots<T> extends ArrayList<Pair<Circle, T>> {
-		public Pair<Circle, T> getContainingCircle(final int x, final int y) {
-			for (int i = size() - 1; i >= 0; i--) {
-				final Pair<Circle, T> pair = get(i);
-				final Circle circle = pair.x;
-				if (circle.contains(x, y))
-					return pair;
-			}
-			return null;
-		}
-	}
-
-	/**
 	 * Hotspots for mouse events
 	 */
 
@@ -95,30 +67,30 @@ public class FloCanvas extends Canvas {
 		return boxInterfaceRectangle;
 	}
 
-	private final RectHotspots<Integer> boxRectangles = new RectHotspots<Integer>();
-	private final RectHotspots<Integer> boxNameRectangles = new RectHotspots<Integer>();
-	private final RectHotspots<Input> inputNameRectangles = new RectHotspots<Input>();
-	private final CircleHotspots<Input> inputCircles = new CircleHotspots<Input>();
-	private final CircleHotspots<Output> outputCircles = new CircleHotspots<Output>();
+	private final Hotspots<Rect, Integer> boxRectangles = new Hotspots<Rect, Integer>();
+	private final Hotspots<Rect, Integer> boxNameRectangles = new Hotspots<Rect, Integer>();
+	private final Hotspots<Rect, Input> inputNameRectangles = new Hotspots<Rect, Input>();
+	private final Hotspots<Circle, Input> inputCircles = new Hotspots<Circle, Input>();
+	private final Hotspots<Circle, Output> outputCircles = new Hotspots<Circle, Output>();
 
-	public Pair<Rectangle, Integer> getContainingBox(final int x, final int y) {
-		return boxRectangles.getContainingRect(x, y);
+	public Pair<Rect, Integer> getContainingBox(final int x, final int y) {
+		return boxRectangles.getContainingShape(x, y);
 	}
 
-	public Pair<Rectangle, Integer> getContainingBoxName(final int x, final int y) {
-		return boxNameRectangles.getContainingRect(x, y);
+	public Pair<Rect, Integer> getContainingBoxName(final int x, final int y) {
+		return boxNameRectangles.getContainingShape(x, y);
 	}
 
-	public Pair<Rectangle, Input> getContainingInputName(final int x, final int y) {
-		return inputNameRectangles.getContainingRect(x, y);
+	public Pair<Rect, Input> getContainingInputName(final int x, final int y) {
+		return inputNameRectangles.getContainingShape(x, y);
 	}
 
 	public Pair<Circle, Input> getContainingInput(final int x, final int y) {
-		return inputCircles.getContainingCircle(x, y);
+		return inputCircles.getContainingShape(x, y);
 	}
 
 	public Pair<Circle, Output> getContainingOutput(final int x, final int y) {
-		return outputCircles.getContainingCircle(x, y);
+		return outputCircles.getContainingShape(x, y);
 	}
 
 	private void resetHotspots() {
@@ -236,8 +208,8 @@ public class FloCanvas extends Canvas {
 		}
 
 		// Add this to the list of box rectangles
-		final Rectangle boxRect = new Rectangle(point.x, point.y, width, height);
-		boxRectangles.add(new Pair<Rectangle, Integer>(boxRect, ID));
+		final Rect boxRect = new Rect(point.x, point.y, width, height);
+		boxRectangles.add(new Pair<Rect, Integer>(boxRect, ID));
 
 		// Draw the shadow
 		gc.setAlpha(50);
@@ -275,11 +247,10 @@ public class FloCanvas extends Canvas {
 
 		// Draw box name
 		gc.setForeground(white);
-		final Rectangle boxNameRect = drawCenteredString(gc, bi.getName(), point.x + width / 2,
-				point.y + topHeight / 2);
+		final Rect boxNameRect = drawCenteredString(gc, bi.getName(), point.x + width / 2, point.y + topHeight / 2);
 
 		// Add this to the list of box name rectangles
-		boxNameRectangles.add(new Pair<Rectangle, Integer>(boxNameRect, ID));
+		boxNameRectangles.add(new Pair<Rect, Integer>(boxNameRect, ID));
 
 		// Draw output
 		drawOutput(gc, bi.getOutput(), point.x + width - CIRCLE_PADDING + CIRCLE_RADIUS / 2, point.y + topHeight / 2);
@@ -296,8 +267,8 @@ public class FloCanvas extends Canvas {
 			gc.drawText(i.getName(), rectX, rectY, true);
 
 			// Add this to the list of input name rectangles
-			final Rectangle inputRect = new Rectangle(rectX, rectY, textExtent.x, textExtent.y);
-			inputNameRectangles.add(new Pair<Rectangle, Input>(inputRect, i));
+			final Rect inputRect = new Rect(rectX, rectY, textExtent.x, textExtent.y);
+			inputNameRectangles.add(new Pair<Rect, Input>(inputRect, i));
 
 			y += stringExtent.y + TEXT_PADDING;
 		}
@@ -412,12 +383,12 @@ public class FloCanvas extends Canvas {
 	 * @param y
 	 * @return The string's bounding rectangle
 	 */
-	private Rectangle drawCenteredString(final GC gc, final String string, final int x, final int y) {
+	private Rect drawCenteredString(final GC gc, final String string, final int x, final int y) {
 		final Point stringExtent = gc.textExtent(string);
 		final int rectX = x - stringExtent.x / 2;
 		final int rectY = y - stringExtent.y / 2;
 		gc.drawText(string, rectX, rectY, true);
-		return new Rectangle(rectX, rectY, stringExtent.x, stringExtent.y);
+		return new Rect(rectX, rectY, stringExtent.x, stringExtent.y);
 	}
 
 	/**

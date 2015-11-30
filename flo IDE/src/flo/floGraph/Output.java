@@ -2,16 +2,27 @@ package flo.floGraph;
 
 import java.util.ArrayList;
 
+import javax.json.Json;
+import javax.json.JsonObjectBuilder;
+
+import flo.Util.Jsonable;
+
 /**
  * Outputs are unnamed but have types nonetheless.
  */
-public class Output {
+public class Output implements Jsonable {
 
 	private Type type;
 
 	private final ArrayList<Cable> cables = new ArrayList<Cable>();
 
-	public Output() {
+	/**
+	 * The box interface in which this input is defined
+	 */
+	private final BoxInterface parent;
+
+	public Output(final BoxInterface parent) {
+		this.parent = parent;
 	}
 
 	public Type getType() {
@@ -32,5 +43,13 @@ public class Output {
 
 	public void removeCable(final Cable cable) {
 		cables.remove(cable);
+	}
+
+	/**
+	 * Convert this output to JSON
+	 */
+	@Override
+	public JsonObjectBuilder toJsonObjectBuilder() {
+		return Json.createObjectBuilder().add("parentID", parent.getID());
 	}
 }

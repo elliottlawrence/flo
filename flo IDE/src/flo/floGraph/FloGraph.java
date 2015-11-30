@@ -2,18 +2,24 @@ package flo.floGraph;
 
 import java.util.ArrayList;
 
+import javax.json.Json;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+
 import flo.Observable.BoxDefinitionSelectedEvent;
 import flo.Observable.CurrentBoxDefinitionEvent;
 import flo.Observable.ModuleAddedEvent;
 import flo.Observable.ModuleRemovedEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
+import flo.Util.Jsonable;
 
 /**
  * A FloGraph is a graphical representation of a program, consisting of a list
  * of modules.
  */
-public class FloGraph {
+public class FloGraph implements Jsonable {
 
 	private final String name;
 	private final ArrayList<Module> modules;
@@ -140,6 +146,22 @@ public class FloGraph {
 		moduleRemovedObservable.deleteObservers();
 		boxDefinitionSelectedObservable.deleteObservers();
 		currentBoxDefinitionObservable.deleteObservers();
+	}
+
+	/**
+	 * Convert this Flo Graph to JSON
+	 */
+	@Override
+	public JsonObjectBuilder toJsonObjectBuilder() {
+		final JsonArrayBuilder modulesBuilder = Json.createArrayBuilder();
+		for (final Module m : modules)
+			modulesBuilder.add(m.toJsonObjectBuilder());
+
+		return Json.createObjectBuilder().add("name", name).add("modules", modulesBuilder);
+	}
+
+	public JsonObject toJsonObject() {
+		return toJsonObjectBuilder().build();
 	}
 
 }

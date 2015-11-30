@@ -2,16 +2,21 @@ package flo.floGraph;
 
 import java.util.ArrayList;
 
+import javax.json.Json;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObjectBuilder;
+
 import flo.Observable.BoxDefinitionAddedEvent;
 import flo.Observable.BoxDefinitionRemovedEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
+import flo.Util.Jsonable;
 
 /**
  * A common superclass for Modules and Box Definitions, both of which can
  * contain other Box Definitions.
  */
-public abstract class BoxDefinitionContainer {
+public abstract class BoxDefinitionContainer implements Jsonable {
 
 	private final ArrayList<BoxDefinition> boxDefinitions;
 	private final BoxDefinitionContainer parent;
@@ -75,7 +80,7 @@ public abstract class BoxDefinitionContainer {
 
 	/**
 	 * Returns true if this contains a certain box definition, at any level
-	 * 
+	 *
 	 * @param boxDefinition
 	 * @return
 	 */
@@ -103,5 +108,17 @@ public abstract class BoxDefinitionContainer {
 	public void deleteObservers() {
 		boxDefinitionAddedObservable.deleteObservers();
 		boxDefinitionRemovedObservable.deleteObservers();
+	}
+
+	/**
+	 * Convert this box definition container to JSON
+	 */
+	@Override
+	public JsonObjectBuilder toJsonObjectBuilder() {
+		final JsonArrayBuilder boxDefinitionsBuilder = Json.createArrayBuilder();
+		for (final BoxDefinition bd : boxDefinitions)
+			boxDefinitionsBuilder.add(bd.toJsonObjectBuilder());
+
+		return Json.createObjectBuilder().add("boxDefinitions", boxDefinitionsBuilder);
 	}
 }

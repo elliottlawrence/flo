@@ -9,5 +9,6 @@ flo IDE/bin
 flo IDE/.classpath
 flo IDE/.project
 flo IDE/swing2swt.jar
+flo IDE/javax.json-1.0.4.jar
 
 org.eclipse.swt

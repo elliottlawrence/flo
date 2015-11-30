@@ -6,7 +6,8 @@ import org.eclipse.swt.events.MouseMoveListener;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 
-import flo.Pair;
+import flo.Util.Pair;
+import flo.Util.Rect;
 
 public class BoxListener extends MouseAdapter implements MouseMoveListener {
 
@@ -45,9 +46,9 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
 		clickedBoxID = -1;
 
 		// See if the user clicked on a box
-		final Pair<Rectangle, Integer> pair = floCanvas.getContainingBox(e.x, e.y);
+		final Pair<Rect, Integer> pair = floCanvas.getContainingBox(e.x, e.y);
 		if (pair != null) {
-			final Rectangle rect = pair.x;
+			final Rectangle rect = pair.x.rect;
 			clickedBoxID = pair.y;
 
 			drag = true;

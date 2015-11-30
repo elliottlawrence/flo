@@ -4,20 +4,25 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.json.Json;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObjectBuilder;
+
 import org.eclipse.swt.graphics.Point;
 
-import flo.Pair;
 import flo.Observable.BoxAddedEvent;
 import flo.Observable.CurrentBoxDefinitionEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
+import flo.Util.Jsonable;
+import flo.Util.Pair;
 
 /**
  * A box definition consists of the box's interface augmented with a set of
  * boxes and cables connecting nodes on the boxes. In addition, a box may have
  * local box definitions, akin to a let/where clause in Haskell.
  */
-public class BoxDefinition extends BoxDefinitionContainer {
+public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 
 	private final BoxInterface boxInterface;
 	private final Map<Integer, Pair<BoxInterface, Point>> boxes;
@@ -39,7 +44,9 @@ public class BoxDefinition extends BoxDefinitionContainer {
 	}
 
 	public void addBox(final BoxInterface bi) {
-		boxes.put(getUniqueID(), new Pair<BoxInterface, Point>(bi, new Point(100, 100)));
+		final int ID = getUniqueID();
+		bi.setID(ID);
+		boxes.put(ID, new Pair<BoxInterface, Point>(bi, new Point(100, 100)));
 
 		boxAddedObservable.notifyObservers(new BoxAddedEvent());
 		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
@@ -112,5 +119,26 @@ public class BoxDefinition extends BoxDefinitionContainer {
 
 	public void deleteCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
 		currentBoxDefinitionObservable.deleteObserver(o);
+	}
+
+	/**
+	 * Convert this module to JSON
+	 */
+	@Override
+	public JsonObjectBuilder toJsonObjectBuilder() {
+		final JsonArrayBuilder boxBuilder = Json.createArrayBuilder();
+		for (final Integer i : boxes.keySet()) {
+			final Pair<BoxInterface, Point> pair = boxes.get(i);
+			final JsonObjectBuilder objectBuilder = Json.createObjectBuilder().add("ID", i)
+					.add("boxInterface", pair.x.toJsonObjectBuilder()).add("x", pair.y.x).add("y", pair.y.y);
+			boxBuilder.add(objectBuilder);
+		}
+
+		final JsonArrayBuilder cableBuilder = Json.createArrayBuilder();
+		for (final Cable c : cables)
+			cableBuilder.add(c.toJsonObjectBuilder());
+
+		return super.toJsonObjectBuilder().add("boxInterface", boxInterface.toJsonObjectBuilder())
+				.add("boxes", boxBuilder).add("cables", cableBuilder);
 	}
 }

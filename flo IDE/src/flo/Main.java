@@ -1,5 +1,11 @@
 package flo;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+
+import javax.json.Json;
+import javax.json.JsonWriter;
+
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -76,7 +82,7 @@ public class Main {
 		shell.setSize(1000, 600);
 		shell.setMinimumSize(300, 200);
 		shell.setLocation(200, 50);
-		shell.setText("flo");
+		shell.setText("flo - " + currentFloGraph.getName());
 		shell.setLayout(new FormLayout());
 
 		tree = new FloTree(shell, currentFloGraph);
@@ -105,6 +111,19 @@ public class Main {
 
 		final MenuItem miSave = new MenuItem(mFile, SWT.NONE);
 		miSave.setText("Save");
+		miSave.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				try {
+					final JsonWriter writer = Json
+							.createWriter(new FileOutputStream(currentFloGraph.getName() + ".flo"));
+					writer.writeObject(currentFloGraph.toJsonObject());
+					writer.close();
+				} catch (final FileNotFoundException e1) {
+					e1.printStackTrace();
+				}
+			}
+		});
 
 		final MenuItem miSaveAs = new MenuItem(mFile, SWT.NONE);
 		miSaveAs.setText("Save as");

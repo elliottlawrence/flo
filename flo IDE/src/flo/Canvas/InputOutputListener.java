@@ -3,8 +3,8 @@ package flo.Canvas;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseMoveListener;
 
-import flo.Circle;
-import flo.Pair;
+import flo.Util.Circle;
+import flo.Util.Pair;
 import flo.floGraph.Input;
 import flo.floGraph.Output;
 

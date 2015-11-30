@@ -2,10 +2,15 @@ package flo.floGraph;
 
 import java.util.ArrayList;
 
+import javax.json.Json;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObjectBuilder;
+
 import flo.Observable.BoxInterfaceRenamedEvent;
 import flo.Observable.CurrentBoxDefinitionEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
+import flo.Util.Jsonable;
 
 /**
  * A box is a generic representation of functions, constructors, and literals.
@@ -14,7 +19,7 @@ import flo.Observable.Observer;
  * output. (For symmetry, there is an end input connected to the output so that
  * the last box's output can be connected to an input.)
  */
-public class BoxInterface {
+public class BoxInterface implements Jsonable {
 
 	private BoxFlavor flavor;
 	private String name;
@@ -22,10 +27,17 @@ public class BoxInterface {
 	private final Output output;
 	private final Input endInput;
 
+	/**
+	 * The ID of this box interface with respect to the box definition it is
+	 * defined in. In the box interface's own definition, this ID will remain
+	 * -1.
+	 */
+	private int ID = -1;
+
 	public BoxInterface(final String name) {
 		this.name = name;
 		inputs = new ArrayList<Input>();
-		output = new Output();
+		output = new Output(this);
 		endInput = new Input(name, this);
 	}
 
@@ -84,6 +96,14 @@ public class BoxInterface {
 		return endInput;
 	}
 
+	public void setID(final int ID) {
+		this.ID = ID;
+	}
+
+	public int getID() {
+		return ID;
+	}
+
 	/**
 	 * Observables corresponding to the different events this object can emit
 	 */
@@ -105,6 +125,18 @@ public class BoxInterface {
 
 	public void deleteCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
 		currentBoxDefinitionObservable.deleteObserver(o);
+	}
+
+	/**
+	 * Convert this box interface to JSON
+	 */
+	@Override
+	public JsonObjectBuilder toJsonObjectBuilder() {
+		final JsonArrayBuilder inputBuilder = Json.createArrayBuilder();
+		for (final Input i : inputs)
+			inputBuilder.add(i.getName());
+
+		return Json.createObjectBuilder().add("name", name).add("inputs", inputBuilder);
 	}
 
 }

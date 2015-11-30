@@ -1,9 +1,14 @@
 package flo.floGraph;
 
+import javax.json.Json;
+import javax.json.JsonObjectBuilder;
+
+import flo.Util.Jsonable;
+
 /**
  * A cable connects the output of one box to the input of another.
  */
-public class Cable {
+public class Cable implements Jsonable {
 
 	private final Output output;
 	private final Input input;
@@ -44,6 +49,14 @@ public class Cable {
 
 	public BoxDefinition getParent() {
 		return parent;
+	}
+
+	/**
+	 * Convert this cable to JSON
+	 */
+	@Override
+	public JsonObjectBuilder toJsonObjectBuilder() {
+		return Json.createObjectBuilder().add("input", input.toJsonObjectBuilder()).add("output", output.toJsonObjectBuilder());
 	}
 
 }
