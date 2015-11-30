@@ -1,6 +1,7 @@
 package flo.floGraph;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
@@ -23,7 +24,7 @@ public class BoxInterface implements Jsonable {
 
 	private BoxFlavor flavor;
 	private String name;
-	private final ArrayList<Input> inputs;
+	private final List<Input> inputs;
 	private final Output output;
 	private final Input endInput;
 
@@ -56,7 +57,7 @@ public class BoxInterface implements Jsonable {
 		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
 	}
 
-	public ArrayList<Input> getInputs() {
+	public List<Input> getInputs() {
 		return inputs;
 	}
 

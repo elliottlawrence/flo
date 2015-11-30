@@ -1,6 +1,7 @@
 package flo.floGraph;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.json.Json;
 import javax.json.JsonObjectBuilder;
@@ -14,7 +15,7 @@ public class Output implements Jsonable {
 
 	private Type type;
 
-	private final ArrayList<Cable> cables = new ArrayList<Cable>();
+	private final List<Cable> cables = new ArrayList<Cable>();
 
 	/**
 	 * The box interface in which this input is defined
@@ -37,7 +38,7 @@ public class Output implements Jsonable {
 		return cables.size() > 0;
 	}
 
-	public ArrayList<Cable> getCables() {
+	public List<Cable> getCables() {
 		return cables;
 	}
 

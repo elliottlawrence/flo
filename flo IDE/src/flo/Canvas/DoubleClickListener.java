@@ -13,6 +13,7 @@ import org.eclipse.swt.widgets.Text;
 
 import flo.Util.Pair;
 import flo.Util.Rect;
+import flo.floGraph.BoxDefinition;
 import flo.floGraph.BoxInterface;
 import flo.floGraph.Input;
 
@@ -111,8 +112,17 @@ public class DoubleClickListener extends MouseAdapter {
 		if (name.isEmpty())
 			return;
 
-		final Pair<BoxInterface, Point> bip = floCanvas.getFloGraph().getCurrentBoxDefinition().getBoxes().get(ID);
+		final BoxDefinition currentBoxDefinition = floCanvas.getFloGraph().getCurrentBoxDefinition();
+		final BoxInterface currentBoxInterface = currentBoxDefinition.getBoxInterface();
+
+		final Pair<BoxInterface, Point> bip = currentBoxDefinition.getBoxes().get(ID);
 		final BoxInterface bi = bip.x;
+
+		// If this box is an input, change that name too
+		if (currentBoxInterface.containsInput(bi.getName()))
+			currentBoxInterface.getInput(bi.getName()).setName(name);
+
+		// Change the box's name
 		bi.setName(name);
 	}
 

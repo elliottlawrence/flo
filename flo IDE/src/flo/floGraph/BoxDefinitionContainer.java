@@ -1,6 +1,7 @@
 package flo.floGraph;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
@@ -18,7 +19,7 @@ import flo.Util.Jsonable;
  */
 public abstract class BoxDefinitionContainer implements Jsonable {
 
-	private final ArrayList<BoxDefinition> boxDefinitions;
+	private final List<BoxDefinition> boxDefinitions;
 	private final BoxDefinitionContainer parent;
 
 	public BoxDefinitionContainer(final BoxDefinitionContainer parent) {
@@ -26,7 +27,7 @@ public abstract class BoxDefinitionContainer implements Jsonable {
 		this.parent = parent;
 	}
 
-	public ArrayList<BoxDefinition> getBoxDefinitions() {
+	public List<BoxDefinition> getBoxDefinitions() {
 		return boxDefinitions;
 	}
 

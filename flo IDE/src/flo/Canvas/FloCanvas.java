@@ -1,6 +1,6 @@
 package flo.Canvas;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.eclipse.swt.SWT;
@@ -107,6 +107,10 @@ public class FloCanvas extends Canvas {
 
 	public int getClickedBoxID() {
 		return boxListener.getClickedBoxID();
+	}
+
+	public void setClickedBoxID(final int ID) {
+		boxListener.setClickedBoxID(ID);
 	}
 
 	/**
@@ -303,7 +307,7 @@ public class FloCanvas extends Canvas {
 	private void drawCables(final GC gc) {
 		gc.setAlpha(175);
 
-		final ArrayList<Cable> cables = floGraph.getCurrentBoxDefinition().getCables();
+		final List<Cable> cables = floGraph.getCurrentBoxDefinition().getCables();
 
 		for (final Cable cable : cables) {
 			Circle outputCircle = new Circle(0, 0, 0), inputCircle = new Circle(0, 0, 0);

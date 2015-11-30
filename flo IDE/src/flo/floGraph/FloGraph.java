@@ -1,11 +1,14 @@
 package flo.floGraph;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
-import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonWriter;
 
 import flo.Observable.BoxDefinitionSelectedEvent;
 import flo.Observable.CurrentBoxDefinitionEvent;
@@ -22,7 +25,7 @@ import flo.Util.Jsonable;
 public class FloGraph implements Jsonable {
 
 	private final String name;
-	private final ArrayList<Module> modules;
+	private final List<Module> modules;
 
 	/**
 	 * The box definition that is either selected in the tree or displayed in
@@ -39,7 +42,7 @@ public class FloGraph implements Jsonable {
 		return name;
 	}
 
-	public ArrayList<Module> getModules() {
+	public List<Module> getModules() {
 		return modules;
 	}
 
@@ -160,8 +163,17 @@ public class FloGraph implements Jsonable {
 		return Json.createObjectBuilder().add("name", name).add("modules", modulesBuilder);
 	}
 
-	public JsonObject toJsonObject() {
-		return toJsonObjectBuilder().build();
+	/**
+	 * Saves the file
+	 */
+	public void save(final String path) {
+		try {
+			final JsonWriter writer = Json.createWriter(new FileOutputStream(path));
+			writer.writeObject(toJsonObjectBuilder().build());
+			writer.close();
+		} catch (final FileNotFoundException e1) {
+			e1.printStackTrace();
+		}
 	}
 
 }

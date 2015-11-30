@@ -2,6 +2,7 @@ package flo.floGraph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.json.Json;
@@ -26,7 +27,7 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 
 	private final BoxInterface boxInterface;
 	private final Map<Integer, Pair<BoxInterface, Point>> boxes;
-	private final ArrayList<Cable> cables;
+	private final List<Cable> cables;
 
 	public BoxDefinition(final String name, final BoxDefinitionContainer parent) {
 		super(parent);
@@ -43,13 +44,15 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		return boxes;
 	}
 
-	public void addBox(final BoxInterface bi) {
+	public int addBox(final BoxInterface bi) {
 		final int ID = getUniqueID();
 		bi.setID(ID);
 		boxes.put(ID, new Pair<BoxInterface, Point>(bi, new Point(100, 100)));
 
 		boxAddedObservable.notifyObservers(new BoxAddedEvent());
 		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
+
+		return ID;
 	}
 
 	public void removeBox(final int ID) {
@@ -62,7 +65,7 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 
 		final Output o = bi.getOutput();
 		if (o.hasCable()) {
-			final ArrayList<Cable> cablesToRemove = new ArrayList<Cable>(o.getCables());
+			final List<Cable> cablesToRemove = new ArrayList<Cable>(o.getCables());
 			for (final Cable c : cablesToRemove)
 				removeCable(c);
 		}
@@ -83,7 +86,7 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
 	}
 
-	public ArrayList<Cable> getCables() {
+	public List<Cable> getCables() {
 		return cables;
 	}
 

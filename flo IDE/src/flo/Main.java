@@ -1,11 +1,5 @@
 package flo;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-
-import javax.json.Json;
-import javax.json.JsonWriter;
-
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -14,6 +8,7 @@ import org.eclipse.swt.layout.FormAttachment;
 import org.eclipse.swt.layout.FormData;
 import org.eclipse.swt.layout.FormLayout;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Sash;
@@ -39,6 +34,8 @@ public class Main {
 	private static FloCanvas floCanvas;
 
 	private static final int MIN_TREE_WIDTH = 80;
+
+	private static String savePath = "Untitled.flo";
 
 	/**
 	 * Launch the application.
@@ -114,19 +111,21 @@ public class Main {
 		miSave.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
-				try {
-					final JsonWriter writer = Json
-							.createWriter(new FileOutputStream(currentFloGraph.getName() + ".flo"));
-					writer.writeObject(currentFloGraph.toJsonObject());
-					writer.close();
-				} catch (final FileNotFoundException e1) {
-					e1.printStackTrace();
-				}
+				currentFloGraph.save(savePath);
 			}
 		});
 
 		final MenuItem miSaveAs = new MenuItem(mFile, SWT.NONE);
 		miSaveAs.setText("Save as");
+		miSaveAs.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				final FileDialog dialog = new FileDialog(shell, SWT.SAVE);
+				dialog.setFileName(currentFloGraph.getName() + ".flo");
+				savePath = dialog.open();
+				currentFloGraph.save(savePath);
+			}
+		});
 
 		final ToolBar toolBar = new ToolBar(shell, SWT.FLAT | SWT.RIGHT);
 		final FormData fd_toolBar = new FormData();
@@ -173,7 +172,8 @@ public class Main {
 				final BoxDefinition currentBoxDefinition = currentFloGraph.getCurrentBoxDefinition();
 				if (currentBoxDefinition != null) {
 					final BoxInterface bi = new BoxInterface("box" + (currentBoxDefinition.getBoxes().size() + 1));
-					currentBoxDefinition.addBox(bi);
+					final int ID = currentBoxDefinition.addBox(bi);
+					floCanvas.setClickedBoxID(ID);
 				}
 			}
 		});

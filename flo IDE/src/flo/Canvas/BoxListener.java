@@ -30,6 +30,10 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
 		return clickedBoxID;
 	}
 
+	public void setClickedBoxID(final int ID) {
+		clickedBoxID = ID;
+	}
+
 	/**
 	 * Variables for drag events
 	 */

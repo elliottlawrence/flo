@@ -1,6 +1,6 @@
 package flo;
 
-import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Tree;
@@ -67,9 +67,9 @@ public class FloGraphTreeListener {
 		}
 
 		// Select the first box definition if there is one
-		final ArrayList<Module> modules = floGraph.getModules();
+		final List<Module> modules = floGraph.getModules();
 		if (!modules.isEmpty()) {
-			final ArrayList<BoxDefinition> bds = modules.get(0).getBoxDefinitions();
+			final List<BoxDefinition> bds = modules.get(0).getBoxDefinitions();
 			if (!bds.isEmpty())
 				floGraph.setCurrentBoxDefinition(bds.get(0));
 		}
