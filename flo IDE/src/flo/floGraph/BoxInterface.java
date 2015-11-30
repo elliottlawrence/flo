@@ -48,6 +48,10 @@ public class BoxInterface {
 		return inputs;
 	}
 
+	public boolean containsInput(final String name) {
+		return getInput(name) != null;
+	}
+
 	public void addInput(final String name) {
 		inputs.add(new Input(name, this));
 	}
@@ -59,6 +63,17 @@ public class BoxInterface {
 		final Cable cable = input.getCable();
 		if (cable != null)
 			cable.getParent().removeCable(cable);
+	}
+
+	public Input getInput(final String name) {
+		for (final Input i : inputs)
+			if (i.getName().equals(name))
+				return i;
+		return null;
+	}
+
+	public void removeInput(final String name) {
+		inputs.remove(getInput(name));
 	}
 
 	public Output getOutput() {

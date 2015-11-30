@@ -18,6 +18,7 @@ import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.wb.swt.SWTResourceManager;
 
+import flo.Canvas.FloCanvas;
 import flo.floGraph.BoxDefinition;
 import flo.floGraph.BoxDefinitionContainer;
 import flo.floGraph.BoxInterface;
@@ -78,6 +79,10 @@ public class Main {
 		shell.setText("flo");
 		shell.setLayout(new FormLayout());
 
+		tree = new FloTree(shell, currentFloGraph);
+		final Sash sash = new Sash(shell, SWT.VERTICAL);
+		floCanvas = new FloCanvas(shell, currentFloGraph);
+
 		final Menu menu = new Menu(shell, SWT.BAR);
 		shell.setMenuBar(menu);
 
@@ -106,8 +111,8 @@ public class Main {
 
 		final ToolBar toolBar = new ToolBar(shell, SWT.FLAT | SWT.RIGHT);
 		final FormData fd_toolBar = new FormData();
+		fd_toolBar.right = new FormAttachment(floCanvas, 0, SWT.RIGHT);
 		fd_toolBar.left = new FormAttachment(0);
-		fd_toolBar.right = new FormAttachment(0, 743);
 		fd_toolBar.top = new FormAttachment(0);
 		toolBar.setLayoutData(fd_toolBar);
 
@@ -146,12 +151,41 @@ public class Main {
 		tiNewBox.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
-				final BoxInterface bi = new BoxInterface("newBox");
 				final BoxDefinition currentBoxDefinition = currentFloGraph.getCurrentBoxDefinition();
-				if (currentBoxDefinition != null)
+				if (currentBoxDefinition != null) {
+					final BoxInterface bi = new BoxInterface("box" + (currentBoxDefinition.getBoxes().size() + 1));
 					currentBoxDefinition.addBox(bi);
+				}
 			}
 		});
+		currentFloGraph.addCurrentBoxDefinitionObserver(
+				e -> tiNewBox.setEnabled(currentFloGraph.getCurrentBoxDefinition() != null));
+
+		final ToolItem tiToggleInput = new ToolItem(toolBar, SWT.NONE);
+		tiToggleInput.setImage(SWTResourceManager.getImage(Main.class, "/Icons/toggle input.png"));
+		tiToggleInput.setText("Toggle Input");
+		tiToggleInput.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				final int ID = floCanvas.getClickedBoxID();
+				if (ID != -1) {
+					final BoxDefinition bd = currentFloGraph.getCurrentBoxDefinition();
+					if (bd != null) {
+						final String name = bd.getBoxes().get(ID).x.getName();
+						final BoxInterface bi = bd.getBoxInterface();
+						// The clicked box is an input
+						if (bi.containsInput(name))
+							bi.removeInput(name);
+						// The clicked box is not an input
+						else
+							bi.addInput(name);
+						floCanvas.redraw();
+					}
+				}
+			}
+		});
+		currentFloGraph.addCurrentBoxDefinitionObserver(
+				e -> tiToggleInput.setEnabled(currentFloGraph.getCurrentBoxDefinition() != null));
 
 		new ToolItem(toolBar, SWT.SEPARATOR);
 
@@ -166,16 +200,12 @@ public class Main {
 		new ToolItem(toolBar, SWT.SEPARATOR);
 
 		final ToolItem tiZoomIn = new ToolItem(toolBar, SWT.NONE);
-		tiZoomIn.setImage(SWTResourceManager.getImage(Main.class, "/Icons/zoomin.png"));
+		tiZoomIn.setImage(SWTResourceManager.getImage(Main.class, "/Icons/zoom in.png"));
 		tiZoomIn.setText("Zoom In");
 
 		final ToolItem tiZoomOut = new ToolItem(toolBar, SWT.NONE);
-		tiZoomOut.setImage(SWTResourceManager.getImage(Main.class, "/Icons/zoomout.png"));
+		tiZoomOut.setImage(SWTResourceManager.getImage(Main.class, "/Icons/zoom out.png"));
 		tiZoomOut.setText("Zoom Out");
-
-		tree = new FloTree(shell, currentFloGraph);
-		final Sash sash = new Sash(shell, SWT.VERTICAL);
-		floCanvas = new FloCanvas(shell, currentFloGraph);
 
 		// Set FormData properties
 		final Tree treetree = tree.getTree();
