@@ -141,11 +141,11 @@ public class FloCanvas extends Canvas {
 
 		// Draw the boxes
 		final Map<Integer, Pair<BoxInterface, Point>> boxes = bd.getBoxes();
-		for (final Integer ID : boxes.keySet()) {
+		boxes.keySet().forEach(ID -> {
 			final Pair<BoxInterface, Point> pair = boxes.get(ID);
 			final boolean isInput = bd.getBoxInterface().containsInput(pair.x.getName());
 			drawBox(gc, pair.x, pair.y, ID, isInput);
-		}
+		});
 
 		// Draw the cables
 		drawCables(gc);
@@ -309,7 +309,7 @@ public class FloCanvas extends Canvas {
 
 		final List<Cable> cables = floGraph.getCurrentBoxDefinition().getCables();
 
-		for (final Cable cable : cables) {
+		cables.forEach(cable -> {
 			Circle outputCircle = new Circle(0, 0, 0), inputCircle = new Circle(0, 0, 0);
 
 			final Output output = cable.getOutput();
@@ -324,7 +324,7 @@ public class FloCanvas extends Canvas {
 
 			// Draw the cable
 			drawCableBetweenPoints(gc, outputCircle.center, inputCircle.center);
-		}
+		});
 
 		// Draw the temporary cable if there is one
 		final boolean inputHasBeenClicked = cableListener.getInputHasBeenClicked();

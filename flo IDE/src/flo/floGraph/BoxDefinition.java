@@ -7,6 +7,7 @@ import java.util.Map;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
 import org.eclipse.swt.graphics.Point;
@@ -36,6 +37,26 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		cables = new ArrayList<Cable>();
 	}
 
+	public BoxDefinition(final JsonObject jsonObject, final BoxDefinitionContainer parent) {
+		super(jsonObject, parent);
+
+		boxInterface = new BoxInterface(jsonObject.getJsonObject("boxInterface"));
+
+		boxes = new HashMap<Integer, Pair<BoxInterface, Point>>();
+		final List<JsonObject> jsonBoxes = jsonObject.getJsonArray("boxes").getValuesAs(JsonObject.class);
+		jsonBoxes.forEach(jo -> {
+			final int ID = jo.getInt("ID");
+			final BoxInterface bi = new BoxInterface(jo.getJsonObject("boxInterface"));
+			bi.setID(ID);
+			final Point point = new Point(jo.getInt("x"), jo.getInt("y"));
+			boxes.put(ID, new Pair<BoxInterface, Point>(bi, point));
+		});
+
+		cables = new ArrayList<Cable>();
+		final List<JsonObject> jsonCables = jsonObject.getJsonArray("cables").getValuesAs(JsonObject.class);
+		jsonCables.forEach(jo -> cables.add(new Cable(jo, this)));
+	}
+
 	public BoxInterface getBoxInterface() {
 		return boxInterface;
 	}
@@ -59,15 +80,15 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		final BoxInterface bi = boxes.get(ID).x;
 
 		// Remove any cables attached to box
-		for (final Input i : bi.getInputs())
+		bi.getInputs().forEach(i -> {
 			if (i.hasCable())
 				removeCable(i.getCable());
+		});
 
 		final Output o = bi.getOutput();
 		if (o.hasCable()) {
 			final List<Cable> cablesToRemove = new ArrayList<Cable>(o.getCables());
-			for (final Cable c : cablesToRemove)
-				removeCable(c);
+			cablesToRemove.forEach(c -> removeCable(c));
 		}
 
 		boxes.remove(ID);
@@ -130,16 +151,15 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 	@Override
 	public JsonObjectBuilder toJsonObjectBuilder() {
 		final JsonArrayBuilder boxBuilder = Json.createArrayBuilder();
-		for (final Integer i : boxes.keySet()) {
+		boxes.keySet().forEach(i -> {
 			final Pair<BoxInterface, Point> pair = boxes.get(i);
 			final JsonObjectBuilder objectBuilder = Json.createObjectBuilder().add("ID", i)
 					.add("boxInterface", pair.x.toJsonObjectBuilder()).add("x", pair.y.x).add("y", pair.y.y);
 			boxBuilder.add(objectBuilder);
-		}
+		});
 
 		final JsonArrayBuilder cableBuilder = Json.createArrayBuilder();
-		for (final Cable c : cables)
-			cableBuilder.add(c.toJsonObjectBuilder());
+		cables.forEach(c -> cableBuilder.add(c.toJsonObjectBuilder()));
 
 		return super.toJsonObjectBuilder().add("boxInterface", boxInterface.toJsonObjectBuilder())
 				.add("boxes", boxBuilder).add("cables", cableBuilder);

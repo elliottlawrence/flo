@@ -36,6 +36,7 @@ public class Main {
 	private static final int MIN_TREE_WIDTH = 80;
 
 	private static String savePath = "Untitled.flo";
+	private static String openPath;
 
 	/**
 	 * Launch the application.
@@ -43,16 +44,27 @@ public class Main {
 	 * @param args
 	 */
 	public static void main(final String[] args) {
-		currentFloGraph = new FloGraph("Untitled");
-		currentFloGraph.addModule("Main").addBoxDefinition("main");
-		currentFloGraph.addModule("Utils").addBoxDefinition("helper");
-		currentFloGraph.addModule("Library").addBoxDefinition("max");
+		if (args.length > 0)
+			currentFloGraph = FloGraph.open(args[0]);
+		else {
+			currentFloGraph = new FloGraph("Untitled");
+			currentFloGraph.addModule("Main").addBoxDefinition("main");
+			currentFloGraph.addModule("Utils").addBoxDefinition("helper");
+			currentFloGraph.addModule("Library").addBoxDefinition("max");
+		}
 
 		try {
 			final Main window = new Main();
 			window.open();
 		} catch (final Exception e) {
 			e.printStackTrace();
+		}
+
+		// Open another file if necessary
+		if (openPath != null) {
+			final String[] args1 = new String[] { openPath };
+			openPath = null;
+			main(args1);
 		}
 	}
 
@@ -100,6 +112,16 @@ public class Main {
 
 		final MenuItem miOpen = new MenuItem(mFile, SWT.NONE);
 		miOpen.setText("Open");
+		miOpen.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				// Select a file to open
+				final FileDialog dialog = new FileDialog(shell, SWT.OPEN);
+				dialog.setFilterExtensions(new String[] { "*.flo" });
+				openPath = dialog.open();
+				shell.close();
+			}
+		});
 
 		final MenuItem miClose = new MenuItem(mFile, SWT.NONE);
 		miClose.setText("Close");

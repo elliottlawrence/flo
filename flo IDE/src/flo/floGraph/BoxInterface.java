@@ -5,7 +5,9 @@ import java.util.List;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonString;
 
 import flo.Observable.BoxInterfaceRenamedEvent;
 import flo.Observable.CurrentBoxDefinitionEvent;
@@ -38,6 +40,17 @@ public class BoxInterface implements Jsonable {
 	public BoxInterface(final String name) {
 		this.name = name;
 		inputs = new ArrayList<Input>();
+		output = new Output(this);
+		endInput = new Input(name, this);
+	}
+
+	public BoxInterface(final JsonObject jsonObject) {
+		name = jsonObject.getString("name");
+
+		inputs = new ArrayList<Input>();
+		final List<JsonString> jsonInputs = jsonObject.getJsonArray("inputs").getValuesAs(JsonString.class);
+		jsonInputs.forEach(jo -> inputs.add(new Input(jo.getString(), this)));
+
 		output = new Output(this);
 		endInput = new Input(name, this);
 	}
@@ -134,8 +147,7 @@ public class BoxInterface implements Jsonable {
 	@Override
 	public JsonObjectBuilder toJsonObjectBuilder() {
 		final JsonArrayBuilder inputBuilder = Json.createArrayBuilder();
-		for (final Input i : inputs)
-			inputBuilder.add(i.getName());
+		inputs.forEach(i -> inputBuilder.add(i.getName()));
 
 		return Json.createObjectBuilder().add("name", name).add("inputs", inputBuilder);
 	}

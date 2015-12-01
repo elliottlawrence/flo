@@ -69,11 +69,10 @@ public class BoxDefinitionContainerTreeListener {
 	}
 
 	private void setInitialContents(final BoxDefinitionContainer container, final FloGraph floGraph) {
-		TreeItem tiBd;
-		for (final BoxDefinition bd : container.getBoxDefinitions()) {
-			tiBd = new TreeItem(treeItem, SWT.NONE);
+		container.getBoxDefinitions().forEach(bd -> {
+			final TreeItem tiBd = new TreeItem(treeItem, SWT.NONE);
 			tiBd.setText(bd.getBoxInterface().getName());
 			new BoxDefinitionContainerTreeListener(floGraph, bd, tiBd);
-		}
+		});
 	}
 }

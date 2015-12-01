@@ -1,5 +1,6 @@
 package flo.floGraph;
 
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
@@ -7,7 +8,9 @@ import java.util.List;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonReader;
 import javax.json.JsonWriter;
 
 import flo.Observable.BoxDefinitionSelectedEvent;
@@ -34,8 +37,20 @@ public class FloGraph implements Jsonable {
 	private BoxDefinition currentBoxDefinition;
 
 	public FloGraph(final String name) {
+		this(name, new ArrayList<Module>());
+	}
+
+	public FloGraph(final String name, final List<Module> modules) {
 		this.name = name;
+		this.modules = modules;
+	}
+
+	public FloGraph(final JsonObject jsonObject) {
+		name = jsonObject.getString("name");
+
 		modules = new ArrayList<Module>();
+		final List<JsonObject> jsonModules = jsonObject.getJsonArray("modules").getValuesAs(JsonObject.class);
+		jsonModules.forEach(jo -> modules.add(new Module(jo)));
 	}
 
 	public String getName() {
@@ -157,8 +172,7 @@ public class FloGraph implements Jsonable {
 	@Override
 	public JsonObjectBuilder toJsonObjectBuilder() {
 		final JsonArrayBuilder modulesBuilder = Json.createArrayBuilder();
-		for (final Module m : modules)
-			modulesBuilder.add(m.toJsonObjectBuilder());
+		modules.forEach(m -> modulesBuilder.add(m.toJsonObjectBuilder()));
 
 		return Json.createObjectBuilder().add("name", name).add("modules", modulesBuilder);
 	}
@@ -174,6 +188,28 @@ public class FloGraph implements Jsonable {
 		} catch (final FileNotFoundException e1) {
 			e1.printStackTrace();
 		}
+	}
+
+	/**
+	 * Open a file from the given path
+	 *
+	 * @param path
+	 * @return A new Flo Graph from the given JSON file
+	 */
+	public static FloGraph open(final String path) {
+		JsonObject jsonObject = null;
+		try {
+			final JsonReader reader = Json.createReader(new FileInputStream(path));
+			jsonObject = reader.readObject();
+			reader.close();
+		} catch (final FileNotFoundException e) {
+			e.printStackTrace();
+		}
+
+		if (jsonObject == null)
+			return null;
+
+		return new FloGraph(jsonObject);
 	}
 
 }

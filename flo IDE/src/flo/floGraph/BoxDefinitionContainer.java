@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
 import flo.Observable.BoxDefinitionAddedEvent;
@@ -23,8 +24,17 @@ public abstract class BoxDefinitionContainer implements Jsonable {
 	private final BoxDefinitionContainer parent;
 
 	public BoxDefinitionContainer(final BoxDefinitionContainer parent) {
-		boxDefinitions = new ArrayList<BoxDefinition>();
 		this.parent = parent;
+		boxDefinitions = new ArrayList<BoxDefinition>();
+	}
+
+	public BoxDefinitionContainer(final JsonObject jsonObject, final BoxDefinitionContainer parent) {
+		this.parent = parent;
+
+		boxDefinitions = new ArrayList<BoxDefinition>();
+		final List<JsonObject> jsonBoxDefinitions = jsonObject.getJsonArray("boxDefinitions")
+				.getValuesAs(JsonObject.class);
+		jsonBoxDefinitions.forEach(jo -> boxDefinitions.add(new BoxDefinition(jo, this)));
 	}
 
 	public List<BoxDefinition> getBoxDefinitions() {
@@ -117,8 +127,7 @@ public abstract class BoxDefinitionContainer implements Jsonable {
 	@Override
 	public JsonObjectBuilder toJsonObjectBuilder() {
 		final JsonArrayBuilder boxDefinitionsBuilder = Json.createArrayBuilder();
-		for (final BoxDefinition bd : boxDefinitions)
-			boxDefinitionsBuilder.add(bd.toJsonObjectBuilder());
+		boxDefinitions.forEach(bd -> boxDefinitionsBuilder.add(bd.toJsonObjectBuilder()));
 
 		return Json.createObjectBuilder().add("boxDefinitions", boxDefinitionsBuilder);
 	}

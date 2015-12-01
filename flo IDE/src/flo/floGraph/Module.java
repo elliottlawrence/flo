@@ -1,5 +1,6 @@
 package flo.floGraph;
 
+import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
 import flo.Observable.ModuleRenamedEvent;
@@ -15,9 +16,14 @@ public class Module extends BoxDefinitionContainer implements Jsonable {
 	private String name;
 
 	public Module(final String name) {
-		// Modules are not contained in anything (other than the FloGraph)
 		super(null);
 		this.name = name;
+	}
+
+	public Module(final JsonObject jsonObject) {
+		super(jsonObject, null);
+
+		name = jsonObject.getString("name");
 	}
 
 	public String getName() {

@@ -23,7 +23,6 @@ public class Observable<T> {
 	}
 
 	public void notifyObservers(final T e) {
-		for (final Observer<T> observer : observers)
-			observer.update(e);
+		observers.forEach(observer -> observer.update(e));
 	}
 }
