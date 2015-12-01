@@ -1,5 +1,6 @@
 package flo;
 
+import org.apache.commons.io.FilenameUtils;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -37,6 +38,9 @@ public class Main {
 
 	private static String savePath = "Untitled.flo";
 	private static String openPath;
+	private static boolean closing = false;
+
+	private static String[] extensions = { "*.flo" };
 
 	/**
 	 * Launch the application.
@@ -44,6 +48,7 @@ public class Main {
 	 * @param args
 	 */
 	public static void main(final String[] args) {
+		// currentFloGraph = new FloGraph("Untitled");
 		if (args.length > 0)
 			currentFloGraph = FloGraph.open(args[0]);
 		else {
@@ -65,6 +70,11 @@ public class Main {
 			final String[] args1 = new String[] { openPath };
 			openPath = null;
 			main(args1);
+		}
+		// Start a new blank file if necessary
+		else if (closing) {
+			closing = false;
+			main(new String[] {});
 		}
 	}
 
@@ -91,8 +101,8 @@ public class Main {
 		shell.setSize(1000, 600);
 		shell.setMinimumSize(300, 200);
 		shell.setLocation(200, 50);
-		shell.setText("flo - " + currentFloGraph.getName());
 		shell.setLayout(new FormLayout());
+		updateShellText();
 
 		tree = new FloTree(shell, currentFloGraph);
 		final Sash sash = new Sash(shell, SWT.VERTICAL);
@@ -109,27 +119,46 @@ public class Main {
 
 		final MenuItem miNew = new MenuItem(mFile, SWT.NONE);
 		miNew.setText("New");
+		miNew.setAccelerator(SWT.COMMAND | 'N');
+		miNew.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				closing = true;
+				shell.close();
+			}
+		});
 
 		final MenuItem miOpen = new MenuItem(mFile, SWT.NONE);
 		miOpen.setText("Open");
+		miOpen.setAccelerator(SWT.COMMAND | 'O');
 		miOpen.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
 				// Select a file to open
 				final FileDialog dialog = new FileDialog(shell, SWT.OPEN);
-				dialog.setFilterExtensions(new String[] { "*.flo" });
+				dialog.setFilterExtensions(extensions);
 				openPath = dialog.open();
-				shell.close();
+				if (openPath != null)
+					shell.close();
 			}
 		});
 
 		final MenuItem miClose = new MenuItem(mFile, SWT.NONE);
 		miClose.setText("Close");
+		miClose.setAccelerator(SWT.COMMAND | 'W');
+		miClose.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(final SelectionEvent e) {
+				closing = true;
+				shell.close();
+			}
+		});
 
 		new MenuItem(mFile, SWT.SEPARATOR);
 
 		final MenuItem miSave = new MenuItem(mFile, SWT.NONE);
 		miSave.setText("Save");
+		miSave.setAccelerator(SWT.COMMAND | 'S');
 		miSave.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
@@ -139,12 +168,22 @@ public class Main {
 
 		final MenuItem miSaveAs = new MenuItem(mFile, SWT.NONE);
 		miSaveAs.setText("Save as");
+		miSaveAs.setAccelerator(SWT.COMMAND | SWT.SHIFT | 'S');
 		miSaveAs.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(final SelectionEvent e) {
 				final FileDialog dialog = new FileDialog(shell, SWT.SAVE);
-				dialog.setFileName(currentFloGraph.getName() + ".flo");
+				dialog.setFileName(currentFloGraph.getName());
+				dialog.setFilterExtensions(extensions);
 				savePath = dialog.open();
+				if (savePath == null)
+					return;
+
+				// Set the Flo Graph's name to the name of the file
+				currentFloGraph.setName(FilenameUtils.getBaseName(savePath));
+				updateShellText();
+
+				// Save it
 				currentFloGraph.save(savePath);
 			}
 		});
@@ -283,5 +322,9 @@ public class Main {
 		fd_floCanvas.right = new FormAttachment(100);
 		fd_floCanvas.left = new FormAttachment(sash);
 		floCanvas.setLayoutData(fd_floCanvas);
+	}
+
+	private void updateShellText() {
+		shell.setText("flo - " + currentFloGraph.getName());
 	}
 }

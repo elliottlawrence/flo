@@ -27,7 +27,7 @@ import flo.Util.Jsonable;
  */
 public class FloGraph implements Jsonable {
 
-	private final String name;
+	private String name;
 	private final List<Module> modules;
 
 	/**
@@ -55,6 +55,10 @@ public class FloGraph implements Jsonable {
 
 	public String getName() {
 		return name;
+	}
+
+	public void setName(final String name) {
+		this.name = name;
 	}
 
 	public List<Module> getModules() {
@@ -192,9 +196,6 @@ public class FloGraph implements Jsonable {
 
 	/**
 	 * Open a file from the given path
-	 *
-	 * @param path
-	 * @return A new Flo Graph from the given JSON file
 	 */
 	public static FloGraph open(final String path) {
 		JsonObject jsonObject = null;
