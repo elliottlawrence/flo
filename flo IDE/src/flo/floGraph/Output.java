@@ -9,37 +9,41 @@ import javax.json.JsonObjectBuilder;
 import flo.Util.Jsonable;
 
 /**
- * Outputs are unnamed but have types nonetheless.
+ * Each box interface has an output
  */
 public class Output implements Jsonable {
 
-	private Type type;
-
+	/**
+	 * The cables stemming from this output
+	 */
 	private final List<Cable> cables = new ArrayList<Cable>();
 
 	/**
-	 * The box interface in which this input is defined
+	 * The box interface in which this output is defined
 	 */
 	private final BoxInterface parent;
 
+	/**
+	 * Create the output for the given box interface
+	 * 
+	 * @param parent
+	 */
 	public Output(final BoxInterface parent) {
 		this.parent = parent;
 	}
 
-	public Type getType() {
-		return type;
-	}
+	// Methods related to cables
 
-	public void addCable(final Cable cable) {
-		cables.add(cable);
+	public List<Cable> getCables() {
+		return cables;
 	}
 
 	public boolean hasCable() {
 		return cables.size() > 0;
 	}
 
-	public List<Cable> getCables() {
-		return cables;
+	public void addCable(final Cable cable) {
+		cables.add(cable);
 	}
 
 	public void removeCable(final Cable cable) {

@@ -20,33 +20,61 @@ import flo.Util.Jsonable;
  */
 public abstract class BoxDefinitionContainer implements Jsonable {
 
+	/**
+	 * The box definitions/local definitions that are defined in this box
+	 * container
+	 */
 	private final List<BoxDefinition> boxDefinitions;
+
+	/**
+	 * The box definition container in which this is defined. For modules, this
+	 * field is null.
+	 */
 	private final BoxDefinitionContainer parent;
 
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxDefinitionAddedEvent> boxDefinitionAddedObservable =
+			new Observable<BoxDefinitionAddedEvent>();
+	private final Observable<BoxDefinitionRemovedEvent> boxDefinitionRemovedObservable =
+			new Observable<BoxDefinitionRemovedEvent>();
+
+	/**
+	 * Create an empty box definition container which is a child of the given
+	 * box definition container
+	 *
+	 * @param parent
+	 */
 	public BoxDefinitionContainer(final BoxDefinitionContainer parent) {
 		this.parent = parent;
 		boxDefinitions = new ArrayList<BoxDefinition>();
 	}
 
-	public BoxDefinitionContainer(final JsonObject jsonObject, final BoxDefinitionContainer parent) {
+	/**
+	 * Load a box definition container from the given JSON object with the given
+	 * parent
+	 *
+	 * @param jsonObject
+	 * @param parent
+	 */
+	public BoxDefinitionContainer(final JsonObject jsonObject,
+			final BoxDefinitionContainer parent) {
 		this.parent = parent;
 
 		boxDefinitions = new ArrayList<BoxDefinition>();
-		final List<JsonObject> jsonBoxDefinitions = jsonObject.getJsonArray("boxDefinitions")
-				.getValuesAs(JsonObject.class);
-		jsonBoxDefinitions.forEach(jo -> boxDefinitions.add(new BoxDefinition(jo, this)));
+		final List<JsonObject> jsonBoxDefinitions = jsonObject
+				.getJsonArray("boxDefinitions").getValuesAs(JsonObject.class);
+		jsonBoxDefinitions
+				.forEach(jo -> boxDefinitions.add(new BoxDefinition(jo, this)));
 	}
+
+	// Methods related to boxDefinitions
 
 	public List<BoxDefinition> getBoxDefinitions() {
 		return boxDefinitions;
 	}
 
-	/**
-	 * Search for a box definition by name
-	 *
-	 * @param name
-	 * @return The box definition or null if it doesn't exist
-	 */
 	public BoxDefinition getBoxDefinition(final String name) {
 		for (final BoxDefinition bd : boxDefinitions)
 			if (bd.getBoxInterface().getName().equals(name))
@@ -54,17 +82,12 @@ public abstract class BoxDefinitionContainer implements Jsonable {
 		return null;
 	}
 
-	/**
-	 * Adds a new box definition to the module
-	 *
-	 * @param name
-	 * @return The new box definition
-	 */
 	public BoxDefinition addBoxDefinition(final String name) {
 		final BoxDefinition bd = new BoxDefinition(name, this);
 		boxDefinitions.add(bd);
 
-		boxDefinitionAddedObservable.notifyObservers(new BoxDefinitionAddedEvent(bd));
+		boxDefinitionAddedObservable
+				.notifyObservers(new BoxDefinitionAddedEvent(bd));
 		return bd;
 	}
 
@@ -72,21 +95,13 @@ public abstract class BoxDefinitionContainer implements Jsonable {
 		removeBoxDefinition(getBoxDefinition(name));
 	}
 
-	/**
-	 * Remove a box definition from a box definition container
-	 *
-	 * @param bd
-	 */
 	public void removeBoxDefinition(final BoxDefinition bd) {
 		final int index = boxDefinitions.indexOf(bd);
 		bd.deleteObservers();
 		boxDefinitions.remove(bd);
 
-		boxDefinitionRemovedObservable.notifyObservers(new BoxDefinitionRemovedEvent(index));
-	}
-
-	public BoxDefinitionContainer getParent() {
-		return parent;
+		boxDefinitionRemovedObservable
+				.notifyObservers(new BoxDefinitionRemovedEvent(index));
 	}
 
 	/**
@@ -102,17 +117,21 @@ public abstract class BoxDefinitionContainer implements Jsonable {
 		return false;
 	}
 
-	/**
-	 * Observables corresponding to the different events this object can emit
-	 */
-	private final Observable<BoxDefinitionAddedEvent> boxDefinitionAddedObservable = new Observable<BoxDefinitionAddedEvent>();
-	private final Observable<BoxDefinitionRemovedEvent> boxDefinitionRemovedObservable = new Observable<BoxDefinitionRemovedEvent>();
+	// Methods related to parent
 
-	public void addBoxDefinitionAddedObserver(final Observer<BoxDefinitionAddedEvent> o) {
+	public BoxDefinitionContainer getParent() {
+		return parent;
+	}
+
+	// Methods related to observers
+
+	public void addBoxDefinitionAddedObserver(
+			final Observer<BoxDefinitionAddedEvent> o) {
 		boxDefinitionAddedObservable.addObserver(o);
 	}
 
-	public void addBoxDefinitionRemovedObserver(final Observer<BoxDefinitionRemovedEvent> o) {
+	public void addBoxDefinitionRemovedObserver(
+			final Observer<BoxDefinitionRemovedEvent> o) {
 		boxDefinitionRemovedObservable.addObserver(o);
 	}
 
@@ -126,9 +145,12 @@ public abstract class BoxDefinitionContainer implements Jsonable {
 	 */
 	@Override
 	public JsonObjectBuilder toJsonObjectBuilder() {
-		final JsonArrayBuilder boxDefinitionsBuilder = Json.createArrayBuilder();
-		boxDefinitions.forEach(bd -> boxDefinitionsBuilder.add(bd.toJsonObjectBuilder()));
+		final JsonArrayBuilder boxDefinitionsBuilder =
+				Json.createArrayBuilder();
+		boxDefinitions.forEach(
+				bd -> boxDefinitionsBuilder.add(bd.toJsonObjectBuilder()));
 
-		return Json.createObjectBuilder().add("boxDefinitions", boxDefinitionsBuilder);
+		return Json.createObjectBuilder().add("boxDefinitions",
+				boxDefinitionsBuilder);
 	}
 }

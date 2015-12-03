@@ -4,7 +4,7 @@ public interface Shape {
 
 	/**
 	 * Returns true if the shape contains the given point
-	 * 
+	 *
 	 * @param x
 	 * @param y
 	 */

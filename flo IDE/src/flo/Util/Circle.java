@@ -21,12 +21,14 @@ public class Circle implements Shape {
 	 */
 	@Override
 	public boolean contains(final int x, final int y) {
-		final int dd = (center.x - x) * (center.x - x) + (center.y - y) * (center.y - y);
+		final int dd = (center.x - x) * (center.x - x)
+				+ (center.y - y) * (center.y - y);
 		return dd <= r * r;
 	}
 
 	@Override
 	public String toString() {
-		return "Circle { x = " + center.x + ", y = " + center.y + ", r = " + r + " }";
+		return "Circle { x = " + center.x + ", y = " + center.y + ", r = " + r
+				+ " }";
 	}
 }

@@ -16,6 +16,16 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
 
 	private final FloCanvas floCanvas;
 
+	// Variables for click and move events
+
+	private boolean inputHasBeenClicked = false;
+	private Input clickedInput;
+
+	private boolean outputHasBeenClicked = false;
+	private Output clickedOutput;
+
+	private final Point cableEnd = new Point(0, 0);
+
 	public CableListener(final FloCanvas floCanvas) {
 		this.floCanvas = floCanvas;
 
@@ -24,43 +34,27 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
 		this.floCanvas.addMouseMoveListener(this);
 	}
 
-	/**
-	 * Variables for click and move events
-	 */
-
-	private boolean inputHasBeenClicked = false;
-
 	public boolean getInputHasBeenClicked() {
 		return inputHasBeenClicked;
 	}
-
-	private Input clickedInput;
 
 	public Input getClickedInput() {
 		return clickedInput;
 	}
 
-	private boolean outputHasBeenClicked = false;
-
 	public boolean getOutputHasBeenClicked() {
 		return outputHasBeenClicked;
 	}
-
-	private Output clickedOutput;
 
 	public Output getClickedOutput() {
 		return clickedOutput;
 	}
 
-	private final Point cableEnd = new Point(0, 0);
-
 	public Point getCableEnd() {
 		return cableEnd;
 	}
 
-	/**
-	 * Event handlers
-	 */
+	// Event handlers
 
 	@Override
 	public void mouseDown(final MouseEvent e) {
@@ -68,7 +62,8 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
 			return;
 
 		// See if user clicked an input
-		final Pair<Circle, Input> pair1 = floCanvas.getContainingInput(e.x, e.y);
+		final Pair<Circle, Input> pair1 =
+				floCanvas.getContainingInput(e.x, e.y);
 		if (pair1 != null) {
 			inputHasBeenClicked = true;
 			clickedInput = pair1.y;
@@ -76,7 +71,8 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
 			if (outputHasBeenClicked) {
 				// Make cable
 				final FloGraph floGraph = floCanvas.getFloGraph();
-				final Cable cable = new Cable(clickedOutput, clickedInput, floGraph.getCurrentBoxDefinition());
+				final Cable cable = new Cable(clickedOutput, clickedInput,
+						floGraph.getCurrentBoxDefinition());
 				floGraph.getCurrentBoxDefinition().addCable(cable);
 
 				// Reset variables
@@ -98,7 +94,8 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
 		}
 
 		// See if user clicked an output
-		final Pair<Circle, Output> pair2 = floCanvas.getContainingOutput(e.x, e.y);
+		final Pair<Circle, Output> pair2 =
+				floCanvas.getContainingOutput(e.x, e.y);
 		if (pair2 != null) {
 			outputHasBeenClicked = true;
 			clickedOutput = pair2.y;
@@ -106,7 +103,8 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
 			if (inputHasBeenClicked) {
 				// Make cable
 				final FloGraph floGraph = floCanvas.getFloGraph();
-				final Cable cable = new Cable(clickedOutput, clickedInput, floGraph.getCurrentBoxDefinition());
+				final Cable cable = new Cable(clickedOutput, clickedInput,
+						floGraph.getCurrentBoxDefinition());
 				floGraph.getCurrentBoxDefinition().addCable(cable);
 
 				// Reset variables

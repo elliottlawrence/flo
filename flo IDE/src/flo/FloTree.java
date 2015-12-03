@@ -49,6 +49,10 @@ public class FloTree {
 		miDelete.addSelectionListener(deleteListener);
 	}
 
+	public Tree getTree() {
+		return tree;
+	}
+
 	/**
 	 * Delete a tree item
 	 */
@@ -61,7 +65,8 @@ public class FloTree {
 
 			final TreeItem selectedItem = selectedItems[0];
 			final TreeItem parentItem = selectedItem.getParentItem();
-			final BoxDefinitionContainer bdc = findBoxDefContainerFromTreeItem(selectedItem, floGraph);
+			final BoxDefinitionContainer bdc =
+					findBoxDefContainerFromTreeItem(selectedItem, floGraph);
 
 			if (bdc instanceof Module) {
 				// If this module contains the current box definition, set that
@@ -75,7 +80,8 @@ public class FloTree {
 				if (floGraph.getCurrentBoxDefinition() == bdc)
 					floGraph.setCurrentBoxDefinition(null);
 
-				final BoxDefinitionContainer parentContainer = findBoxDefContainerFromTreeItem(parentItem, floGraph);
+				final BoxDefinitionContainer parentContainer =
+						findBoxDefContainerFromTreeItem(parentItem, floGraph);
 				parentContainer.removeBoxDefinition((BoxDefinition) bdc);
 			}
 		}
@@ -91,10 +97,11 @@ public class FloTree {
 			if (selectedItems.length == 0)
 				return;
 
-			final BoxDefinitionContainer selectedContainer = findBoxDefContainerFromTreeItem(selectedItems[0],
-					floGraph);
+			final BoxDefinitionContainer selectedContainer =
+					findBoxDefContainerFromTreeItem(selectedItems[0], floGraph);
 			if (selectedContainer instanceof BoxDefinition)
-				floGraph.setCurrentBoxDefinition((BoxDefinition) selectedContainer);
+				floGraph.setCurrentBoxDefinition(
+						(BoxDefinition) selectedContainer);
 		}
 
 		/**
@@ -142,7 +149,8 @@ public class FloTree {
 		}
 
 		private void setText(final String text, final TreeItem item) {
-			final BoxDefinitionContainer container = findBoxDefContainerFromTreeItem(item, floGraph);
+			final BoxDefinitionContainer container =
+					findBoxDefContainerFromTreeItem(item, floGraph);
 			if (container instanceof Module)
 				((Module) container).setName(text);
 			if (container instanceof BoxDefinition)
@@ -150,24 +158,22 @@ public class FloTree {
 		}
 	};
 
-	public Tree getTree() {
-		return tree;
-	}
-
 	/**
 	 * Given a TreeItem, find the corresponding object in the Flo Graph
 	 *
 	 * @param ti
 	 * @return The corresponding object
 	 */
-	public static BoxDefinitionContainer findBoxDefContainerFromTreeItem(final TreeItem ti, final FloGraph floGraph) {
+	public static BoxDefinitionContainer findBoxDefContainerFromTreeItem(
+			final TreeItem ti, final FloGraph floGraph) {
 		final TreeItem parent = ti.getParentItem();
 		// Item is a module
 		if (parent == null)
 			return floGraph.getModule(ti.getText());
 
 		// Item is a box definition
-		return findBoxDefContainerFromTreeItem(parent, floGraph).getBoxDefinition(ti.getText());
+		return findBoxDefContainerFromTreeItem(parent, floGraph)
+				.getBoxDefinition(ti.getText());
 	}
 
 	/**
@@ -179,7 +185,8 @@ public class FloTree {
 	 * @param floGraph
 	 * @return The corresponding TreeItem
 	 */
-	public static TreeItem findTreeItemFromBoxDefContainer(final BoxDefinitionContainer container, final Tree tree,
+	public static TreeItem findTreeItemFromBoxDefContainer(
+			final BoxDefinitionContainer container, final Tree tree,
 			final FloGraph floGraph) {
 		if (container == null)
 			throw new IllegalArgumentException();
@@ -190,6 +197,7 @@ public class FloTree {
 
 		// This is a box definition
 		return findTreeItemFromBoxDefContainer(parentContainer, tree, floGraph)
-				.getItem(parentContainer.getBoxDefinitions().indexOf(container));
+				.getItem(
+						parentContainer.getBoxDefinitions().indexOf(container));
 	}
 }

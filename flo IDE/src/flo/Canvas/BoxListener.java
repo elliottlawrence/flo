@@ -13,6 +13,17 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
 
 	private final FloCanvas floCanvas;
 
+	/**
+	 * The currently selected box (if there is one)
+	 */
+	private int clickedBoxID = -1;
+
+	// Variables for drag events
+
+	private boolean drag = false;
+	private int draggedBoxID;
+	private final Point dragOffset = new Point(0, 0);
+
 	public BoxListener(final FloCanvas floCanvas) {
 		this.floCanvas = floCanvas;
 
@@ -21,11 +32,6 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
 		this.floCanvas.addMouseMoveListener(this);
 	}
 
-	/**
-	 * The currently selected box (if there is one)
-	 */
-	private int clickedBoxID = -1;
-
 	public int getClickedBoxID() {
 		return clickedBoxID;
 	}
@@ -33,13 +39,6 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
 	public void setClickedBoxID(final int ID) {
 		clickedBoxID = ID;
 	}
-
-	/**
-	 * Variables for drag events
-	 */
-	private boolean drag = false;
-	private int draggedBoxID;
-	private final Point dragOffset = new Point(0, 0);
 
 	@Override
 	public void mouseDown(final MouseEvent e) {
@@ -70,7 +69,8 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
 	@Override
 	public void mouseMove(final MouseEvent e) {
 		if (drag)
-			floCanvas.getFloGraph().getCurrentBoxDefinition().setBoxLocation(draggedBoxID,
+			floCanvas.getFloGraph().getCurrentBoxDefinition().setBoxLocation(
+					draggedBoxID,
 					new Point(dragOffset.x + e.x, dragOffset.y + e.y));
 	}
 }

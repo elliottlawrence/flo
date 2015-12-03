@@ -13,8 +13,8 @@ data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
 {- Expressions can be literals, functions, constructors, applications, or let
    expressions. -}
 data FloExpression = FloLit Literal                     -- Literal
-                   | FloFun Name Type                   -- Functions
-                   | FloCons Name Type                  -- Constructors
+                   | FloFun Name                        -- Functions
+                   | FloCons Name                       -- Constructors
                    | FloExpression :$: [(Input, FloExpression)]
                                                         -- Applications
                    | FloLet {                           -- Let expressions
@@ -36,6 +36,7 @@ data FloModule = FloModule {
   getFloModuleName :: Name,
   getFloModuleDefinitions :: [FloDefinition]
 }
+
 data FloProgram = FloProgram {
   getFloProgramName :: Name,
   getFloProgramModules :: [FloModule]
@@ -79,13 +80,12 @@ convertBoxDefinition boxDef = FloDefinition {
 createFloExpression :: BoxDefinition -> ID -> FloExpression
 createFloExpression boxDef boxID =
   case boxFlavor of
-    Function -> createApplication boxDef boxID (FloFun boxName boxType)
-    Constructor -> createApplication boxDef boxID (FloCons boxName boxType)
+    Function -> createApplication boxDef boxID (FloFun boxName)
+    Constructor -> createApplication boxDef boxID (FloCons boxName)
     Literal -> convertLiteral boxInterface
   where boxInterface = fromJust $ Map.lookup boxID (getBoxes boxDef)
         boxFlavor = getBoxFlavor boxInterface
         boxName = getBoxName boxInterface
-        boxType = getBoxType boxInterface
 
 {- To create an expression out of a function or constructor, convert all of its
    inputs to expressions and then apply them to the function. For constant

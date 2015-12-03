@@ -26,40 +26,82 @@ import flo.Util.Pair;
  */
 public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 
+	/**
+	 * The box's interface
+	 */
 	private final BoxInterface boxInterface;
+
+	/**
+	 * The list of boxes contained in this box definition and their locations on
+	 * the canvas
+	 */
 	private final Map<Integer, Pair<BoxInterface, Point>> boxes;
+
+	/**
+	 * The list of cables connecting various boxes
+	 */
 	private final List<Cable> cables;
 
-	public BoxDefinition(final String name, final BoxDefinitionContainer parent) {
+	/**
+	 * Observables corresponding to the different events this object can emit
+	 */
+	private final Observable<BoxAddedEvent> boxAddedObservable =
+			new Observable<BoxAddedEvent>();
+	private final Observable<CurrentBoxDefinitionEvent> currentBoxDefinitionObservable =
+			new Observable<CurrentBoxDefinitionEvent>();
+
+	/**
+	 * Create an empty box definition with the given name and parent
+	 *
+	 * @param name
+	 * @param parent
+	 */
+	public BoxDefinition(final String name,
+			final BoxDefinitionContainer parent) {
 		super(parent);
 		boxInterface = new BoxInterface(name);
 		boxes = new HashMap<Integer, Pair<BoxInterface, Point>>();
 		cables = new ArrayList<Cable>();
 	}
 
-	public BoxDefinition(final JsonObject jsonObject, final BoxDefinitionContainer parent) {
+	/**
+	 * Load a box defintition from the given JSON object with the given parent
+	 *
+	 * @param jsonObject
+	 * @param parent
+	 */
+	public BoxDefinition(final JsonObject jsonObject,
+			final BoxDefinitionContainer parent) {
 		super(jsonObject, parent);
 
-		boxInterface = new BoxInterface(jsonObject.getJsonObject("boxInterface"));
+		boxInterface =
+				new BoxInterface(jsonObject.getJsonObject("boxInterface"));
 
 		boxes = new HashMap<Integer, Pair<BoxInterface, Point>>();
-		final List<JsonObject> jsonBoxes = jsonObject.getJsonArray("boxes").getValuesAs(JsonObject.class);
+		final List<JsonObject> jsonBoxes =
+				jsonObject.getJsonArray("boxes").getValuesAs(JsonObject.class);
 		jsonBoxes.forEach(jo -> {
 			final int ID = jo.getInt("ID");
-			final BoxInterface bi = new BoxInterface(jo.getJsonObject("boxInterface"));
+			final BoxInterface bi =
+					new BoxInterface(jo.getJsonObject("boxInterface"));
 			bi.setID(ID);
 			final Point point = new Point(jo.getInt("x"), jo.getInt("y"));
 			boxes.put(ID, new Pair<BoxInterface, Point>(bi, point));
 		});
 
 		cables = new ArrayList<Cable>();
-		final List<JsonObject> jsonCables = jsonObject.getJsonArray("cables").getValuesAs(JsonObject.class);
+		final List<JsonObject> jsonCables =
+				jsonObject.getJsonArray("cables").getValuesAs(JsonObject.class);
 		jsonCables.forEach(jo -> cables.add(new Cable(jo, this)));
 	}
+
+	// Methods related to boxInterface
 
 	public BoxInterface getBoxInterface() {
 		return boxInterface;
 	}
+
+	// Methods related to boxes
 
 	public Map<Integer, Pair<BoxInterface, Point>> getBoxes() {
 		return boxes;
@@ -71,9 +113,16 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		boxes.put(ID, new Pair<BoxInterface, Point>(bi, new Point(100, 100)));
 
 		boxAddedObservable.notifyObservers(new BoxAddedEvent());
-		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
+		currentBoxDefinitionObservable
+				.notifyObservers(new CurrentBoxDefinitionEvent());
 
 		return ID;
+	}
+
+	private int getUniqueID() {
+		for (int i = 0;; i++)
+			if (!boxes.keySet().contains(i))
+				return i;
 	}
 
 	public void removeBox(final int ID) {
@@ -87,25 +136,23 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 
 		final Output o = bi.getOutput();
 		if (o.hasCable()) {
-			final List<Cable> cablesToRemove = new ArrayList<Cable>(o.getCables());
+			final List<Cable> cablesToRemove =
+					new ArrayList<Cable>(o.getCables());
 			cablesToRemove.forEach(c -> removeCable(c));
 		}
 
 		boxes.remove(ID);
 	}
 
-	private int getUniqueID() {
-		for (int i = 0;; i++)
-			if (!boxes.keySet().contains(i))
-				return i;
-	}
-
 	public void setBoxLocation(final Integer ID, final Point point) {
 		final BoxInterface bi = boxes.get(ID).x;
 		boxes.put(ID, new Pair<BoxInterface, Point>(bi, point));
 
-		currentBoxDefinitionObservable.notifyObservers(new CurrentBoxDefinitionEvent());
+		currentBoxDefinitionObservable
+				.notifyObservers(new CurrentBoxDefinitionEvent());
 	}
+
+	// Methods related to cables
 
 	public List<Cable> getCables() {
 		return cables;
@@ -120,18 +167,20 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		cables.remove(cable);
 	}
 
-	/**
-	 * Observables corresponding to the different events this object can emit
-	 */
-	private final Observable<BoxAddedEvent> boxAddedObservable = new Observable<BoxAddedEvent>();
-	private final Observable<CurrentBoxDefinitionEvent> currentBoxDefinitionObservable = new Observable<CurrentBoxDefinitionEvent>();
+	// Methods related to observers
 
 	public void addBoxAddedObserver(final Observer<BoxAddedEvent> o) {
 		boxAddedObservable.addObserver(o);
 	}
 
-	public void addCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
+	public void addCurrentBoxDefinitionObserver(
+			final Observer<CurrentBoxDefinitionEvent> o) {
 		currentBoxDefinitionObservable.addObserver(o);
+	}
+
+	public void deleteCurrentBoxDefinitionObserver(
+			final Observer<CurrentBoxDefinitionEvent> o) {
+		currentBoxDefinitionObservable.deleteObserver(o);
 	}
 
 	@Override
@@ -139,10 +188,6 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		super.deleteObservers();
 		boxAddedObservable.deleteObservers();
 		currentBoxDefinitionObservable.deleteObservers();
-	}
-
-	public void deleteCurrentBoxDefinitionObserver(final Observer<CurrentBoxDefinitionEvent> o) {
-		currentBoxDefinitionObservable.deleteObserver(o);
 	}
 
 	/**
@@ -153,15 +198,18 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 		final JsonArrayBuilder boxBuilder = Json.createArrayBuilder();
 		boxes.keySet().forEach(i -> {
 			final Pair<BoxInterface, Point> pair = boxes.get(i);
-			final JsonObjectBuilder objectBuilder = Json.createObjectBuilder().add("ID", i)
-					.add("boxInterface", pair.x.toJsonObjectBuilder()).add("x", pair.y.x).add("y", pair.y.y);
+			final JsonObjectBuilder objectBuilder =
+					Json.createObjectBuilder().add("ID", i)
+							.add("boxInterface", pair.x.toJsonObjectBuilder())
+							.add("x", pair.y.x).add("y", pair.y.y);
 			boxBuilder.add(objectBuilder);
 		});
 
 		final JsonArrayBuilder cableBuilder = Json.createArrayBuilder();
 		cables.forEach(c -> cableBuilder.add(c.toJsonObjectBuilder()));
 
-		return super.toJsonObjectBuilder().add("boxInterface", boxInterface.toJsonObjectBuilder())
+		return super.toJsonObjectBuilder()
+				.add("boxInterface", boxInterface.toJsonObjectBuilder())
 				.add("boxes", boxBuilder).add("cables", cableBuilder);
 	}
 }

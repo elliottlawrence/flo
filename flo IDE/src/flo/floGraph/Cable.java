@@ -11,7 +11,14 @@ import flo.Util.Jsonable;
  */
 public class Cable implements Jsonable {
 
+	/**
+	 * The output this cable is connected to
+	 */
 	private final Output output;
+
+	/**
+	 * The input this cable is connected to
+	 */
 	private final Input input;
 
 	/**
@@ -19,7 +26,16 @@ public class Cable implements Jsonable {
 	 */
 	private final BoxDefinition parent;
 
-	public Cable(final Output output, final Input input, final BoxDefinition parent) {
+	/**
+	 * Constructs a cable connecting the output to the input, defined in the
+	 * given box definition
+	 * 
+	 * @param output
+	 * @param input
+	 * @param parent
+	 */
+	public Cable(final Output output, final Input input,
+			final BoxDefinition parent) {
 		this.output = output;
 		this.input = input;
 		this.parent = parent;
@@ -35,6 +51,12 @@ public class Cable implements Jsonable {
 		this.output.addCable(this);
 	}
 
+	/**
+	 * Loads a cable from the given JSON object with the given parent
+	 * 
+	 * @param jo
+	 * @param parent
+	 */
 	public Cable(final JsonObject jo, final BoxDefinition parent) {
 		this.parent = parent;
 
@@ -44,7 +66,8 @@ public class Cable implements Jsonable {
 		input = inputParentID == -1 ? parent.getBoxInterface().getEndInput()
 				: parent.getBoxes().get(inputParentID).x.getInput(inputName);
 
-		final int outputParentID = jo.getJsonObject("output").getInt("parentID");
+		final int outputParentID =
+				jo.getJsonObject("output").getInt("parentID");
 		output = parent.getBoxes().get(outputParentID).x.getOutput();
 
 		// Set connections
@@ -52,18 +75,24 @@ public class Cable implements Jsonable {
 		output.addCable(this);
 	}
 
-	public Input getInput() {
-		return input;
-	}
+	// Methods related to output
 
 	public Output getOutput() {
 		return output;
+	}
+
+	// Methods related to input
+
+	public Input getInput() {
+		return input;
 	}
 
 	public void deleteConnections() {
 		input.setCable(null);
 		output.removeCable(this);
 	}
+
+	// Methods related to parent
 
 	public BoxDefinition getParent() {
 		return parent;
@@ -74,7 +103,8 @@ public class Cable implements Jsonable {
 	 */
 	@Override
 	public JsonObjectBuilder toJsonObjectBuilder() {
-		return Json.createObjectBuilder().add("input", input.toJsonObjectBuilder()).add("output",
-				output.toJsonObjectBuilder());
+		return Json.createObjectBuilder()
+				.add("input", input.toJsonObjectBuilder())
+				.add("output", output.toJsonObjectBuilder());
 	}
 }

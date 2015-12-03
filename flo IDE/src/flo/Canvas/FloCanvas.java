@@ -28,6 +28,35 @@ import flo.floGraph.Output;
  */
 public class FloCanvas extends Canvas {
 
+	private final FloGraph floGraph;
+
+	// Event handlers
+	CableListener cableListener = new CableListener(this);
+	DoubleClickListener doubleClickListener = new DoubleClickListener(this);
+	InputOutputListener inputOutputMouseOverListener =
+			new InputOutputListener(this);
+	BoxListener boxListener = new BoxListener(this);
+	CanvasKeyListener canvasKeyListener = new CanvasKeyListener(this);
+
+	// Hotspots for mouse events
+	private final Rectangle boxInterfaceRectangle = new Rectangle(0, 0, 0, 0);
+	private final Hotspots<Rect, Integer> boxRectangles =
+			new Hotspots<Rect, Integer>();
+	private final Hotspots<Rect, Integer> boxNameRectangles =
+			new Hotspots<Rect, Integer>();
+	private final Hotspots<Rect, Input> inputNameRectangles =
+			new Hotspots<Rect, Input>();
+	private final Hotspots<Circle, Input> inputCircles =
+			new Hotspots<Circle, Input>();
+	private final Hotspots<Circle, Output> outputCircles =
+			new Hotspots<Circle, Output>();
+
+	/**
+	 * Create a FloCanvas used for editing the given FloGraph
+	 *
+	 * @param parent
+	 * @param floGraph
+	 */
 	public FloCanvas(final Composite parent, final FloGraph floGraph) {
 		super(parent, SWT.NO_BACKGROUND);
 		this.floGraph = floGraph;
@@ -42,36 +71,17 @@ public class FloCanvas extends Canvas {
 		addPaintListener(e -> paintCanvas(e.gc));
 	}
 
-	private final FloGraph floGraph;
+	// Methods related to floGraph
 
 	public FloGraph getFloGraph() {
 		return floGraph;
 	}
 
-	/**
-	 * Event handlers
-	 */
-	CableListener cableListener = new CableListener(this);
-	DoubleClickListener doubleClickListener = new DoubleClickListener(this);
-	InputOutputListener inputOutputMouseOverListener = new InputOutputListener(this);
-	BoxListener boxListener = new BoxListener(this);
-	CanvasKeyListener canvasKeyListener = new CanvasKeyListener(this);
-
-	/**
-	 * Hotspots for mouse events
-	 */
-
-	private final Rectangle boxInterfaceRectangle = new Rectangle(0, 0, 0, 0);
+	// Methods related to hotspots
 
 	public Rectangle getBoxInterfaceRectangle() {
 		return boxInterfaceRectangle;
 	}
-
-	private final Hotspots<Rect, Integer> boxRectangles = new Hotspots<Rect, Integer>();
-	private final Hotspots<Rect, Integer> boxNameRectangles = new Hotspots<Rect, Integer>();
-	private final Hotspots<Rect, Input> inputNameRectangles = new Hotspots<Rect, Input>();
-	private final Hotspots<Circle, Input> inputCircles = new Hotspots<Circle, Input>();
-	private final Hotspots<Circle, Output> outputCircles = new Hotspots<Circle, Output>();
 
 	public Pair<Rect, Integer> getContainingBox(final int x, final int y) {
 		return boxRectangles.getContainingShape(x, y);
@@ -101,9 +111,7 @@ public class FloCanvas extends Canvas {
 		outputCircles.clear();
 	}
 
-	/**
-	 * Methods related to the currently clicked box
-	 */
+	// Methods related to the currently clicked box
 
 	public int getClickedBoxID() {
 		return boxListener.getClickedBoxID();
@@ -113,9 +121,7 @@ public class FloCanvas extends Canvas {
 		boxListener.setClickedBoxID(ID);
 	}
 
-	/**
-	 * Methods for painting the canvas
-	 */
+	// Methods for painting the canvas
 
 	private void paintCanvas(final GC gc) {
 		resetHotspots();
@@ -143,7 +149,8 @@ public class FloCanvas extends Canvas {
 		final Map<Integer, Pair<BoxInterface, Point>> boxes = bd.getBoxes();
 		boxes.keySet().forEach(ID -> {
 			final Pair<BoxInterface, Point> pair = boxes.get(ID);
-			final boolean isInput = bd.getBoxInterface().containsInput(pair.x.getName());
+			final boolean isInput =
+					bd.getBoxInterface().containsInput(pair.x.getName());
 			drawBox(gc, pair.x, pair.y, ID, isInput);
 		});
 
@@ -162,33 +169,40 @@ public class FloCanvas extends Canvas {
 		// Draw the shadow
 		gc.setAlpha(50);
 		gc.setBackground(black);
-		gc.fillRoundRectangle(x + SHADOW_OFFSET, OUTPUT_Y_OFFSET + SHADOW_OFFSET, width, height, ARC_RADIUS,
+		gc.fillRoundRectangle(x + SHADOW_OFFSET,
+				OUTPUT_Y_OFFSET + SHADOW_OFFSET, width, height, ARC_RADIUS,
 				ARC_RADIUS);
 
 		// Draw the outline
 		gc.setForeground(black);
-		gc.drawRoundRectangle(x - 1, OUTPUT_Y_OFFSET - 1, width + 1, height + 1, ARC_RADIUS, ARC_RADIUS);
+		gc.drawRoundRectangle(x - 1, OUTPUT_Y_OFFSET - 1, width + 1, height + 1,
+				ARC_RADIUS, ARC_RADIUS);
 
 		// Draw the background
 		gc.setAlpha(255);
 		gc.setBackground(blue);
-		gc.fillRoundRectangle(x, OUTPUT_Y_OFFSET, width, height, ARC_RADIUS, ARC_RADIUS);
+		gc.fillRoundRectangle(x, OUTPUT_Y_OFFSET, width, height, ARC_RADIUS,
+				ARC_RADIUS);
 
 		// Draw the box name
 		gc.setForeground(white);
-		drawCenteredString(gc, bi.getName(), clientArea.width / 2, OUTPUT_Y_OFFSET + height / 2);
+		drawCenteredString(gc, bi.getName(), clientArea.width / 2,
+				OUTPUT_Y_OFFSET + height / 2);
 
 		// Set the box interface name hotspot
 		boxInterfaceRectangle.x = (clientArea.width - stringExtent.x) / 2;
-		boxInterfaceRectangle.y = OUTPUT_Y_OFFSET + (height - stringExtent.y) / 2;
+		boxInterfaceRectangle.y =
+				OUTPUT_Y_OFFSET + (height - stringExtent.y) / 2;
 		boxInterfaceRectangle.width = stringExtent.x;
 		boxInterfaceRectangle.height = stringExtent.y;
 
 		// Draw the circle
-		drawInput(gc, bi.getEndInput(), x + CIRCLE_PADDING, OUTPUT_Y_OFFSET + height / 2);
+		drawInput(gc, bi.getEndInput(), x + CIRCLE_PADDING,
+				OUTPUT_Y_OFFSET + height / 2);
 	}
 
-	private void drawBox(final GC gc, final BoxInterface bi, final Point point, final int ID, final boolean isInput) {
+	private void drawBox(final GC gc, final BoxInterface bi, final Point point,
+			final int ID, final boolean isInput) {
 		final Point stringExtent = gc.textExtent(bi.getName());
 
 		// Calculate the size of the box
@@ -203,12 +217,16 @@ public class FloCanvas extends Canvas {
 			int maxInputWidth = 0;
 			for (final Input i : bi.getInputs()) {
 				final int inputWidth = gc.textExtent(i.getName()).x;
-				maxInputWidth = inputWidth > maxInputWidth ? inputWidth : maxInputWidth;
+				maxInputWidth =
+						inputWidth > maxInputWidth ? inputWidth : maxInputWidth;
 			}
 
-			width = Math.max(maxInputWidth + CIRCLE_PADDING + 2 * TEXT_PADDING + TOTAL_SIDE_PADDING,
+			width = Math.max(
+					maxInputWidth + CIRCLE_PADDING + 2 * TEXT_PADDING
+							+ TOTAL_SIDE_PADDING,
 					stringExtent.x + TOTAL_SIDE_PADDING);
-			height = stringExtent.y * (numInputs + 1) + TEXT_PADDING * (numInputs + 3);
+			height = stringExtent.y * (numInputs + 1)
+					+ TEXT_PADDING * (numInputs + 3);
 		}
 
 		// Add this to the list of box rectangles
@@ -218,18 +236,21 @@ public class FloCanvas extends Canvas {
 		// Draw the shadow
 		gc.setAlpha(50);
 		gc.setBackground(black);
-		gc.fillRoundRectangle(point.x + SHADOW_OFFSET, point.y + SHADOW_OFFSET, width, height, ARC_RADIUS, ARC_RADIUS);
+		gc.fillRoundRectangle(point.x + SHADOW_OFFSET, point.y + SHADOW_OFFSET,
+				width, height, ARC_RADIUS, ARC_RADIUS);
 
 		// Draw a yellow outline if this is the currently selected box
 		if (ID == getClickedBoxID()) {
 			gc.setAlpha(200);
 			gc.setForeground(yellow);
 			gc.setLineWidth(2);
-			gc.drawRoundRectangle(point.x - 1, point.y - 1, width + 2, height + 2, ARC_RADIUS + 2, ARC_RADIUS + 2);
+			gc.drawRoundRectangle(point.x - 1, point.y - 1, width + 2,
+					height + 2, ARC_RADIUS + 2, ARC_RADIUS + 2);
 		} else {
 			// Draw the outline
 			gc.setForeground(black);
-			gc.drawRoundRectangle(point.x - 1, point.y - 1, width + 1, height + 1, ARC_RADIUS, ARC_RADIUS);
+			gc.drawRoundRectangle(point.x - 1, point.y - 1, width + 1,
+					height + 1, ARC_RADIUS, ARC_RADIUS);
 		}
 
 		// Draw the background
@@ -238,26 +259,32 @@ public class FloCanvas extends Canvas {
 		else
 			gc.setBackground(blue);
 		gc.setAlpha(255);
-		gc.fillRoundRectangle(point.x, point.y, width, height, ARC_RADIUS, ARC_RADIUS);
+		gc.fillRoundRectangle(point.x, point.y, width, height, ARC_RADIUS,
+				ARC_RADIUS);
 
 		if (numInputs > 0) {
 			if (isInput)
 				gc.setBackground(darkGreen);
 			else
 				gc.setBackground(darkBlue);
-			gc.fillRoundRectangle(point.x, point.y + topHeight, width, height - topHeight, ARC_RADIUS, ARC_RADIUS);
-			gc.fillRectangle(point.x, point.y + topHeight, width, height - topHeight - ARC_RADIUS);
+			gc.fillRoundRectangle(point.x, point.y + topHeight, width,
+					height - topHeight, ARC_RADIUS, ARC_RADIUS);
+			gc.fillRectangle(point.x, point.y + topHeight, width,
+					height - topHeight - ARC_RADIUS);
 		}
 
 		// Draw box name
 		gc.setForeground(white);
-		final Rect boxNameRect = drawCenteredString(gc, bi.getName(), point.x + width / 2, point.y + topHeight / 2);
+		final Rect boxNameRect = drawCenteredString(gc, bi.getName(),
+				point.x + width / 2, point.y + topHeight / 2);
 
 		// Add this to the list of box name rectangles
 		boxNameRectangles.add(new Pair<Rect, Integer>(boxNameRect, ID));
 
 		// Draw output
-		drawOutput(gc, bi.getOutput(), point.x + width - CIRCLE_PADDING + CIRCLE_RADIUS / 2, point.y + topHeight / 2);
+		drawOutput(gc, bi.getOutput(),
+				point.x + width - CIRCLE_PADDING + CIRCLE_RADIUS / 2,
+				point.y + topHeight / 2);
 
 		// Draw inputs
 		int y = point.y + topHeight + TEXT_PADDING + stringExtent.y / 2;
@@ -271,33 +298,40 @@ public class FloCanvas extends Canvas {
 			gc.drawText(i.getName(), rectX, rectY, true);
 
 			// Add this to the list of input name rectangles
-			final Rect inputRect = new Rect(rectX, rectY, textExtent.x, textExtent.y);
+			final Rect inputRect =
+					new Rect(rectX, rectY, textExtent.x, textExtent.y);
 			inputNameRectangles.add(new Pair<Rect, Input>(inputRect, i));
 
 			y += stringExtent.y + TEXT_PADDING;
 		}
 	}
 
-	private void drawInput(final GC gc, final Input input, final int x, final int y) {
+	private void drawInput(final GC gc, final Input input, final int x,
+			final int y) {
 		// Draw circle
-		if (input.hasCable() || input == inputOutputMouseOverListener.getMousedOverInput())
+		if (input.hasCable()
+				|| input == inputOutputMouseOverListener.getMousedOverInput())
 			gc.setBackground(yellow);
 		else
 			gc.setBackground(white);
-		gc.fillOval(x - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS, CIRCLE_RADIUS);
+		gc.fillOval(x - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS,
+				CIRCLE_RADIUS);
 
 		// Add this to the list of input circles
 		final Circle inputCircle = new Circle(x, y, CIRCLE_RADIUS);
 		inputCircles.add(new Pair<Circle, Input>(inputCircle, input));
 	}
 
-	private void drawOutput(final GC gc, final Output output, final int x, final int y) {
+	private void drawOutput(final GC gc, final Output output, final int x,
+			final int y) {
 		// Draw circle
-		if (output.hasCable() || output == inputOutputMouseOverListener.getMousedOverOutput())
+		if (output.hasCable()
+				|| output == inputOutputMouseOverListener.getMousedOverOutput())
 			gc.setBackground(yellow);
 		else
 			gc.setBackground(white);
-		gc.fillOval(x - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS, CIRCLE_RADIUS);
+		gc.fillOval(x - CIRCLE_RADIUS / 2, y - CIRCLE_RADIUS / 2, CIRCLE_RADIUS,
+				CIRCLE_RADIUS);
 
 		// Add this to the list of output circles
 		final Circle outputCircle = new Circle(x, y, CIRCLE_RADIUS);
@@ -307,10 +341,12 @@ public class FloCanvas extends Canvas {
 	private void drawCables(final GC gc) {
 		gc.setAlpha(175);
 
-		final List<Cable> cables = floGraph.getCurrentBoxDefinition().getCables();
+		final List<Cable> cables =
+				floGraph.getCurrentBoxDefinition().getCables();
 
 		cables.forEach(cable -> {
-			Circle outputCircle = new Circle(0, 0, 0), inputCircle = new Circle(0, 0, 0);
+			Circle outputCircle = new Circle(0, 0, 0),
+					inputCircle = new Circle(0, 0, 0);
 
 			final Output output = cable.getOutput();
 			for (final Pair<Circle, Output> pair : outputCircles)
@@ -327,8 +363,10 @@ public class FloCanvas extends Canvas {
 		});
 
 		// Draw the temporary cable if there is one
-		final boolean inputHasBeenClicked = cableListener.getInputHasBeenClicked();
-		final boolean outputHasBeenClicked = cableListener.getOutputHasBeenClicked();
+		final boolean inputHasBeenClicked =
+				cableListener.getInputHasBeenClicked();
+		final boolean outputHasBeenClicked =
+				cableListener.getOutputHasBeenClicked();
 		final Input clickedInput = cableListener.getClickedInput();
 		final Output clickedOutput = cableListener.getClickedOutput();
 		final Point cableEnd = cableListener.getCableEnd();
@@ -353,7 +391,8 @@ public class FloCanvas extends Canvas {
 		gc.setAlpha(255);
 	}
 
-	private void drawCableBetweenPoints(final GC gc, final Point start, final Point end) {
+	private void drawCableBetweenPoints(final GC gc, final Point start,
+			final Point end) {
 		final double xWeight = .5;
 		final double yWeight = .9;
 		final int midX = (start.x + end.x) / 2;
@@ -387,7 +426,8 @@ public class FloCanvas extends Canvas {
 	 * @param y
 	 * @return The string's bounding rectangle
 	 */
-	private Rect drawCenteredString(final GC gc, final String string, final int x, final int y) {
+	private Rect drawCenteredString(final GC gc, final String string,
+			final int x, final int y) {
 		final Point stringExtent = gc.textExtent(string);
 		final int rectX = x - stringExtent.x / 2;
 		final int rectY = y - stringExtent.y / 2;
@@ -395,9 +435,8 @@ public class FloCanvas extends Canvas {
 		return new Rect(rectX, rectY, stringExtent.x, stringExtent.y);
 	}
 
-	/**
-	 * Color constants
-	 */
+	// Color constants
+
 	private final Color black = new Color(getDisplay(), 0, 0, 0);
 	private final Color darkGray = new Color(getDisplay(), 50, 50, 50);
 	private final Color mediumGray = new Color(getDisplay(), 60, 60, 60);
@@ -408,9 +447,8 @@ public class FloCanvas extends Canvas {
 	private final Color green = new Color(getDisplay(), 122, 194, 87);
 	private final Color darkGreen = new Color(getDisplay(), 85, 160, 57);
 
-	/**
-	 * Constants required for drawing boxes etc.
-	 */
+	// Constants required for drawing boxes etc.
+
 	private static final int CIRCLE_RADIUS = 7;
 	private static final int ARC_RADIUS = 10;
 	private static final int SHADOW_OFFSET = 4;

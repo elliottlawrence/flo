@@ -19,7 +19,8 @@ public class CanvasKeyListener extends KeyAdapter {
 		// Delete the currently selected box when the user presses backspace
 		final int clickedBoxID = floCanvas.getClickedBoxID();
 		if (e.keyCode == 8 && clickedBoxID != -1) {
-			floCanvas.getFloGraph().getCurrentBoxDefinition().removeBox(clickedBoxID);
+			floCanvas.getFloGraph().getCurrentBoxDefinition()
+					.removeBox(clickedBoxID);
 			floCanvas.redraw();
 		}
 	}

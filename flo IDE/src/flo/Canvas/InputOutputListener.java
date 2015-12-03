@@ -12,6 +12,9 @@ public class InputOutputListener implements MouseMoveListener {
 
 	private final FloCanvas floCanvas;
 
+	private Input mousedOverInput;
+	private Output mousedOverOutput;
+
 	public InputOutputListener(final FloCanvas floCanvas) {
 		this.floCanvas = floCanvas;
 
@@ -19,16 +22,9 @@ public class InputOutputListener implements MouseMoveListener {
 		this.floCanvas.addMouseMoveListener(this);
 	}
 
-	/**
-	 * Variables for mousing over inputs/outputs
-	 */
-	private Input mousedOverInput;
-
 	public Input getMousedOverInput() {
 		return mousedOverInput;
 	}
-
-	private Output mousedOverOutput;
 
 	public Output getMousedOverOutput() {
 		return mousedOverOutput;
@@ -38,7 +34,8 @@ public class InputOutputListener implements MouseMoveListener {
 	public void mouseMove(final MouseEvent e) {
 		// See if user moused over an input
 		mousedOverInput = null;
-		final Pair<Circle, Input> pair1 = floCanvas.getContainingInput(e.x, e.y);
+		final Pair<Circle, Input> pair1 =
+				floCanvas.getContainingInput(e.x, e.y);
 		if (pair1 != null) {
 			mousedOverInput = pair1.y;
 			return;
@@ -46,7 +43,8 @@ public class InputOutputListener implements MouseMoveListener {
 
 		// See if user moused over an output
 		mousedOverOutput = null;
-		final Pair<Circle, Output> pair2 = floCanvas.getContainingOutput(e.x, e.y);
+		final Pair<Circle, Output> pair2 =
+				floCanvas.getContainingOutput(e.x, e.y);
 		if (pair2 != null) {
 			mousedOverOutput = pair2.y;
 			return;

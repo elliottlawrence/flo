@@ -16,8 +16,8 @@ public class BoxDefinitionContainerTreeListener {
 
 	private final TreeItem treeItem;
 
-	public BoxDefinitionContainerTreeListener(final FloGraph floGraph, final BoxDefinitionContainer container,
-			final TreeItem treeItem) {
+	public BoxDefinitionContainerTreeListener(final FloGraph floGraph,
+			final BoxDefinitionContainer container, final TreeItem treeItem) {
 		this.treeItem = treeItem;
 
 		// Listen for when box definitions are added
@@ -41,13 +41,16 @@ public class BoxDefinitionContainerTreeListener {
 			// Select another box definition (if there is one)
 			if (treeItem.getItemCount() > index)
 				floGraph.setCurrentBoxDefinition(
-						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(treeItem.getItem(index), floGraph));
+						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(
+								treeItem.getItem(index), floGraph));
 			else if (treeItem.getItemCount() == index && index > 0) {
 				floGraph.setCurrentBoxDefinition(
-						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(treeItem.getItem(index - 1), floGraph));
+						(BoxDefinition) FloTree.findBoxDefContainerFromTreeItem(
+								treeItem.getItem(index - 1), floGraph));
 				treeItem.getParent().select(treeItem.getItem(index - 1));
 			} else {
-				final BoxDefinitionContainer bdc = FloTree.findBoxDefContainerFromTreeItem(treeItem, floGraph);
+				final BoxDefinitionContainer bdc = FloTree
+						.findBoxDefContainerFromTreeItem(treeItem, floGraph);
 				if (bdc instanceof BoxDefinition)
 					floGraph.setCurrentBoxDefinition((BoxDefinition) bdc);
 			}
@@ -61,14 +64,17 @@ public class BoxDefinitionContainerTreeListener {
 
 		// For box definitions, listen for when the box interface is renamed
 		if (container instanceof BoxDefinition)
-			((BoxDefinition) container).getBoxInterface().addBoxInterfaceRenamedObserver(e -> {
-				treeItem.setText(((BoxDefinition) container).getBoxInterface().getName());
-			});
+			((BoxDefinition) container).getBoxInterface()
+					.addBoxInterfaceRenamedObserver(e -> {
+						treeItem.setText(((BoxDefinition) container)
+								.getBoxInterface().getName());
+					});
 
 		setInitialContents(container, floGraph);
 	}
 
-	private void setInitialContents(final BoxDefinitionContainer container, final FloGraph floGraph) {
+	private void setInitialContents(final BoxDefinitionContainer container,
+			final FloGraph floGraph) {
 		container.getBoxDefinitions().forEach(bd -> {
 			final TreeItem tiBd = new TreeItem(treeItem, SWT.NONE);
 			tiBd.setText(bd.getBoxInterface().getName());

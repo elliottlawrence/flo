@@ -6,12 +6,14 @@ import javax.json.JsonObjectBuilder;
 import flo.Util.Jsonable;
 
 /**
- * An input to a function has a name and a type.
+ * An input to a function has a name.
  */
 public class Input implements Jsonable {
 
+	/**
+	 * The name of the input
+	 */
 	private String name;
-	private Type type;
 
 	/**
 	 * The box interface in which this input is defined
@@ -23,10 +25,18 @@ public class Input implements Jsonable {
 	 */
 	private Cable cable;
 
+	/**
+	 * Create an input with the given name of the given box interface
+	 *
+	 * @param name
+	 * @param parent
+	 */
 	public Input(final String name, final BoxInterface parent) {
 		this.name = name;
 		this.parent = parent;
 	}
+
+	// Methods related to name
 
 	public String getName() {
 		return name;
@@ -36,17 +46,13 @@ public class Input implements Jsonable {
 		this.name = name;
 	}
 
-	public Type getType() {
-		return type;
-	}
+	// Methods related to parent
 
 	public BoxInterface getParent() {
 		return parent;
 	}
 
-	public boolean hasCable() {
-		return cable != null;
-	}
+	// Methods related to cable
 
 	public Cable getCable() {
 		return cable;
@@ -56,11 +62,16 @@ public class Input implements Jsonable {
 		this.cable = cable;
 	}
 
+	public boolean hasCable() {
+		return cable != null;
+	}
+
 	/**
 	 * Convert this input to JSON
 	 */
 	@Override
 	public JsonObjectBuilder toJsonObjectBuilder() {
-		return Json.createObjectBuilder().add("parentID", parent.getID()).add("name", name);
+		return Json.createObjectBuilder().add("parentID", parent.getID())
+				.add("name", name);
 	}
 }

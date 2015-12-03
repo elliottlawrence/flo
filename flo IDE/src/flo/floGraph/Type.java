@@ -9,14 +9,10 @@ public class Type {
 	@SuppressWarnings("unused")
 	private boolean isRawType;
 
-	/**
-	 * Valid if isRawType
-	 */
+	// Valid if isRawType
 	private String name;
 
-	/**
-	 * Valid if !isRawType
-	 */
+	// Valid if !isRawType
 	private Type type1;
 	private Type type2;
 

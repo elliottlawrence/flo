@@ -51,7 +51,8 @@ public class FloGraphTreeListener {
 			final BoxDefinition bd = e.boxDefinition;
 			if (bd == null)
 				return;
-			final TreeItem ti = FloTree.findTreeItemFromBoxDefContainer(bd, tree, floGraph);
+			final TreeItem ti =
+					FloTree.findTreeItemFromBoxDefContainer(bd, tree, floGraph);
 			tree.select(ti);
 		});
 
