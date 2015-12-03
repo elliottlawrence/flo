@@ -8,14 +8,14 @@ import org.eclipse.swt.graphics.Rectangle;
  */
 public class Rect implements Shape {
 
-	public final Rectangle rect;
+    public final Rectangle rect;
 
-	public Rect(final int x, final int y, final int w, final int h) {
-		rect = new Rectangle(x, y, w, h);
-	}
+    public Rect(final int x, final int y, final int w, final int h) {
+        rect = new Rectangle(x, y, w, h);
+    }
 
-	@Override
-	public boolean contains(final int x, final int y) {
-		return rect.contains(x, y);
-	}
+    @Override
+    public boolean contains(final int x, final int y) {
+        return rect.contains(x, y);
+    }
 }

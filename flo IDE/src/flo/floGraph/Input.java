@@ -10,68 +10,68 @@ import flo.Util.Jsonable;
  */
 public class Input implements Jsonable {
 
-	/**
-	 * The name of the input
-	 */
-	private String name;
+    /**
+     * The name of the input
+     */
+    private String name;
 
-	/**
-	 * The box interface in which this input is defined
-	 */
-	private final BoxInterface parent;
+    /**
+     * The box interface in which this input is defined
+     */
+    private final BoxInterface parent;
 
-	/**
-	 * The cable attached to this input, if there is one
-	 */
-	private Cable cable;
+    /**
+     * The cable attached to this input, if there is one
+     */
+    private Cable cable;
 
-	/**
-	 * Create an input with the given name of the given box interface
-	 *
-	 * @param name
-	 * @param parent
-	 */
-	public Input(final String name, final BoxInterface parent) {
-		this.name = name;
-		this.parent = parent;
-	}
+    /**
+     * Create an input with the given name of the given box interface
+     *
+     * @param name
+     * @param parent
+     */
+    public Input(final String name, final BoxInterface parent) {
+        this.name = name;
+        this.parent = parent;
+    }
 
-	// Methods related to name
+    // Methods related to name
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setName(final String name) {
-		this.name = name;
-	}
+    public void setName(final String name) {
+        this.name = name;
+    }
 
-	// Methods related to parent
+    // Methods related to parent
 
-	public BoxInterface getParent() {
-		return parent;
-	}
+    public BoxInterface getParent() {
+        return parent;
+    }
 
-	// Methods related to cable
+    // Methods related to cable
 
-	public Cable getCable() {
-		return cable;
-	}
+    public Cable getCable() {
+        return cable;
+    }
 
-	public void setCable(final Cable cable) {
-		this.cable = cable;
-	}
+    public void setCable(final Cable cable) {
+        this.cable = cable;
+    }
 
-	public boolean hasCable() {
-		return cable != null;
-	}
+    public boolean hasCable() {
+        return cable != null;
+    }
 
-	/**
-	 * Convert this input to JSON
-	 */
-	@Override
-	public JsonObjectBuilder toJsonObjectBuilder() {
-		return Json.createObjectBuilder().add("parentID", parent.getID())
-				.add("name", name);
-	}
+    /**
+     * Convert this input to JSON
+     */
+    @Override
+    public JsonObjectBuilder toJsonObjectBuilder() {
+        return Json.createObjectBuilder().add("parentID", parent.getID())
+                .add("name", name);
+    }
 }

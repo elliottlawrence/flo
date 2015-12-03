@@ -2,10 +2,10 @@ package flo.Observable;
 
 public class ModuleRemovedEvent {
 
-	public int index;
+    public int index;
 
-	public ModuleRemovedEvent(final int i) {
-		index = i;
-	}
+    public ModuleRemovedEvent(final int i) {
+        index = i;
+    }
 
 }

@@ -5,5 +5,5 @@ package flo.Observable;
  * designers of Java were morons.
  */
 public interface Observer<T> {
-	public void update(T e);
+    public void update(T e);
 }

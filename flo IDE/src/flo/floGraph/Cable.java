@@ -11,100 +11,100 @@ import flo.Util.Jsonable;
  */
 public class Cable implements Jsonable {
 
-	/**
-	 * The output this cable is connected to
-	 */
-	private final Output output;
+    /**
+     * The output this cable is connected to
+     */
+    private final Output output;
 
-	/**
-	 * The input this cable is connected to
-	 */
-	private final Input input;
+    /**
+     * The input this cable is connected to
+     */
+    private final Input input;
 
-	/**
-	 * The Box Definition in which this cable is defined.
-	 */
-	private final BoxDefinition parent;
+    /**
+     * The Box Definition in which this cable is defined.
+     */
+    private final BoxDefinition parent;
 
-	/**
-	 * Constructs a cable connecting the output to the input, defined in the
-	 * given box definition
-	 * 
-	 * @param output
-	 * @param input
-	 * @param parent
-	 */
-	public Cable(final Output output, final Input input,
-			final BoxDefinition parent) {
-		this.output = output;
-		this.input = input;
-		this.parent = parent;
+    /**
+     * Constructs a cable connecting the output to the input, defined in the
+     * given box definition
+     * 
+     * @param output
+     * @param input
+     * @param parent
+     */
+    public Cable(final Output output, final Input input,
+            final BoxDefinition parent) {
+        this.output = output;
+        this.input = input;
+        this.parent = parent;
 
-		// If the input already has a cable attached to it, remove that first
-		if (input.hasCable()) {
-			final Cable otherCable = input.getCable();
-			otherCable.getParent().removeCable(otherCable);
-		}
+        // If the input already has a cable attached to it, remove that first
+        if (input.hasCable()) {
+            final Cable otherCable = input.getCable();
+            otherCable.getParent().removeCable(otherCable);
+        }
 
-		// Set connections
-		this.input.setCable(this);
-		this.output.addCable(this);
-	}
+        // Set connections
+        this.input.setCable(this);
+        this.output.addCable(this);
+    }
 
-	/**
-	 * Loads a cable from the given JSON object with the given parent
-	 * 
-	 * @param jo
-	 * @param parent
-	 */
-	public Cable(final JsonObject jo, final BoxDefinition parent) {
-		this.parent = parent;
+    /**
+     * Loads a cable from the given JSON object with the given parent
+     * 
+     * @param jo
+     * @param parent
+     */
+    public Cable(final JsonObject jo, final BoxDefinition parent) {
+        this.parent = parent;
 
-		final JsonObject inputObject = jo.getJsonObject("input");
-		final int inputParentID = inputObject.getInt("parentID");
-		final String inputName = inputObject.getString("name");
-		input = inputParentID == -1 ? parent.getBoxInterface().getEndInput()
-				: parent.getBoxes().get(inputParentID).x.getInput(inputName);
+        final JsonObject inputObject = jo.getJsonObject("input");
+        final int inputParentID = inputObject.getInt("parentID");
+        final String inputName = inputObject.getString("name");
+        input = inputParentID == -1 ? parent.getBoxInterface().getEndInput()
+                : parent.getBoxes().get(inputParentID).x.getInput(inputName);
 
-		final int outputParentID =
-				jo.getJsonObject("output").getInt("parentID");
-		output = parent.getBoxes().get(outputParentID).x.getOutput();
+        final int outputParentID =
+                jo.getJsonObject("output").getInt("parentID");
+        output = parent.getBoxes().get(outputParentID).x.getOutput();
 
-		// Set connections
-		input.setCable(this);
-		output.addCable(this);
-	}
+        // Set connections
+        input.setCable(this);
+        output.addCable(this);
+    }
 
-	// Methods related to output
+    // Methods related to output
 
-	public Output getOutput() {
-		return output;
-	}
+    public Output getOutput() {
+        return output;
+    }
 
-	// Methods related to input
+    // Methods related to input
 
-	public Input getInput() {
-		return input;
-	}
+    public Input getInput() {
+        return input;
+    }
 
-	public void deleteConnections() {
-		input.setCable(null);
-		output.removeCable(this);
-	}
+    public void deleteConnections() {
+        input.setCable(null);
+        output.removeCable(this);
+    }
 
-	// Methods related to parent
+    // Methods related to parent
 
-	public BoxDefinition getParent() {
-		return parent;
-	}
+    public BoxDefinition getParent() {
+        return parent;
+    }
 
-	/**
-	 * Convert this cable to JSON
-	 */
-	@Override
-	public JsonObjectBuilder toJsonObjectBuilder() {
-		return Json.createObjectBuilder()
-				.add("input", input.toJsonObjectBuilder())
-				.add("output", output.toJsonObjectBuilder());
-	}
+    /**
+     * Convert this cable to JSON
+     */
+    @Override
+    public JsonObjectBuilder toJsonObjectBuilder() {
+        return Json.createObjectBuilder()
+                .add("input", input.toJsonObjectBuilder())
+                .add("output", output.toJsonObjectBuilder());
+    }
 }

@@ -6,29 +6,29 @@ package flo.floGraph;
  */
 public class Type {
 
-	@SuppressWarnings("unused")
-	private boolean isRawType;
+    @SuppressWarnings("unused")
+    private boolean isRawType;
 
-	// Valid if isRawType
-	private String name;
+    // Valid if isRawType
+    private String name;
 
-	// Valid if !isRawType
-	private Type type1;
-	private Type type2;
+    // Valid if !isRawType
+    private Type type1;
+    private Type type2;
 
-	public Type() {
+    public Type() {
 
-	}
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public Type getType1() {
-		return type1;
-	}
+    public Type getType1() {
+        return type1;
+    }
 
-	public Type getType2() {
-		return type2;
-	}
+    public Type getType2() {
+        return type2;
+    }
 }
