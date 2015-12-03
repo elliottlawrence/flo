@@ -28,11 +28,6 @@ import flo.Util.Jsonable;
 public class FloGraph implements Jsonable {
 
 	/**
-	 * The name of the FloGraph
-	 */
-	private String name;
-
-	/**
 	 * The modules included in this FloGraph
 	 */
 	private final List<Module> modules;
@@ -63,12 +58,9 @@ public class FloGraph implements Jsonable {
 					.notifyObservers(new CurrentBoxDefinitionEvent());
 
 	/**
-	 * Create a blank FloGraph with the specified name
-	 *
-	 * @param name
+	 * Create a blank FloGraph
 	 */
-	public FloGraph(final String name) {
-		this.name = name;
+	public FloGraph() {
 		modules = new ArrayList<Module>();
 	}
 
@@ -78,22 +70,10 @@ public class FloGraph implements Jsonable {
 	 * @param jsonObject
 	 */
 	public FloGraph(final JsonObject jsonObject) {
-		name = jsonObject.getString("name");
-
 		modules = new ArrayList<Module>();
 		final List<JsonObject> jsonModules = jsonObject.getJsonArray("modules")
 				.getValuesAs(JsonObject.class);
 		jsonModules.forEach(jo -> modules.add(new Module(jo)));
-	}
-
-	// Methods related to name
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(final String name) {
-		this.name = name;
 	}
 
 	// Methods related to modules
@@ -199,8 +179,7 @@ public class FloGraph implements Jsonable {
 		final JsonArrayBuilder modulesBuilder = Json.createArrayBuilder();
 		modules.forEach(m -> modulesBuilder.add(m.toJsonObjectBuilder()));
 
-		return Json.createObjectBuilder().add("name", name).add("modules",
-				modulesBuilder);
+		return Json.createObjectBuilder().add("modules", modulesBuilder);
 	}
 
 	/**

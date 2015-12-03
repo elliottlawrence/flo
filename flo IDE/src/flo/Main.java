@@ -48,7 +48,7 @@ public class Main {
 	 * @param args
 	 */
 	public static void main(final String[] args) {
-		// currentFloGraph = new FloGraph("Untitled");
+		savePath = null;
 		if (args.length > 0) {
 			currentFloGraph = FloGraph.open(args[0]);
 			savePath = args[0];
@@ -333,7 +333,9 @@ public class Main {
 	 * Update the title of the window to reflect the current Flo Graph's name
 	 */
 	private static void updateShellText() {
-		shell.setText("flo - " + currentFloGraph.getName());
+		final String title = savePath == null ? "Untitled"
+				: FilenameUtils.getBaseName(savePath);
+		shell.setText("flo - " + title);
 	}
 
 	/**
@@ -344,7 +346,7 @@ public class Main {
 	private static FloGraph createDefaultFloGraph() {
 		FloGraph floGraph = FloGraph.open("Default.flo");
 		if (floGraph == null) {
-			floGraph = new FloGraph("Untitled");
+			floGraph = new FloGraph();
 			floGraph.addModule("Main").addBoxDefinition("main");
 		}
 		return floGraph;
@@ -355,14 +357,12 @@ public class Main {
 	 */
 	private static void saveAs() {
 		final FileDialog dialog = new FileDialog(shell, SWT.SAVE);
-		dialog.setFileName(currentFloGraph.getName());
+		dialog.setFileName(FilenameUtils.getBaseName(savePath));
 		dialog.setFilterExtensions(extensions);
 		savePath = dialog.open();
 		if (savePath == null)
 			return;
 
-		// Set the Flo Graph's name to the name of the file
-		currentFloGraph.setName(FilenameUtils.getBaseName(savePath));
 		updateShellText();
 
 		// Save it
