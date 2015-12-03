@@ -342,8 +342,11 @@ public class Main {
 	 * @return
 	 */
 	private static FloGraph createDefaultFloGraph() {
-		final FloGraph floGraph = new FloGraph("Untitled");
-		floGraph.addModule("Main").addBoxDefinition("main");
+		FloGraph floGraph = FloGraph.open("Default.flo");
+		if (floGraph == null) {
+			floGraph = new FloGraph("Untitled");
+			floGraph.addModule("Main").addBoxDefinition("main");
+		}
 		return floGraph;
 	}
 

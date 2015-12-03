@@ -214,7 +214,6 @@ public class FloGraph implements Jsonable {
 			jsonObject = reader.readObject();
 			reader.close();
 		} catch (final FileNotFoundException e) {
-			e.printStackTrace();
 		}
 
 		if (jsonObject == null)

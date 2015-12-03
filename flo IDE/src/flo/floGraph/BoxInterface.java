@@ -160,14 +160,6 @@ public class BoxInterface implements Jsonable {
 		this.ID = ID;
 	}
 
-	public BoxFlavor getBoxFlavor() {
-		// TODO: Fix this
-		if (inputs.isEmpty())
-			return BoxFlavor.Literal;
-		else
-			return BoxFlavor.Function;
-	}
-
 	// Methods related to observers
 
 	public void addBoxInterfaceRenamedObserver(
@@ -199,7 +191,7 @@ public class BoxInterface implements Jsonable {
 		inputs.forEach(i -> inputBuilder.add(i.getName()));
 
 		return Json.createObjectBuilder().add("name", name)
-				.add("boxFlavor", getBoxFlavor().toString())
+				.add("boxFlavor", BoxFlavor.getBoxFlavor(name).toString())
 				.add("inputs", inputBuilder);
 	}
 }
