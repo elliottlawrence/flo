@@ -1,7 +1,7 @@
 module FloGraph where
 
+import qualified Data.IntMap as IntMap
 import Data.List (find)
-import qualified Data.Map.Lazy as Map
 import Data.Maybe (fromJust)
 
 type Name = String
@@ -35,7 +35,7 @@ data BoxInterface = BoxInterface {
 {- Within a function definition, the same box can appear multiple times. Thus,
    boxes are identified by a unique key. -}
 type ID = Int
-type BoxInterfaceMap = Map.Map ID BoxInterface
+type BoxInterfaceMap = IntMap.IntMap BoxInterface
 
 data BoxDefinition = BoxDefinition {
   getBoxInterface :: BoxInterface,
@@ -50,7 +50,6 @@ data Module = Module {
 }
 
 data FloGraph = FloGraph {
-  getFloGraphName :: Name,
   getFloGraphModules :: [Module]
 }
 

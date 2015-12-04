@@ -38,7 +38,6 @@ data FloModule = FloModule {
 }
 
 data FloProgram = FloProgram {
-  getFloProgramName :: Name,
   getFloProgramModules :: [FloModule]
 }
 
@@ -46,10 +45,8 @@ data FloProgram = FloProgram {
    into a format composed of expressions and definitions. -}
 convertFloGraph :: FloGraph -> FloProgram
 convertFloGraph fg = FloProgram {
-  getFloProgramName = name,
   getFloProgramModules = map convertModule modules }
-  where name = getFloGraphName fg
-        modules = getFloGraphModules fg
+  where modules = getFloGraphModules fg
 
 convertModule :: Module -> FloModule
 convertModule m = FloModule {
