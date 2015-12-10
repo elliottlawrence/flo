@@ -2,7 +2,7 @@ module FloGraph where
 
 import qualified Data.IntMap as IntMap
 import Data.List (find)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromMaybe)
 
 type Name = String
 
@@ -17,20 +17,20 @@ getBoxType box = foldr1 (:->) (inputTypes ++ [outputType])
 data Input = Input {
   getInputName :: Name,
   getInputParentID :: ID
-}
+} deriving Show
 
 data Output = Output {
   getOutputParentID :: ID
-}
+} deriving Show
 
-data Cable = Output :-: Input
+data Cable = Output :-: Input deriving Show
 
-data BoxFlavor = Function | Constructor | Literal
+data BoxFlavor = Function | Constructor | Literal deriving Show
 data BoxInterface = BoxInterface {
   getBoxName :: Name,
   getBoxFlavor :: BoxFlavor,
   getBoxInputs :: [Input]
-}
+} deriving Show
 
 {- Within a function definition, the same box can appear multiple times. Thus,
    boxes are identified by a unique key. -}
@@ -42,22 +42,23 @@ data BoxDefinition = BoxDefinition {
   getBoxes :: BoxInterfaceMap,
   getCables :: [Cable],
   getLocalDefinitions :: [BoxDefinition]
-}
+} deriving Show
 
 data Module = Module {
   getModuleName :: Name,
   getModuleDefinitions :: [BoxDefinition]
-}
+} deriving Show
 
 data FloGraph = FloGraph {
   getFloGraphModules :: [Module]
-}
+} deriving Show
 
 {- Get the box that is connected to a function's output. -}
 getOutputBox :: BoxDefinition -> ID
 getOutputBox boxDef = getOutputParentID output
   where cables = getCables boxDef
-        output :-: input = fromJust $ find isLastCable cables
+        output :-: input = fromMaybe (error "No last cable") $
+                           find isLastCable cables
         isLastCable (output :-: input) = isEndInput input
         isEndInput input = getInputParentID input == -1
 
