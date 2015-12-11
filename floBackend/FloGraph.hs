@@ -17,7 +17,7 @@ getBoxType box = foldr1 (:->) (inputTypes ++ [outputType])
 data Input = Input {
   getInputName :: Name,
   getInputParentID :: ID
-} deriving Show
+} deriving (Show, Eq)
 
 data Output = Output {
   getOutputParentID :: ID

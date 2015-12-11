@@ -4,12 +4,18 @@ import FloGraph
 
 import Control.Arrow (second)
 import qualified Data.IntMap as IntMap
+import Data.List ((\\))
 import Data.Maybe (fromMaybe)
 import Text.Regex.Posix
 
 {- These are the primitive types that are supported by Flo. -}
 data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
-               deriving Show
+
+instance Show Literal where
+  show (LitInt i) = show i
+  show (LitFloat d) = show d
+  show (LitChar c) = show c
+  show (LitString s) = '"' : s ++ "\""
 
 {- Expressions can be literals, functions, constructors, applications, or let
    expressions. -}
@@ -27,7 +33,7 @@ data FloExpression = FloLit Literal                     -- Literal
    expression. -}
 data FloDefinition = FloDefinition {
   getDefinitionName :: Name,
-  getInputs :: [Input],
+  getDefinitionInputs :: [Input],
   getExpression :: FloExpression
 } deriving Show
 
@@ -40,6 +46,15 @@ data FloModule = FloModule {
 
 data FloProgram = FloProgram [FloModule] deriving Show
 
+{- Given a FloExpression, finds all the inputs to it, which may be nested
+   arbitrarily. -}
+getInputs :: FloExpression -> [Input]
+getInputs (FloLit _) = []
+getInputs (FloFun _ inputs) = inputs
+getInputs (FloCons _ inputs) = inputs
+getInputs (FloAp expr apps) = getInputs expr \\ map fst apps
+getInputs (FloLet _ expr) = getInputs expr
+
 {- The following functions convert the graphical representation of a program
    into a format composed of expressions and definitions. -}
 convertFloGraph :: FloGraph -> FloProgram
@@ -47,11 +62,8 @@ convertFloGraph fg = FloProgram $ map convertModule modules
   where modules = getFloGraphModules fg
 
 convertModule :: Module -> FloModule
-convertModule m = FloModule {
-  getFloModuleName = name,
-  getFloModuleDefinitions = map convertBoxDefinition defs }
-  where name = getModuleName m
-        defs = getModuleDefinitions m
+convertModule m = FloModule (getModuleName m)
+  (map convertBoxDefinition $ getModuleDefinitions m)
 
 {- The expression component of a box definition is the expression determined by
    the output box. In addition, if a box has local definitions, these are
@@ -59,7 +71,7 @@ convertModule m = FloModule {
 convertBoxDefinition :: BoxDefinition -> FloDefinition
 convertBoxDefinition boxDef = FloDefinition {
   getDefinitionName = getBoxName boxInterface,
-  getInputs = getBoxInputs boxInterface,
+  getDefinitionInputs = getBoxInputs boxInterface,
   getExpression =
     if null localDefinitions then boxExpression
     else FloLet {

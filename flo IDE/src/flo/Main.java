@@ -1,5 +1,8 @@
 package flo;
 
+import java.io.File;
+import java.io.IOException;
+
 import org.apache.commons.io.FilenameUtils;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -12,6 +15,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Sash;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolBar;
@@ -273,11 +277,69 @@ public class Main {
         tiCompile.setImage(
                 SWTResourceManager.getImage(Main.class, "/Icons/compile.png"));
         tiCompile.setText("Compile");
+        tiCompile.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                if (savePath == null) {
+                    final MessageBox dialog =
+                            new MessageBox(shell, SWT.ICON_WARNING);
+                    dialog.setText("File not saved");
+                    dialog.setMessage("Please save the file before compiling.");
+                    dialog.open();
+                    return;
+                }
+
+                MessageBox dialog;
+                try {
+                    final ProcessBuilder pb = new ProcessBuilder(
+                            "../floBackend/dist/build/flo/./flo", savePath);
+                    // pb.inheritIO();
+                    pb.start();
+
+                    dialog = new MessageBox(shell, SWT.ICON_INFORMATION);
+                    dialog.setText("Success!");
+                    dialog.setMessage("Compilation successful");
+                } catch (final IOException e1) {
+                    e1.printStackTrace();
+
+                    dialog = new MessageBox(shell, SWT.ICON_ERROR);
+                    dialog.setText("Error");
+                    dialog.setMessage("There was an error in the compilation");
+                }
+                dialog.open();
+            }
+        });
 
         final ToolItem tiRun = new ToolItem(toolBar, SWT.NONE);
         tiRun.setImage(
                 SWTResourceManager.getImage(Main.class, "/Icons/run.png"));
         tiRun.setText("Run");
+        tiRun.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                if (savePath == null) {
+                    final MessageBox dialog =
+                            new MessageBox(shell, SWT.ICON_WARNING);
+                    dialog.setText("File not saved");
+                    dialog.setMessage("Please save the file before running.");
+                    dialog.open();
+                    return;
+                }
+
+                try {
+                    final File file = new File(savePath);
+                    final String directory = file.getParent();
+                    final String exeName =
+                            FilenameUtils.removeExtension(file.getName());
+                    final ProcessBuilder pb =
+                            new ProcessBuilder(directory + "/./" + exeName);
+                    pb.inheritIO();
+                    pb.start();
+                } catch (final IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
 
         new ToolItem(toolBar, SWT.SEPARATOR);
 
