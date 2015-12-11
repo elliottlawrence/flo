@@ -4,7 +4,7 @@ import FloGraph
 
 import Control.Arrow (second)
 import qualified Data.IntMap as IntMap
-import Data.List ((\\))
+import Data.List ((\\), intercalate)
 import Data.Maybe (fromMaybe)
 import Text.Regex.Posix
 
@@ -35,16 +35,27 @@ data FloDefinition = FloDefinition {
   getDefinitionName :: Name,
   getDefinitionInputs :: [Input],
   getExpression :: FloExpression
-} deriving Show
+}
+
+instance Show FloDefinition where
+  show (FloDefinition name inputs expr) = name ++ " " ++ show inputs ++ " = "
+    ++ show expr
 
 {- A module consists of a list of definitions. In turn, a flo program is simply
    a list of modules. -}
 data FloModule = FloModule {
   getFloModuleName :: Name,
   getFloModuleDefinitions :: [FloDefinition]
-} deriving Show
+}
 
-data FloProgram = FloProgram [FloModule] deriving Show
+instance Show FloModule where
+  show (FloModule name defs) = "FloModule " ++ name ++ "{\n" ++ defs' ++ "\n}"
+    where defs' = intercalate "\n" $ map show defs
+
+data FloProgram = FloProgram [FloModule]
+
+instance Show FloProgram where
+  show (FloProgram modules) = intercalate "\n\n" $ map show modules
 
 {- Given a FloExpression, finds all the inputs to it, which may be nested
    arbitrarily. -}
