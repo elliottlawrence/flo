@@ -102,7 +102,7 @@ public class Main {
                 SWTResourceManager.getImage(Main.class, "/Icons/flo.png"));
         shell.setSize(1000, 600);
         shell.setMinimumSize(300, 200);
-        shell.setLocation(50, 50);
+        shell.setLocation(200, 50);
         shell.setLayout(new FormLayout());
         updateShellText();
 
@@ -289,14 +289,24 @@ public class Main {
                     return;
                 }
 
+                MessageBox dialog;
                 try {
                     final ProcessBuilder pb = new ProcessBuilder(
                             "../floBackend/dist/build/flo/./flo", savePath);
-                    pb.inheritIO();
+                    // pb.inheritIO();
                     pb.start();
+
+                    dialog = new MessageBox(shell, SWT.ICON_INFORMATION);
+                    dialog.setText("Success!");
+                    dialog.setMessage("Compilation successful");
                 } catch (final IOException e1) {
                     e1.printStackTrace();
+
+                    dialog = new MessageBox(shell, SWT.ICON_ERROR);
+                    dialog.setText("Error");
+                    dialog.setMessage("There was an error in the compilation");
                 }
+                dialog.open();
             }
         });
 
@@ -321,8 +331,8 @@ public class Main {
                     final String directory = file.getParent();
                     final String exeName =
                             FilenameUtils.removeExtension(file.getName());
-                    final ProcessBuilder pb = new ProcessBuilder(
-                            "/usr/bin/open", directory + "/./" + exeName);
+                    final ProcessBuilder pb =
+                            new ProcessBuilder(directory + "/./" + exeName);
                     pb.inheritIO();
                     pb.start();
                 } catch (final IOException e1) {

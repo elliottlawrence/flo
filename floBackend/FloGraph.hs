@@ -1,7 +1,7 @@
 module FloGraph where
 
 import qualified Data.IntMap as IntMap
-import Data.List (find, intercalate)
+import Data.List (find)
 import Data.Maybe (fromMaybe)
 
 type Name = String
@@ -17,17 +17,11 @@ getBoxType box = foldr1 (:->) (inputTypes ++ [outputType])
 data Input = Input {
   getInputName :: Name,
   getInputParentID :: ID
-} deriving Eq
-
-instance Show Input where
-  show (Input name id) = "Input {" ++ name ++ ", " ++ show id ++ "}"
+} deriving (Show, Eq)
 
 data Output = Output {
   getOutputParentID :: ID
-}
-
-instance Show Output where
-  show (Output id) = "Output {" ++ show id ++ "}"
+} deriving Show
 
 data Cable = Output :-: Input deriving Show
 
@@ -36,11 +30,7 @@ data BoxInterface = BoxInterface {
   getBoxName :: Name,
   getBoxFlavor :: BoxFlavor,
   getBoxInputs :: [Input]
-}
-
-instance Show BoxInterface where
-  show (BoxInterface name flavor inputs) = "Box {" ++ name ++ ", {" ++
-    intercalate ", " (map show inputs) ++ "}}"
+} deriving Show
 
 {- Within a function definition, the same box can appear multiple times. Thus,
    boxes are identified by a unique key. -}
@@ -52,28 +42,16 @@ data BoxDefinition = BoxDefinition {
   getBoxes :: BoxInterfaceMap,
   getCables :: [Cable],
   getLocalDefinitions :: [BoxDefinition]
-}
-
-instance Show BoxDefinition where
-  show (BoxDefinition interface boxes cables defs) = show interface ++ " = " ++
-    "{\nBoxes {" ++ show boxes ++ "}\nCables {" ++ show cables ++
-    "}\nDefinitions " ++ show defs ++ "}"
+} deriving Show
 
 data Module = Module {
   getModuleName :: Name,
   getModuleDefinitions :: [BoxDefinition]
-}
-
-instance Show Module where
-  show (Module name defs) = "Module " ++ name ++ "{\n" ++ defs' ++ "\n}"
-    where defs' = intercalate "\n" $ map show defs
+} deriving Show
 
 data FloGraph = FloGraph {
   getFloGraphModules :: [Module]
-}
-
-instance Show FloGraph where
-  show (FloGraph modules) = intercalate "\n\n" $ map show modules
+} deriving Show
 
 {- Get the box that is connected to a function's output. -}
 getOutputBox :: BoxDefinition -> ID

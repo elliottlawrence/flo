@@ -3,8 +3,7 @@ module HaskellProgram where
 import FloGraph
 import FloProgram
 
-import Data.List (find, intercalate)
-import Data.Maybe (fromJust, isJust)
+import Data.List (intercalate)
 
 data HaskellExpression = HaskellLit Literal
                        | HaskellFun Name
@@ -48,16 +47,14 @@ instance Show HaskellDefinition where
 
 data HaskellModule = HaskellModule {
   getHaskellModuleName :: Name,
-  getHaskellModuleDefinitions :: [HaskellDefinition],
-  getHaskellModuleImports :: [Name]
+  getHaskellModuleDefinitions :: [HaskellDefinition]
 }
 
 instance Show HaskellModule where
-  show (HaskellModule name defs imports) = "module " ++ name ++ " where\n\n" ++
-    imports' ++ intercalate "\n\n" (map show defs)
-    where imports' = intercalate "\n" (map ("import " ++) imports) ++ "\n\n"
+  show (HaskellModule name defs) = "module " ++ name ++ " where\n\n" ++
+    intercalate "\n\n" (map show defs)
 
-data HaskellProgram = HaskellProgram [HaskellModule] deriving Show
+data HaskellProgram = HaskellProgram [HaskellModule]
 
 convertFloProgram :: FloProgram -> HaskellProgram
 convertFloProgram (FloProgram modules)
@@ -65,9 +62,7 @@ convertFloProgram (FloProgram modules)
 
 convertFloModule :: FloModule -> HaskellModule
 convertFloModule m = HaskellModule (getFloModuleName m)
-  (map convertFloDefinition $ getFloModuleDefinitions m) imports
-  where imports | getFloModuleName m /= "Prologue" = ["Prologue"]
-                | otherwise = []
+  (map convertFloDefinition $ getFloModuleDefinitions m)
 
 convertFloDefinition :: FloDefinition -> HaskellDefinition
 convertFloDefinition fd = HaskellDefinition
@@ -90,11 +85,11 @@ convertFloExpression (FloLet ld le)
   = HaskellLet (map convertFloDefinition ld) (convertFloExpression le)
 
 makeApps :: [Input] -> [(Input, FloExpression)] -> [HaskellExpression]
-makeApps (i:inputs) apps
-  | isJust ie = convertFloExpression (snd $ fromJust ie) : makeApps inputs apps
-  | otherwise = HaskellFun (getInputName i) : makeApps inputs apps
-  where ie = find ((== i) . fst) apps
+makeApps inputs [] = map (HaskellFun . getInputName) inputs
 makeApps [] apps = []
+makeApps (i:inputs) a@((i',e):apps)
+  | i == i' = convertFloExpression e : makeApps inputs apps
+  | otherwise = HaskellFun (getInputName i) : makeApps inputs a
 
 {- To avoid name clashes with existing things in Haskell -}
 fixName :: String -> String
