@@ -9,7 +9,8 @@ import Control.Monad (forM_)
 import Data.Aeson
 import qualified Data.ByteString.Lazy as B
 import Data.Maybe (fromMaybe)
-import System.Directory (createDirectory, removeDirectoryRecursive)
+import System.Directory (
+  createDirectoryIfMissing, removeDirectoryRecursive, copyFile)
 import System.Environment (getArgs)
 import System.FilePath
 import System.Process (callProcess)
@@ -27,12 +28,14 @@ main = do
     byteString <- B.readFile filePath
     let HaskellProgram modules = makeHaskellProgram byteString
 
-    createDirectory dump
-    forM_ modules $ \m ->
-      writeFile (dump </> getHaskellModuleName m ++ "_.hs") (show m)
+    createDirectoryIfMissing False dump
+    let modulesList = map (getFileName dump) modules
+    forM_ modules $ \m -> writeFile (getFileName dump m) (show m)
+    copyFile (directory </> "Prologue.hs") $ dump </> "Prologue.hs"
 
-    callProcess "/usr/local/bin/ghc"
-      ["-o", outputPath, "-outputdir", dump, dump </> "Main_.hs"]
+    callProcess "/usr/local/bin/ghc" $
+      ["-o", outputPath, "-outputdir", dump] ++ modulesList ++
+      [dump </> "Prologue.hs"]
 
     removeDirectoryRecursive dump
 
@@ -41,3 +44,6 @@ makeFloGraph = fromMaybe (error "Couldn't parse file") . decode
 
 makeHaskellProgram :: B.ByteString -> HaskellProgram
 makeHaskellProgram = convertFloProgram . convertFloGraph . makeFloGraph
+
+getFileName :: String -> HaskellModule -> String
+getFileName dump m = dump </> getHaskellModuleName m ++ ".hs"
