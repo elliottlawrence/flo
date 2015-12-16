@@ -17,8 +17,8 @@ instance FromJSON Module where
   parseJSON (Object v) = Module <$> v .: "name" <*> v .: "boxDefinitions"
   parseJSON _ = mzero
 
-instance FromJSON BoxDefinition where
-  parseJSON (Object v) = BoxDefinition <$> v .: "boxInterface" <*> v .: "boxes"
+instance FromJSON BoxDef where
+  parseJSON (Object v) = BoxDef <$> v .: "boxInterface" <*> v .: "boxes"
                          <*> v .: "cables" <*> v .: "boxDefinitions"
   parseJSON _ = mzero
 

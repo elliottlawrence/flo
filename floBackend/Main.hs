@@ -1,5 +1,7 @@
+{-# LANGUAGE RecordWildCards, MultiParamTypeClasses #-}
 module Main where
 
+import Convertible
 import FloGraph
 import FloProgram
 import HaskellProgram
@@ -26,7 +28,7 @@ main = do
         dump = directory </> "dump_"
 
     byteString <- B.readFile filePath
-    let HaskellProgram modules = makeHaskellProgram byteString
+    let HaskellProgram modules = convert byteString
 
     createDirectoryIfMissing False dump
     let modulesList = map (getFileName dump) modules
@@ -39,11 +41,9 @@ main = do
 
     removeDirectoryRecursive dump
 
-makeFloGraph :: B.ByteString -> FloGraph
-makeFloGraph = fromMaybe (error "Couldn't parse file") . decode
-
-makeHaskellProgram :: B.ByteString -> HaskellProgram
-makeHaskellProgram = convertFloProgram . convertFloGraph . makeFloGraph
+instance Convertible B.ByteString HaskellProgram where
+  convert = convert . (convert :: FloGraph -> FloProgram) .
+    fromMaybe (error "Couldn't parse file") . decode
 
 getFileName :: String -> HaskellModule -> String
-getFileName dump m = dump </> getHaskellModuleName m ++ ".hs"
+getFileName dump HaskellModule{..} = dump </> hmName ++ ".hs"

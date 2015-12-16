@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module FloGraph where
 
 import qualified Data.IntMap as IntMap
@@ -15,80 +16,76 @@ getBoxType box = foldr1 (:->) (inputTypes ++ [outputType])
 -}
 
 data Input = Input {
-  getInputName :: Name,
-  getInputParentID :: ID
+  iName :: Name,
+  iParentID :: ID
 } deriving Eq
 
 instance Show Input where
-  show (Input name id) = "Input {" ++ name ++ ", " ++ show id ++ "}"
+  show Input{..} = "Input {" ++ iName ++ ", " ++ show iParentID ++ "}"
 
 data Output = Output {
-  getOutputParentID :: ID
+  oParentID :: ID
 }
 
 instance Show Output where
-  show (Output id) = "Output {" ++ show id ++ "}"
+  show Output{..} = "Output {" ++ show oParentID ++ "}"
 
 data Cable = Output :-: Input deriving Show
 
 data BoxFlavor = Function | Constructor | Literal deriving Show
 data BoxInterface = BoxInterface {
-  getBoxName :: Name,
-  getBoxFlavor :: BoxFlavor,
-  getBoxInputs :: [Input]
+  bName :: Name,
+  bFlavor :: BoxFlavor,
+  bInputs :: [Input]
 }
 
 instance Show BoxInterface where
-  show (BoxInterface name flavor inputs) = "Box {" ++ name ++ ", {" ++
-    intercalate ", " (map show inputs) ++ "}}"
+  show BoxInterface{..} = "Box {" ++ bName ++ ", {" ++
+    intercalate ", " (map show bInputs) ++ "}}"
 
 {- Within a function definition, the same box can appear multiple times. Thus,
    boxes are identified by a unique key. -}
 type ID = Int
 type BoxInterfaceMap = IntMap.IntMap BoxInterface
 
-data BoxDefinition = BoxDefinition {
-  getBoxInterface :: BoxInterface,
-  getBoxes :: BoxInterfaceMap,
-  getCables :: [Cable],
-  getLocalDefinitions :: [BoxDefinition]
+data BoxDef = BoxDef {
+  boxInterface :: BoxInterface,
+  boxes :: BoxInterfaceMap,
+  cables :: [Cable],
+  localDefs :: [BoxDef]
 }
 
-instance Show BoxDefinition where
-  show (BoxDefinition interface boxes cables defs) = show interface ++ " = " ++
-    "{\nBoxes {" ++ show boxes ++ "}\nCables {" ++ show cables ++
-    "}\nDefinitions " ++ show defs ++ "}"
+instance Show BoxDef where
+  show BoxDef{..} = show boxInterface ++ " = " ++ "{\nBoxes {" ++
+    show boxes ++ "}\nCables {" ++ show cables ++
+    "}\nDefinitions " ++ show localDefs ++ "}"
 
 data Module = Module {
-  getModuleName :: Name,
-  getModuleDefinitions :: [BoxDefinition]
+  mName :: Name,
+  mDefs :: [BoxDef]
 }
 
 instance Show Module where
-  show (Module name defs) = "Module " ++ name ++ "{\n" ++ defs' ++ "\n}"
-    where defs' = intercalate "\n" $ map show defs
+  show Module{..} = "Module " ++ mName ++ "{\n" ++ defs' ++ "\n}"
+    where defs' = intercalate "\n" $ map show mDefs
 
 data FloGraph = FloGraph {
-  getFloGraphModules :: [Module]
+  modules :: [Module]
 }
 
 instance Show FloGraph where
-  show (FloGraph modules) = intercalate "\n\n" $ map show modules
+  show FloGraph{..} = intercalate "\n\n" $ map show modules
 
 {- Get the box that is connected to a function's output. -}
-getOutputBox :: BoxDefinition -> ID
-getOutputBox boxDef = getOutputParentID output
-  where cables = getCables boxDef
-        output :-: input = fromMaybe (error "No last cable") $
-                           find isLastCable cables
-        isLastCable (output :-: input) = isEndInput input
-        isEndInput input = getInputParentID input == -1
+getOutputBox :: BoxDef -> ID
+getOutputBox BoxDef{..} = oParentID
+  where Output{..} :-: input = fromMaybe (error "No last cable") $
+                               find isLastCable cables
+        isLastCable (output :-: Input{..}) = iParentID == -1
 
 {- Given a box definition and a specific box, find all of its inputs. -}
-getAppliedInputs :: BoxDefinition -> ID -> [(Input, ID)]
-getAppliedInputs boxDef boxID = concatMap filterCables cables
-  where cables = getCables boxDef
-        filterCables (output :-: input)
-          | getInputParentID input == boxID
-            = [(input, getOutputParentID output)]
+getAppliedInputs :: BoxDef -> ID -> [(Input, ID)]
+getAppliedInputs BoxDef{..} boxID = concatMap filterCables cables
+  where filterCables (Output{..} :-: i@Input{..})
+          | iParentID == boxID = [(i, oParentID)]
         filterCables (_ :-: _) = []
