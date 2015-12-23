@@ -5,25 +5,23 @@ import Convertible
 import FloGraph
 import FloProgram
 
-import Data.List (find, intercalate)
-import Data.Maybe (fromJust, isJust)
+import Data.List (intercalate)
 
 data HaskellExpr = HaskellLit Literal
                  | HaskellFun Name
-                 | HaskellExpr :$: HaskellExpr
-                 | [Input] :->: HaskellExpr
+                 | HaskellCons Name
+                 | HaskellAp HaskellExpr HaskellExpr
+                 | HaskellLambda [Input] HaskellExpr
                  | HaskellLet [HaskellDef] HaskellExpr
-
-showInputs :: [Input] -> String
-showInputs inputs = unwords $ map (fixName . iName) inputs
 
 instance Show HaskellExpr where
   show (HaskellLit lit) = show lit
   show (HaskellFun fun) = fixName fun
-  show (e1 :$: e2) = show e1 ++ " " ++ e2'
+  show (HaskellAp e1 e2) = show e1 ++ " " ++ e2'
     where e2' | isAtomic e2 = show e2
               | otherwise = "(" ++ show e2 ++ ")"
-  show (inputs :->: expr) = '\\' : showInputs inputs ++ " -> " ++ show expr
+  show (HaskellLambda inputs expr) = '\\' : showInputs inputs ++ " -> " ++
+    show expr
   show (HaskellLet ld le)
     = "let {" ++ intercalate "; " (map show ld) ++ "} in " ++ show le
 
@@ -31,6 +29,9 @@ isAtomic :: HaskellExpr -> Bool
 isAtomic (HaskellLit _) = True
 isAtomic (HaskellFun _) = True
 isAtomic _ = False
+
+showInputs :: [Input] -> String
+showInputs inputs = unwords $ map (fixName . iName) inputs
 
 data HaskellDef = HaskellDef {
   hdName :: Name,
@@ -71,21 +72,10 @@ instance Convertible FloDef HaskellDef where
 instance Convertible FloExpr HaskellExpr where
   convert (FloLit lit) = HaskellLit lit
   convert (FloFun name _) = HaskellFun $ fixName name
-  convert (FloCons _ _) = undefined
-  convert e@(FloAp expr apps) | null lambdaInputs = rhs
-                              | otherwise = lambdaInputs :->: rhs
-    where rhs = foldl1 (:$:) $ convert expr : exprApps
-          lambdaInputs = getInputs e
-          exprInputs = getInputs expr
-          exprApps = makeApps exprInputs apps
+  convert (FloCons name _) = HaskellCons name
+  convert (FloAp e1 e2) = HaskellAp (convert e1) (convert e2)
+  convert (FloLambda inputs expr) = HaskellLambda inputs (convert expr)
   convert (FloLet ld le) = HaskellLet (convert ld) (convert le)
-
-makeApps :: [Input] -> [(Input, FloExpr)] -> [HaskellExpr]
-makeApps (i@Input{..}:inputs) apps
-  | isJust ie = convert (snd $ fromJust ie) : makeApps inputs apps
-  | otherwise = HaskellFun iName : makeApps inputs apps
-  where ie = find ((== i) . fst) apps
-makeApps [] apps = []
 
 {- To avoid name clashes with existing things in Haskell -}
 fixName :: String -> String

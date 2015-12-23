@@ -2,7 +2,7 @@
 module FloGraph where
 
 import qualified Data.IntMap as IntMap
-import Data.List (find, intercalate)
+import Data.List ((\\), find, intercalate)
 import Data.Maybe (fromMaybe)
 
 type Name = String
@@ -83,9 +83,17 @@ getOutputBox BoxDef{..} = oParentID
                                find isLastCable cables
         isLastCable (output :-: Input{..}) = iParentID == -1
 
-{- Given a box definition and a specific box, find all of its inputs. -}
+{- Given a box definition and a specific box, find all of its applied inputs. -}
 getAppliedInputs :: BoxDef -> ID -> [(Input, ID)]
 getAppliedInputs BoxDef{..} boxID = concatMap filterCables cables
   where filterCables (Output{..} :-: i@Input{..})
           | iParentID == boxID = [(i, oParentID)]
         filterCables (_ :-: _) = []
+
+{- Given a box definition and a specific box, find all of its unapplied
+   inputs. -}
+getUnappliedInputs :: BoxDef -> ID -> [Input]
+getUnappliedInputs bd@BoxDef{..} boxID = bInputs \\ appliedInputs
+  where BoxInterface{..} = fromMaybe (error "Box not found") $
+                           IntMap.lookup boxID boxes
+        appliedInputs = map fst $ getAppliedInputs bd boxID
