@@ -393,17 +393,8 @@ public class FloCanvas extends Canvas {
 
     private void drawCableBetweenPoints(final GC gc, final Point start,
             final Point end) {
-        final double xWeight = .5;
-        final double yWeight = .9;
-        final int midX = (start.x + end.x) / 2;
-        final int midY = (start.y + end.y) / 2;
-        final int cx1 = (int) (xWeight * start.x + (1 - xWeight) * midX);
-        final int cy1 = (int) (yWeight * start.y + (1 - yWeight) * midY);
-        final int cx2 = (int) ((1 - xWeight) * midX + xWeight * end.x);
-        final int cy2 = (int) ((1 - yWeight) * midY + yWeight * end.y);
-
-        final Path path = new Path(getDisplay());
         gc.setLineCap(SWT.CAP_ROUND);
+        final Path path = new Path(getDisplay());
         path.moveTo(start.x, start.y);
         path.quadTo(cx1, cy1, midX, midY);
         path.quadTo(cx2, cy2, end.x, end.y);

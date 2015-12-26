@@ -28,6 +28,8 @@ executable flo
                        bytestring,
                        process,
                        filepath,
-                       directory
+                       directory,
+                       mtl,
+                       pretty
   -- hs-source-dirs:
   default-language:    Haskell2010
