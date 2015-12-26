@@ -396,6 +396,29 @@ public class FloCanvas extends Canvas {
         gc.setLineCap(SWT.CAP_ROUND);
         final Path path = new Path(getDisplay());
         path.moveTo(start.x, start.y);
+
+        final int cx1, cy1, midX, midY, cx2, cy2;
+        if (start.x < end.x) {
+            final double xWeight = .5;
+            final double yWeight = .9;
+            midX = (start.x + end.x) / 2;
+            midY = (start.y + end.y) / 2;
+            cx1 = (int) (xWeight * start.x + (1 - xWeight) * midX);
+            cy1 = (int) (yWeight * start.y + (1 - yWeight) * midY);
+            cx2 = (int) ((1 - xWeight) * midX + xWeight * end.x);
+            cy2 = (int) ((1 - yWeight) * midY + yWeight * end.y);
+        } else {
+            final int deltaX = Math.min(start.x - end.x, 200);
+            final double deltaXWeight = .3;
+            final double yWeight = .75;
+            midX = (start.x + end.x) / 2;
+            midY = (start.y + end.y) / 2;
+            cx1 = (int) (start.x + deltaXWeight * deltaX);
+            cy1 = (int) (yWeight * start.y + (1 - yWeight) * midY);
+            cx2 = (int) (end.x - deltaXWeight * deltaX);
+            cy2 = (int) ((1 - yWeight) * midY + yWeight * end.y);
+        }
+
         path.quadTo(cx1, cy1, midX, midY);
         path.quadTo(cx2, cy2, end.x, end.y);
 
