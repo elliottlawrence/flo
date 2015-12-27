@@ -40,6 +40,8 @@ public class Main {
 
     private static final int MIN_TREE_WIDTH = 80;
 
+    private static final double ZOOM_INCREMENT = 0.25;
+
     private static String savePath;
     private static String openPath;
     private static boolean closing = false;
@@ -309,11 +311,27 @@ public class Main {
         tiZoomIn.setImage(
                 SWTResourceManager.getImage(Main.class, "/Icons/zoom in.png"));
         tiZoomIn.setText("Zoom In");
+        tiZoomIn.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                floCanvas.setZoom(floCanvas.getZoom() + ZOOM_INCREMENT);
+            }
+        });
 
         final ToolItem tiZoomOut = new ToolItem(toolBar, SWT.NONE);
         tiZoomOut.setImage(
                 SWTResourceManager.getImage(Main.class, "/Icons/zoom out.png"));
         tiZoomOut.setText("Zoom Out");
+        tiZoomOut.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                final double zoom = floCanvas.getZoom();
+                if (zoom - ZOOM_INCREMENT <= 0.05)
+                    return;
+                else
+                    floCanvas.setZoom(zoom - ZOOM_INCREMENT);
+            }
+        });
 
         // Set FormData properties
         final Tree treetree = tree.getTree();
