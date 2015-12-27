@@ -24,7 +24,8 @@ instance Show Input where
   show Input{..} = "Input {" ++ iName ++ ", " ++ show iParentID ++ "}"
 
 data Output = Output {
-  oParentID :: ID
+  oParentID :: ID,
+  oEndInputName :: Name
 }
 
 instance Show Output where
@@ -76,18 +77,18 @@ data FloGraph = FloGraph {
 instance Show FloGraph where
   show FloGraph{..} = intercalate "\n\n" $ map show modules
 
-{- Get the box that is connected to a function's output. -}
-getOutputBox :: BoxDef -> ID
-getOutputBox BoxDef{..} = oParentID
-  where Output{..} :-: input = fromMaybe (error "No last cable") $
-                               find isLastCable cables
-        isLastCable (output :-: Input{..}) = iParentID == -1
+{- Get the output of the box that is connected to a function's output. -}
+getOutput :: BoxDef -> Output
+getOutput BoxDef{..} = output
+  where output :-: _ = fromMaybe (error "No last cable") $
+                       find isLastCable cables
+        isLastCable (_ :-: Input{..}) = iParentID == -1
 
 {- Given a box definition and a specific box, find all of its applied inputs. -}
-getAppliedInputs :: BoxDef -> ID -> [(Input, ID)]
+getAppliedInputs :: BoxDef -> ID -> [(Input, Output)]
 getAppliedInputs BoxDef{..} boxID = concatMap filterCables cables
-  where filterCables (Output{..} :-: i@Input{..})
-          | iParentID == boxID = [(i, oParentID)]
+  where filterCables (o :-: i@Input{..})
+          | iParentID == boxID = [(i, o)]
         filterCables (_ :-: _) = []
 
 {- Given a box definition and a specific box, find all of its unapplied

@@ -34,11 +34,6 @@ public class BoxInterface implements Jsonable {
     private final List<Input> inputs;
 
     /**
-     * The input which is attached to the output
-     */
-    private final Input endInput;
-
-    /**
      * The box's output
      */
     private final Output output;
@@ -66,8 +61,7 @@ public class BoxInterface implements Jsonable {
     public BoxInterface(final String name) {
         this.name = name;
         inputs = new ArrayList<Input>();
-        endInput = new Input("endInput", this);
-        output = new Output(this);
+        output = new Input("endInput", this).getStartOutput();
     }
 
     /**
@@ -84,9 +78,7 @@ public class BoxInterface implements Jsonable {
         jsonInputs.forEach(
                 jo -> inputs.add(new Input(jo.getString("name"), this)));
 
-        endInput = new Input(name, this);
-
-        output = new Output(this);
+        output = new Input("endInput", this).getStartOutput();
     }
 
     // Methods related to name
@@ -136,12 +128,6 @@ public class BoxInterface implements Jsonable {
 
     public void removeInput(final String name) {
         inputs.remove(getInput(name));
-    }
-
-    // Methods related to endInput
-
-    public Input getEndInput() {
-        return endInput;
     }
 
     // Methods related to output

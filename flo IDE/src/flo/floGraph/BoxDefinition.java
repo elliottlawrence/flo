@@ -145,6 +145,8 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
     }
 
     public void setBoxLocation(final Integer ID, final Point point) {
+        if (ID == -1)
+            return;
         final BoxInterface bi = boxes.get(ID).x;
         boxes.put(ID, new Pair<BoxInterface, Point>(bi, point));
 

@@ -243,34 +243,6 @@ public class Main {
         currentFloGraph.addCurrentBoxDefinitionObserver(e -> tiNewBox
                 .setEnabled(currentFloGraph.getCurrentBoxDefinition() != null));
 
-        final ToolItem tiToggleInput = new ToolItem(toolBar, SWT.NONE);
-        tiToggleInput.setImage(SWTResourceManager.getImage(Main.class,
-                "/Icons/toggle input.png"));
-        tiToggleInput.setText("Toggle Input");
-        tiToggleInput.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(final SelectionEvent e) {
-                final int ID = floCanvas.getClickedBoxID();
-                if (ID != -1) {
-                    final BoxDefinition bd =
-                            currentFloGraph.getCurrentBoxDefinition();
-                    if (bd != null) {
-                        final String name = bd.getBoxes().get(ID).x.getName();
-                        final BoxInterface bi = bd.getBoxInterface();
-                        // The clicked box is an input
-                        if (bi.containsInput(name))
-                            bi.removeInput(name);
-                        // The clicked box is not an input
-                        else
-                            bi.addInput(name);
-                        floCanvas.redraw();
-                    }
-                }
-            }
-        });
-        currentFloGraph.addCurrentBoxDefinitionObserver(e -> tiToggleInput
-                .setEnabled(currentFloGraph.getCurrentBoxDefinition() != null));
-
         new ToolItem(toolBar, SWT.SEPARATOR);
 
         final ToolItem tiCompile = new ToolItem(toolBar, SWT.NONE);

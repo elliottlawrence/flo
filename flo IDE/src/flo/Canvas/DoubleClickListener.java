@@ -55,10 +55,9 @@ public class DoubleClickListener extends MouseAdapter {
         }
 
         // Listen for double clicks on the box interface name
-        final Rectangle boxInterfaceRectangle =
-                floCanvas.getBoxInterfaceRectangle();
+        final Rect boxInterfaceRectangle = floCanvas.getBoxInterfaceRect();
         if (boxInterfaceRectangle.contains(e.x, e.y)) {
-            createEditor(boxInterfaceRectangle,
+            createEditor(boxInterfaceRectangle.rect,
                     textEditor -> setBoxInterfaceName(textEditor.getText()));
             return;
         }
@@ -67,8 +66,13 @@ public class DoubleClickListener extends MouseAdapter {
         final Pair<Rect, Integer> pair3 = floCanvas.getContainingBox(e.x, e.y);
         if (pair3 != null) {
             final int ID = pair3.y;
-            final BoxInterface bi = floCanvas.getFloGraph()
-                    .getCurrentBoxDefinition().getBoxes().get(ID).x;
+            final BoxInterface bi;
+            if (ID == -1)
+                bi = floCanvas.getFloGraph().getCurrentBoxDefinition()
+                        .getBoxInterface();
+            else
+                bi = floCanvas.getFloGraph().getCurrentBoxDefinition()
+                        .getBoxes().get(ID).x;
             bi.addInput("input" + (bi.getInputs().size() + 1));
             floCanvas.redraw();
             return;
@@ -122,16 +126,9 @@ public class DoubleClickListener extends MouseAdapter {
 
         final BoxDefinition currentBoxDefinition =
                 floCanvas.getFloGraph().getCurrentBoxDefinition();
-        final BoxInterface currentBoxInterface =
-                currentBoxDefinition.getBoxInterface();
-
         final Pair<BoxInterface, Point> bip =
                 currentBoxDefinition.getBoxes().get(ID);
         final BoxInterface bi = bip.x;
-
-        // If this box is an input, change that name too
-        if (currentBoxInterface.containsInput(bi.getName()))
-            currentBoxInterface.getInput(bi.getName()).setName(name);
 
         // Change the box's name
         bi.setName(name);

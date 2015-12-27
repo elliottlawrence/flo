@@ -24,12 +24,18 @@ public class Output implements Jsonable {
     private final BoxInterface parent;
 
     /**
+     * The input which is attached to this output
+     */
+    private final Input endInput;
+
+    /**
      * Create the output for the given box interface
-     * 
+     *
      * @param parent
      */
-    public Output(final BoxInterface parent) {
+    public Output(final BoxInterface parent, final Input endInput) {
         this.parent = parent;
+        this.endInput = endInput;
     }
 
     // Methods related to cables
@@ -50,11 +56,18 @@ public class Output implements Jsonable {
         cables.remove(cable);
     }
 
+    // Methods related to endInput
+
+    public Input getEndInput() {
+        return endInput;
+    }
+
     /**
      * Convert this output to JSON
      */
     @Override
     public JsonObjectBuilder toJsonObjectBuilder() {
-        return Json.createObjectBuilder().add("parentID", parent.getID());
+        return Json.createObjectBuilder().add("parentID", parent.getID())
+                .add("endInputName", endInput.getName());
     }
 }

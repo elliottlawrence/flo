@@ -26,6 +26,11 @@ public class Input implements Jsonable {
     private Cable cable;
 
     /**
+     * The output which is attached to this input
+     */
+    private final Output startOutput;
+
+    /**
      * Create an input with the given name of the given box interface
      *
      * @param name
@@ -34,6 +39,7 @@ public class Input implements Jsonable {
     public Input(final String name, final BoxInterface parent) {
         this.name = name;
         this.parent = parent;
+        startOutput = new Output(parent, this);
     }
 
     // Methods related to name
@@ -64,6 +70,12 @@ public class Input implements Jsonable {
 
     public boolean hasCable() {
         return cable != null;
+    }
+
+    // Methods related to startOutput
+
+    public Output getStartOutput() {
+        return startOutput;
     }
 
     /**

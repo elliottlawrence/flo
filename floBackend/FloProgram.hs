@@ -65,25 +65,26 @@ instance Convertible BoxDef FloDef where
   convert bd@BoxDef{..} = FloDef bName bInputs $
     if null localDefs then boxExpr else FloLet (convert localDefs) boxExpr
     where BoxInterface{..} = boxInterface
-          boxExpr = convert (bd, getOutputBox bd)
+          boxExpr = convert (bd, getOutput bd)
 
-{- Converts the box with the given ID, defined in the given box definition, to
+{- Converts the box with the given output, defined in the given box definition, to
    a Flo Expression. -}
-instance Convertible (BoxDef, ID) FloExpr where
-  convert (bd@BoxDef{..}, boxID) =
-    case bFlavor of Function -> createAp FloFun
-                    Constructor -> createAp FloCons
-                    Literal -> convert bi
+instance Convertible (BoxDef, Output) FloExpr where
+  convert (bd@BoxDef{..}, Output{..}) 
+    | oParentID == -1 = FloFun oEndInputName []
+    | otherwise = case bFlavor of Function -> createAp FloFun
+                                  Constructor -> createAp FloCons
+                                  Literal -> convert bi
     where bi@BoxInterface{..} = fromMaybe (error "Box not found") $
-                                IntMap.lookup boxID boxes
+                                IntMap.lookup oParentID boxes
           {- To create an expression out of a function or constructor, convert
              all of its inputs to expressions and then apply them to the
              function. For constant applicative forms, no inputs need be
              applied. -}
           createAp constructor | null unappliedInputs = rhs
                                | otherwise = FloLambda unappliedInputs rhs
-            where unappliedInputs = getUnappliedInputs bd boxID
-                  appliedInputs = getAppliedInputs bd boxID
+            where unappliedInputs = getUnappliedInputs bd oParentID
+                  appliedInputs = getAppliedInputs bd oParentID
                   appliedExprs = map (second $ convert . (bd,)) appliedInputs
                   apps = applyExprs bInputs appliedExprs
                   rhs = foldl1 FloAp $ constructor bName bInputs : apps

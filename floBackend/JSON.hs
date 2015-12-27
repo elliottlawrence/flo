@@ -50,5 +50,5 @@ instance FromJSON Input where
   parseJSON _ = mzero
 
 instance FromJSON Output where
-  parseJSON (Object v) = Output <$> v .: "parentID"
+  parseJSON (Object v) = Output <$> v .: "parentID" <*> v .: "endInputName"
   parseJSON _ = mzero
