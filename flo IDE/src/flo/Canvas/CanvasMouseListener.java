@@ -9,7 +9,8 @@ import org.eclipse.swt.graphics.Rectangle;
 import flo.Util.Pair;
 import flo.Util.Rect;
 
-public class BoxListener extends MouseAdapter implements MouseMoveListener {
+public class CanvasMouseListener extends MouseAdapter
+        implements MouseMoveListener {
 
     private final FloCanvas floCanvas;
 
@@ -20,11 +21,12 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
 
     // Variables for drag events
 
-    private boolean drag = false;
+    private boolean canvasDrag = false;
+    private boolean boxDrag = false;
     private int draggedBoxID;
     private final Point dragOffset = new Point(0, 0);
 
-    public BoxListener(final FloCanvas floCanvas) {
+    public CanvasMouseListener(final FloCanvas floCanvas) {
         this.floCanvas = floCanvas;
 
         // Add this as a listener to the canvas
@@ -54,23 +56,33 @@ public class BoxListener extends MouseAdapter implements MouseMoveListener {
             final Rectangle rect = pair.x.rect;
             clickedBoxID = pair.y;
 
-            drag = true;
+            boxDrag = true;
             draggedBoxID = pair.y;
             dragOffset.x = rect.x - e.x;
             dragOffset.y = rect.y - e.y;
+        }
+        // Otherwise drag the canvas around
+        else {
+            canvasDrag = true;
+            final Point offset = floCanvas.getOffset();
+            dragOffset.x = offset.x - e.x;
+            dragOffset.y = offset.y - e.y;
         }
     }
 
     @Override
     public void mouseUp(final MouseEvent e) {
-        drag = false;
+        boxDrag = false;
+        canvasDrag = false;
     }
 
     @Override
     public void mouseMove(final MouseEvent e) {
-        if (drag)
-            floCanvas.getFloGraph().getCurrentBoxDefinition().setBoxLocation(
-                    draggedBoxID,
-                    new Point(dragOffset.x + e.x, dragOffset.y + e.y));
+        if (boxDrag)
+            floCanvas.getFloGraph().getCurrentBoxDefinition()
+                    .setBoxLocation(draggedBoxID, floCanvas.absToRel(
+                            new Point(dragOffset.x + e.x, dragOffset.y + e.y)));
+        else if (canvasDrag)
+            floCanvas.setOffset(new Point(0, 0));
     }
 }

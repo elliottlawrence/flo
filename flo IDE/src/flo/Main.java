@@ -17,6 +17,7 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Sash;
+import org.eclipse.swt.widgets.Scale;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
@@ -54,6 +55,9 @@ public class Main {
      * @param args
      */
     public static void main(final String[] args) {
+        // Uncomment for WindowBuilder to work
+        // currentFloGraph = new FloGraph();
+
         savePath = null;
         if (args.length > 0) {
             currentFloGraph = FloGraph.open(args[0]);
@@ -237,7 +241,8 @@ public class Main {
                 if (currentBoxDefinition != null) {
                     final BoxInterface bi = new BoxInterface("box"
                             + (currentBoxDefinition.getBoxes().size() + 1));
-                    final int ID = currentBoxDefinition.addBox(bi);
+                    final int ID = currentBoxDefinition.addBox(bi,
+                            floCanvas.getDefaultBoxLocation());
                     floCanvas.setClickedBoxID(ID);
                 }
             }
@@ -305,33 +310,21 @@ public class Main {
             }
         });
 
-        new ToolItem(toolBar, SWT.SEPARATOR);
+        new ToolItem(toolBar, SWT.SEPARATOR).setWidth(30);
 
-        final ToolItem tiZoomIn = new ToolItem(toolBar, SWT.NONE);
-        tiZoomIn.setImage(
-                SWTResourceManager.getImage(Main.class, "/Icons/zoom in.png"));
-        tiZoomIn.setText("Zoom In");
-        tiZoomIn.addSelectionListener(new SelectionAdapter() {
+        final Scale scale = new Scale(toolBar, SWT.NONE);
+        scale.setMinimum(0);
+        scale.setMaximum(20);
+        scale.setSelection(5);
+        scale.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
-                floCanvas.setZoom(floCanvas.getZoom() + ZOOM_INCREMENT);
+                floCanvas.setZoom(ZOOM_INCREMENT * (1 + scale.getSelection()));
             }
         });
-
-        final ToolItem tiZoomOut = new ToolItem(toolBar, SWT.NONE);
-        tiZoomOut.setImage(
-                SWTResourceManager.getImage(Main.class, "/Icons/zoom out.png"));
-        tiZoomOut.setText("Zoom Out");
-        tiZoomOut.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(final SelectionEvent e) {
-                final double zoom = floCanvas.getZoom();
-                if (zoom - ZOOM_INCREMENT <= 0.05)
-                    return;
-                else
-                    floCanvas.setZoom(zoom - ZOOM_INCREMENT);
-            }
-        });
+        final ToolItem scaleItem = new ToolItem(toolBar, SWT.SEPARATOR);
+        scaleItem.setControl(scale);
+        scaleItem.setWidth(100);
 
         // Set FormData properties
         final Tree treetree = tree.getTree();

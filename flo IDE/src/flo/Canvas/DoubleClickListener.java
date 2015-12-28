@@ -7,7 +7,6 @@ import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Text;
 
@@ -51,14 +50,6 @@ public class DoubleClickListener extends MouseAdapter {
 
             createEditor(rect.rect,
                     textEditor -> setInputName(input, textEditor.getText()));
-            return;
-        }
-
-        // Listen for double clicks on the box interface name
-        final Rect boxInterfaceRectangle = floCanvas.getBoxInterfaceRect();
-        if (boxInterfaceRectangle.contains(e.x, e.y)) {
-            createEditor(boxInterfaceRectangle.rect,
-                    textEditor -> setBoxInterfaceName(textEditor.getText()));
             return;
         }
 
@@ -126,9 +117,9 @@ public class DoubleClickListener extends MouseAdapter {
 
         final BoxDefinition currentBoxDefinition =
                 floCanvas.getFloGraph().getCurrentBoxDefinition();
-        final Pair<BoxInterface, Point> bip =
-                currentBoxDefinition.getBoxes().get(ID);
-        final BoxInterface bi = bip.x;
+        final BoxInterface bi =
+                ID == -1 ? currentBoxDefinition.getBoxInterface()
+                        : currentBoxDefinition.getBoxes().get(ID).x;
 
         // Change the box's name
         bi.setName(name);
@@ -143,13 +134,5 @@ public class DoubleClickListener extends MouseAdapter {
             input.getParent().removeInput(input);
         else
             input.setName(name);
-    }
-
-    /**
-     * Change the box interface's name
-     */
-    private void setBoxInterfaceName(final String name) {
-        floCanvas.getFloGraph().getCurrentBoxDefinition().getBoxInterface()
-                .setName(name);
     }
 }

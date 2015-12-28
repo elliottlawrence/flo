@@ -107,10 +107,10 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
         return boxes;
     }
 
-    public int addBox(final BoxInterface bi) {
+    public int addBox(final BoxInterface bi, final Point p) {
         final int ID = getUniqueID();
         bi.setID(ID);
-        boxes.put(ID, new Pair<BoxInterface, Point>(bi, new Point(100, 100)));
+        boxes.put(ID, new Pair<BoxInterface, Point>(bi, p));
 
         boxAddedObservable.notifyObservers(new BoxAddedEvent());
         currentBoxDefinitionObservable
