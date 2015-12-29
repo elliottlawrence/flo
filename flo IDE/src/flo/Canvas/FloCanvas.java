@@ -54,9 +54,10 @@ public class FloCanvas extends Canvas {
     // Drawing jobs
     private final Drawer drawer = new Drawer();
 
-    // Zoom and scale
+    // Zoom and offset
     private double zoom = 1.0;
     private Pnt offset = new Pnt(0, 0);
+    private Pnt minBoundingRectLoc = new Pnt(50, 50);
 
     /**
      * Create a FloCanvas used for editing the given FloGraph
@@ -128,7 +129,7 @@ public class FloCanvas extends Canvas {
         boxListener.setClickedBoxID(ID);
     }
 
-    // Methods related to zoom and offset
+    // Methods related to zoom, offset, and sizing
 
     private Pnt getCanvasSize() {
         return new Pnt(getSize());
@@ -185,7 +186,7 @@ public class FloCanvas extends Canvas {
     }
 
     public Pnt getDefaultBoxLocation() {
-        return absToRel(getCanvasSize().scalarMult(0.5));
+        return absToRel(minBoundingRectLoc);
     }
 
     // Methods for painting the canvas
@@ -365,8 +366,13 @@ public class FloCanvas extends Canvas {
         final Pnt stringExtent = textExtent(gc, boxName);
         final int topHeight = stringExtent.y + scale(2 * TEXT_PADDING);
 
-        final Rect minBoundingRect =
-            Rect.getContainingRect(Pair.unzip1(boxRects));
+        // Find the minimum rectangle bounding the boxes
+        final Rect minBoundingRect = boxRects.isEmpty()
+            ? new Rect(minBoundingRectLoc.x, minBoundingRectLoc.y, 50, 0)
+            : Rect.getContainingRect(Pair.unzip1(boxRects));
+        minBoundingRectLoc = minBoundingRect.getLocation();
+
+        // Adjust with some padding
         final Rectangle boundingRect =
             minBoundingRect
                 .translate(
@@ -379,6 +385,7 @@ public class FloCanvas extends Canvas {
         int widthPadding = 0;
         int minHeight = 0;
 
+        // Calculate size needed for inputs
         final int numInputs = inputs.size();
         if (numInputs != 0) {
             final int maxInputWidth =
@@ -390,6 +397,7 @@ public class FloCanvas extends Canvas {
                 + scale(TEXT_PADDING * (numInputs + 2));
         }
 
+        // Calculate final sizes
         final Pnt p =
             new Pnt(boundingRect.x - widthPadding, boundingRect.y - topHeight);
         final int width = Math.max(
@@ -409,6 +417,7 @@ public class FloCanvas extends Canvas {
         final int topHeight = stringExtent.y + scale(2 * TEXT_PADDING);
         int width, height = topHeight;
 
+        // Calculuate size needed for inputs
         final int numInputs = inputs.size();
         if (numInputs == 0)
             width = stringExtent.x + scale(TOTAL_SIDE_PADDING);

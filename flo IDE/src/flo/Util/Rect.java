@@ -23,7 +23,7 @@ public class Rect implements Shape {
 
     /**
      * The location of the rectangle's upper right corner
-     * 
+     *
      * @return
      */
     public Pnt getLocation() {
