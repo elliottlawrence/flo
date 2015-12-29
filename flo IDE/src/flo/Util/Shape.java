@@ -5,8 +5,7 @@ public interface Shape {
     /**
      * Returns true if the shape contains the given point
      *
-     * @param x
-     * @param y
+     * @param p
      */
-    public boolean contains(int x, int y);
+    public boolean contains(Pnt p);
 }

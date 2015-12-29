@@ -3,10 +3,10 @@ package flo.Canvas;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseMoveListener;
-import org.eclipse.swt.graphics.Point;
 
 import flo.Util.Circle;
 import flo.Util.Pair;
+import flo.Util.Pnt;
 import flo.floGraph.Cable;
 import flo.floGraph.FloGraph;
 import flo.floGraph.Input;
@@ -24,7 +24,7 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
     private boolean outputHasBeenClicked = false;
     private Output clickedOutput;
 
-    private final Point cableEnd = new Point(0, 0);
+    private Pnt cableEnd = new Pnt(0, 0);
 
     public CableListener(final FloCanvas floCanvas) {
         this.floCanvas = floCanvas;
@@ -50,7 +50,7 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
         return clickedOutput;
     }
 
-    public Point getCableEnd() {
+    public Pnt getCableEnd() {
         return cableEnd;
     }
 
@@ -61,9 +61,10 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
         if (e.button != 1)
             return;
 
+        final Pnt p = new Pnt(e.x, e.y);
+
         // See if user clicked an input
-        final Pair<Circle, Input> pair1 =
-                floCanvas.getContainingInput(e.x, e.y);
+        final Pair<Circle, Input> pair1 = floCanvas.getContainingInput(p);
         if (pair1 != null) {
             inputHasBeenClicked = true;
             clickedInput = pair1.y;
@@ -72,7 +73,7 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
                 // Make cable
                 final FloGraph floGraph = floCanvas.getFloGraph();
                 final Cable cable = new Cable(clickedOutput, clickedInput,
-                        floGraph.getCurrentBoxDefinition());
+                    floGraph.getCurrentBoxDefinition());
                 floGraph.getCurrentBoxDefinition().addCable(cable);
 
                 // Reset variables
@@ -94,8 +95,7 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
         }
 
         // See if user clicked an output
-        final Pair<Circle, Output> pair2 =
-                floCanvas.getContainingOutput(e.x, e.y);
+        final Pair<Circle, Output> pair2 = floCanvas.getContainingOutput(p);
         if (pair2 != null) {
             outputHasBeenClicked = true;
             clickedOutput = pair2.y;
@@ -104,7 +104,7 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
                 // Make cable
                 final FloGraph floGraph = floCanvas.getFloGraph();
                 final Cable cable = new Cable(clickedOutput, clickedInput,
-                        floGraph.getCurrentBoxDefinition());
+                    floGraph.getCurrentBoxDefinition());
                 floGraph.getCurrentBoxDefinition().addCable(cable);
 
                 // Reset variables
@@ -122,7 +122,6 @@ public class CableListener extends MouseAdapter implements MouseMoveListener {
 
     @Override
     public void mouseMove(final MouseEvent e) {
-        cableEnd.x = e.x;
-        cableEnd.y = e.y;
+        cableEnd = new Pnt(e.x, e.y);
     }
 }

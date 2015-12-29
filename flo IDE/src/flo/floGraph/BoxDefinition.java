@@ -10,14 +10,13 @@ import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
-import org.eclipse.swt.graphics.Point;
-
 import flo.Observable.BoxAddedEvent;
 import flo.Observable.CurrentBoxDefinitionEvent;
 import flo.Observable.Observable;
 import flo.Observable.Observer;
 import flo.Util.Jsonable;
 import flo.Util.Pair;
+import flo.Util.Pnt;
 
 /**
  * A box definition consists of the box's interface augmented with a set of
@@ -35,7 +34,7 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
      * The list of boxes contained in this box definition and their locations on
      * the canvas
      */
-    private final Map<Integer, Pair<BoxInterface, Point>> boxes;
+    private final Map<Integer, Pair<BoxInterface, Pnt>> boxes;
 
     /**
      * The list of cables connecting various boxes
@@ -46,9 +45,9 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
      * Observables corresponding to the different events this object can emit
      */
     private final Observable<BoxAddedEvent> boxAddedObservable =
-            new Observable<BoxAddedEvent>();
+        new Observable<BoxAddedEvent>();
     private final Observable<CurrentBoxDefinitionEvent> currentBoxDefinitionObservable =
-            new Observable<CurrentBoxDefinitionEvent>();
+        new Observable<CurrentBoxDefinitionEvent>();
 
     /**
      * Create an empty box definition with the given name and parent
@@ -57,10 +56,10 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
      * @param parent
      */
     public BoxDefinition(final String name,
-            final BoxDefinitionContainer parent) {
+        final BoxDefinitionContainer parent) {
         super(parent);
         boxInterface = new BoxInterface(name);
-        boxes = new HashMap<Integer, Pair<BoxInterface, Point>>();
+        boxes = new HashMap<Integer, Pair<BoxInterface, Pnt>>();
         cables = new ArrayList<Cable>();
     }
 
@@ -71,27 +70,27 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
      * @param parent
      */
     public BoxDefinition(final JsonObject jsonObject,
-            final BoxDefinitionContainer parent) {
+        final BoxDefinitionContainer parent) {
         super(jsonObject, parent);
 
         boxInterface =
-                new BoxInterface(jsonObject.getJsonObject("boxInterface"));
+            new BoxInterface(jsonObject.getJsonObject("boxInterface"));
 
-        boxes = new HashMap<Integer, Pair<BoxInterface, Point>>();
+        boxes = new HashMap<Integer, Pair<BoxInterface, Pnt>>();
         final List<JsonObject> jsonBoxes =
-                jsonObject.getJsonArray("boxes").getValuesAs(JsonObject.class);
+            jsonObject.getJsonArray("boxes").getValuesAs(JsonObject.class);
         jsonBoxes.forEach(jo -> {
             final int ID = jo.getInt("ID");
             final BoxInterface bi =
-                    new BoxInterface(jo.getJsonObject("boxInterface"));
+                new BoxInterface(jo.getJsonObject("boxInterface"));
             bi.setID(ID);
-            final Point point = new Point(jo.getInt("x"), jo.getInt("y"));
-            boxes.put(ID, new Pair<BoxInterface, Point>(bi, point));
+            final Pnt point = new Pnt(jo.getInt("x"), jo.getInt("y"));
+            boxes.put(ID, new Pair<BoxInterface, Pnt>(bi, point));
         });
 
         cables = new ArrayList<Cable>();
         final List<JsonObject> jsonCables =
-                jsonObject.getJsonArray("cables").getValuesAs(JsonObject.class);
+            jsonObject.getJsonArray("cables").getValuesAs(JsonObject.class);
         jsonCables.forEach(jo -> cables.add(new Cable(jo, this)));
     }
 
@@ -103,18 +102,18 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 
     // Methods related to boxes
 
-    public Map<Integer, Pair<BoxInterface, Point>> getBoxes() {
+    public Map<Integer, Pair<BoxInterface, Pnt>> getBoxes() {
         return boxes;
     }
 
-    public int addBox(final BoxInterface bi, final Point p) {
+    public int addBox(final BoxInterface bi, final Pnt p) {
         final int ID = getUniqueID();
         bi.setID(ID);
-        boxes.put(ID, new Pair<BoxInterface, Point>(bi, p));
+        boxes.put(ID, new Pair<BoxInterface, Pnt>(bi, p));
 
         boxAddedObservable.notifyObservers(new BoxAddedEvent());
         currentBoxDefinitionObservable
-                .notifyObservers(new CurrentBoxDefinitionEvent());
+            .notifyObservers(new CurrentBoxDefinitionEvent());
 
         return ID;
     }
@@ -137,21 +136,21 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
         final Output o = bi.getOutput();
         if (o.hasCable()) {
             final List<Cable> cablesToRemove =
-                    new ArrayList<Cable>(o.getCables());
+                new ArrayList<Cable>(o.getCables());
             cablesToRemove.forEach(c -> removeCable(c));
         }
 
         boxes.remove(ID);
     }
 
-    public void setBoxLocation(final Integer ID, final Point point) {
+    public void setBoxLocation(final Integer ID, final Pnt point) {
         if (ID == -1)
             return;
         final BoxInterface bi = boxes.get(ID).x;
-        boxes.put(ID, new Pair<BoxInterface, Point>(bi, point));
+        boxes.put(ID, new Pair<BoxInterface, Pnt>(bi, point));
 
         currentBoxDefinitionObservable
-                .notifyObservers(new CurrentBoxDefinitionEvent());
+            .notifyObservers(new CurrentBoxDefinitionEvent());
     }
 
     // Methods related to cables
@@ -176,12 +175,12 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
     }
 
     public void addCurrentBoxDefinitionObserver(
-            final Observer<CurrentBoxDefinitionEvent> o) {
+        final Observer<CurrentBoxDefinitionEvent> o) {
         currentBoxDefinitionObservable.addObserver(o);
     }
 
     public void deleteCurrentBoxDefinitionObserver(
-            final Observer<CurrentBoxDefinitionEvent> o) {
+        final Observer<CurrentBoxDefinitionEvent> o) {
         currentBoxDefinitionObservable.deleteObserver(o);
     }
 
@@ -199,11 +198,10 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
     public JsonObjectBuilder toJsonObjectBuilder() {
         final JsonArrayBuilder boxBuilder = Json.createArrayBuilder();
         boxes.keySet().forEach(i -> {
-            final Pair<BoxInterface, Point> pair = boxes.get(i);
-            final JsonObjectBuilder objectBuilder =
-                    Json.createObjectBuilder().add("ID", i)
-                            .add("boxInterface", pair.x.toJsonObjectBuilder())
-                            .add("x", pair.y.x).add("y", pair.y.y);
+            final Pair<BoxInterface, Pnt> pair = boxes.get(i);
+            final JsonObjectBuilder objectBuilder = Json.createObjectBuilder()
+                .add("ID", i).add("boxInterface", pair.x.toJsonObjectBuilder())
+                .add("x", pair.y.x).add("y", pair.y.y);
             boxBuilder.add(objectBuilder);
         });
 
@@ -211,7 +209,7 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
         cables.forEach(c -> cableBuilder.add(c.toJsonObjectBuilder()));
 
         return super.toJsonObjectBuilder()
-                .add("boxInterface", boxInterface.toJsonObjectBuilder())
-                .add("boxes", boxBuilder).add("cables", cableBuilder);
+            .add("boxInterface", boxInterface.toJsonObjectBuilder())
+            .add("boxes", boxBuilder).add("cables", cableBuilder);
     }
 }

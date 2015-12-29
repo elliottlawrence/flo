@@ -11,6 +11,7 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Text;
 
 import flo.Util.Pair;
+import flo.Util.Pnt;
 import flo.Util.Rect;
 import flo.floGraph.BoxDefinition;
 import flo.floGraph.BoxInterface;
@@ -29,41 +30,43 @@ public class DoubleClickListener extends MouseAdapter {
 
     @Override
     public void mouseDoubleClick(final MouseEvent e) {
+        final Pnt p = new Pnt(e.x, e.y);
+
         // Listen for double clicks on the box names
-        final Pair<Rect, Integer> pair1 =
-                floCanvas.getContainingBoxName(e.x, e.y);
+        final Pair<Rect, Integer> pair1 = floCanvas.getContainingBoxName(p);
         if (pair1 != null) {
             final Rect rect = pair1.x;
             final int ID = pair1.y;
 
-            createEditor(rect.rect,
-                    textEditor -> setBoxName(ID, textEditor.getText()));
+            createEditor(
+                rect.rect,
+                textEditor -> setBoxName(ID, textEditor.getText()));
             return;
         }
 
         // Listen for double clicks on the input names
-        final Pair<Rect, Input> pair2 =
-                floCanvas.getContainingInputName(e.x, e.y);
+        final Pair<Rect, Input> pair2 = floCanvas.getContainingInputName(p);
         if (pair2 != null) {
             final Rect rect = pair2.x;
             final Input input = pair2.y;
 
-            createEditor(rect.rect,
-                    textEditor -> setInputName(input, textEditor.getText()));
+            createEditor(
+                rect.rect,
+                textEditor -> setInputName(input, textEditor.getText()));
             return;
         }
 
         // Listen for double clicks on boxes (but not on anything else)
-        final Pair<Rect, Integer> pair3 = floCanvas.getContainingBox(e.x, e.y);
+        final Pair<Rect, Integer> pair3 = floCanvas.getContainingBox(p);
         if (pair3 != null) {
             final int ID = pair3.y;
             final BoxInterface bi;
             if (ID == -1)
                 bi = floCanvas.getFloGraph().getCurrentBoxDefinition()
-                        .getBoxInterface();
+                    .getBoxInterface();
             else
                 bi = floCanvas.getFloGraph().getCurrentBoxDefinition()
-                        .getBoxes().get(ID).x;
+                    .getBoxes().get(ID).x;
             bi.addInput("input" + (bi.getInputs().size() + 1));
             floCanvas.redraw();
             return;
@@ -77,7 +80,7 @@ public class DoubleClickListener extends MouseAdapter {
      * @param consumer
      */
     private void createEditor(final Rectangle rect,
-            final Consumer<Text> consumer) {
+        final Consumer<Text> consumer) {
         // Create new editor
         final Text textEditor = new Text(floCanvas, SWT.NONE);
         textEditor.setLocation(rect.x, rect.y);
@@ -116,10 +119,10 @@ public class DoubleClickListener extends MouseAdapter {
             return;
 
         final BoxDefinition currentBoxDefinition =
-                floCanvas.getFloGraph().getCurrentBoxDefinition();
-        final BoxInterface bi =
-                ID == -1 ? currentBoxDefinition.getBoxInterface()
-                        : currentBoxDefinition.getBoxes().get(ID).x;
+            floCanvas.getFloGraph().getCurrentBoxDefinition();
+        final BoxInterface bi = ID == -1
+            ? currentBoxDefinition.getBoxInterface()
+            : currentBoxDefinition.getBoxes().get(ID).x;
 
         // Change the box's name
         bi.setName(name);

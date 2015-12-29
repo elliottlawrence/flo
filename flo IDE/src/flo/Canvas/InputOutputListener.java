@@ -5,6 +5,7 @@ import org.eclipse.swt.events.MouseMoveListener;
 
 import flo.Util.Circle;
 import flo.Util.Pair;
+import flo.Util.Pnt;
 import flo.floGraph.Input;
 import flo.floGraph.Output;
 
@@ -32,10 +33,11 @@ public class InputOutputListener implements MouseMoveListener {
 
     @Override
     public void mouseMove(final MouseEvent e) {
+        final Pnt p = new Pnt(e.x, e.y);
+
         // See if user moused over an input
         mousedOverInput = null;
-        final Pair<Circle, Input> pair1 =
-                floCanvas.getContainingInput(e.x, e.y);
+        final Pair<Circle, Input> pair1 = floCanvas.getContainingInput(p);
         if (pair1 != null) {
             mousedOverInput = pair1.y;
             return;
@@ -43,8 +45,7 @@ public class InputOutputListener implements MouseMoveListener {
 
         // See if user moused over an output
         mousedOverOutput = null;
-        final Pair<Circle, Output> pair2 =
-                floCanvas.getContainingOutput(e.x, e.y);
+        final Pair<Circle, Output> pair2 = floCanvas.getContainingOutput(p);
         if (pair2 != null) {
             mousedOverOutput = pair2.y;
             return;

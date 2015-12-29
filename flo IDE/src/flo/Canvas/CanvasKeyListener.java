@@ -21,6 +21,7 @@ public class CanvasKeyListener extends KeyAdapter {
         if (e.keyCode == 8 && clickedBoxID != -1) {
             floCanvas.getFloGraph().getCurrentBoxDefinition()
                     .removeBox(clickedBoxID);
+            floCanvas.setClickedBoxID(-1);
             floCanvas.redraw();
         }
     }
