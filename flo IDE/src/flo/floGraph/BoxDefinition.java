@@ -42,6 +42,11 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
     private final List<Cable> cables;
 
     /**
+     * The current offset
+     */
+    private Pnt offset;
+
+    /**
      * Observables corresponding to the different events this object can emit
      */
     private final Observable<BoxAddedEvent> boxAddedObservable =
@@ -61,37 +66,39 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
         boxInterface = new BoxInterface(name);
         boxes = new HashMap<Integer, Pair<BoxInterface, Pnt>>();
         cables = new ArrayList<Cable>();
+        offset = new Pnt(0, 0);
     }
 
     /**
      * Load a box defintition from the given JSON object with the given parent
      *
-     * @param jsonObject
+     * @param jo
      * @param parent
      */
-    public BoxDefinition(final JsonObject jsonObject,
+    public BoxDefinition(final JsonObject jo,
         final BoxDefinitionContainer parent) {
-        super(jsonObject, parent);
+        super(jo, parent);
 
-        boxInterface =
-            new BoxInterface(jsonObject.getJsonObject("boxInterface"));
+        boxInterface = new BoxInterface(jo.getJsonObject("boxInterface"));
 
         boxes = new HashMap<Integer, Pair<BoxInterface, Pnt>>();
         final List<JsonObject> jsonBoxes =
-            jsonObject.getJsonArray("boxes").getValuesAs(JsonObject.class);
-        jsonBoxes.forEach(jo -> {
-            final int ID = jo.getInt("ID");
+            jo.getJsonArray("boxes").getValuesAs(JsonObject.class);
+        jsonBoxes.forEach(b -> {
+            final int ID = b.getInt("ID");
             final BoxInterface bi =
-                new BoxInterface(jo.getJsonObject("boxInterface"));
+                new BoxInterface(b.getJsonObject("boxInterface"));
             bi.setID(ID);
-            final Pnt point = new Pnt(jo.getInt("x"), jo.getInt("y"));
+            final Pnt point = new Pnt(b.getJsonObject("location"));
             boxes.put(ID, new Pair<BoxInterface, Pnt>(bi, point));
         });
 
         cables = new ArrayList<Cable>();
         final List<JsonObject> jsonCables =
-            jsonObject.getJsonArray("cables").getValuesAs(JsonObject.class);
-        jsonCables.forEach(jo -> cables.add(new Cable(jo, this)));
+            jo.getJsonArray("cables").getValuesAs(JsonObject.class);
+        jsonCables.forEach(c -> cables.add(new Cable(c, this)));
+
+        offset = new Pnt(jo.getJsonObject("offset"));
     }
 
     // Methods related to boxInterface
@@ -144,8 +151,6 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
     }
 
     public void setBoxLocation(final Integer ID, final Pnt point) {
-        if (ID == -1)
-            return;
         final BoxInterface bi = boxes.get(ID).x;
         boxes.put(ID, new Pair<BoxInterface, Pnt>(bi, point));
 
@@ -166,6 +171,16 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
     public void removeCable(final Cable cable) {
         cable.deleteConnections();
         cables.remove(cable);
+    }
+
+    // Methods related to offset
+
+    public Pnt getOffset() {
+        return offset;
+    }
+
+    public void setOffset(final Pnt offset) {
+        this.offset = offset;
     }
 
     // Methods related to observers
@@ -201,7 +216,7 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
             final Pair<BoxInterface, Pnt> pair = boxes.get(i);
             final JsonObjectBuilder objectBuilder = Json.createObjectBuilder()
                 .add("ID", i).add("boxInterface", pair.x.toJsonObjectBuilder())
-                .add("x", pair.y.x).add("y", pair.y.y);
+                .add("location", pair.y.toJsonObjectBuilder());
             boxBuilder.add(objectBuilder);
         });
 
@@ -210,6 +225,7 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
 
         return super.toJsonObjectBuilder()
             .add("boxInterface", boxInterface.toJsonObjectBuilder())
-            .add("boxes", boxBuilder).add("cables", cableBuilder);
+            .add("boxes", boxBuilder).add("cables", cableBuilder)
+            .add("offset", offset.toJsonObjectBuilder());
     }
 }

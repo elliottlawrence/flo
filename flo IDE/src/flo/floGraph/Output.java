@@ -68,6 +68,6 @@ public class Output implements Jsonable {
     @Override
     public JsonObjectBuilder toJsonObjectBuilder() {
         return Json.createObjectBuilder().add("parentID", parent.getID())
-                .add("endInputName", endInput.getName());
+            .add("endInputName", endInput.getName());
     }
 }

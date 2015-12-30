@@ -49,9 +49,9 @@ public class BoxInterface implements Jsonable {
      * Observables corresponding to the different events this object can emit
      */
     private final Observable<BoxInterfaceRenamedEvent> boxInterfaceRenamedObservable =
-            new Observable<BoxInterfaceRenamedEvent>();
+        new Observable<BoxInterfaceRenamedEvent>();
     private final Observable<CurrentBoxDefinitionEvent> currentBoxDefinitionObservable =
-            new Observable<CurrentBoxDefinitionEvent>();
+        new Observable<CurrentBoxDefinitionEvent>();
 
     /**
      * Create an empty box interface with the given name
@@ -67,16 +67,16 @@ public class BoxInterface implements Jsonable {
     /**
      * Load a box interface from the given JSON object
      *
-     * @param jsonObject
+     * @param jo
      */
-    public BoxInterface(final JsonObject jsonObject) {
-        name = jsonObject.getString("name");
+    public BoxInterface(final JsonObject jo) {
+        name = jo.getString("name");
 
         inputs = new ArrayList<Input>();
         final List<JsonObject> jsonInputs =
-                jsonObject.getJsonArray("inputs").getValuesAs(JsonObject.class);
-        jsonInputs.forEach(
-                jo -> inputs.add(new Input(jo.getString("name"), this)));
+            jo.getJsonArray("inputs").getValuesAs(JsonObject.class);
+        jsonInputs
+            .forEach(i -> inputs.add(new Input(i.getString("name"), this)));
 
         output = new Input("endInput", this).getStartOutput();
     }
@@ -91,9 +91,9 @@ public class BoxInterface implements Jsonable {
         this.name = name;
 
         boxInterfaceRenamedObservable
-                .notifyObservers(new BoxInterfaceRenamedEvent());
+            .notifyObservers(new BoxInterfaceRenamedEvent());
         currentBoxDefinitionObservable
-                .notifyObservers(new CurrentBoxDefinitionEvent());
+            .notifyObservers(new CurrentBoxDefinitionEvent());
     }
 
     // Methods related to inputs
@@ -149,17 +149,17 @@ public class BoxInterface implements Jsonable {
     // Methods related to observers
 
     public void addBoxInterfaceRenamedObserver(
-            final Observer<BoxInterfaceRenamedEvent> o) {
+        final Observer<BoxInterfaceRenamedEvent> o) {
         boxInterfaceRenamedObservable.addObserver(o);
     }
 
     public void addCurrentBoxDefinitionObserver(
-            final Observer<CurrentBoxDefinitionEvent> o) {
+        final Observer<CurrentBoxDefinitionEvent> o) {
         currentBoxDefinitionObservable.addObserver(o);
     }
 
     public void deleteCurrentBoxDefinitionObserver(
-            final Observer<CurrentBoxDefinitionEvent> o) {
+        final Observer<CurrentBoxDefinitionEvent> o) {
         currentBoxDefinitionObservable.deleteObserver(o);
     }
 
@@ -177,7 +177,7 @@ public class BoxInterface implements Jsonable {
         inputs.forEach(i -> inputBuilder.add(i.toJsonObjectBuilder()));
 
         return Json.createObjectBuilder().add("name", name)
-                .add("boxFlavor", BoxFlavor.getBoxFlavor(name).toString())
-                .add("inputs", inputBuilder);
+            .add("boxFlavor", BoxFlavor.getBoxFlavor(name).toString())
+            .add("inputs", inputBuilder);
     }
 }

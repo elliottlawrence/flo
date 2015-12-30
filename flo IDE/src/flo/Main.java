@@ -41,7 +41,9 @@ public class Main {
 
     private static final int MIN_TREE_WIDTH = 80;
 
-    private static final double ZOOM_INCREMENT = 0.25;
+    private static final double ZOOM_INCREMENT = 0.1;
+    private static final double MIN_ZOOM = 0.3;
+    private static final double MAX_ZOOM = 2.5;
 
     private static String savePath;
     private static String openPath;
@@ -105,7 +107,7 @@ public class Main {
     protected void createContents() {
         shell = new Shell();
         shell.setImage(
-                SWTResourceManager.getImage(Main.class, "/Icons/flo.png"));
+            SWTResourceManager.getImage(Main.class, "/Icons/flo.png"));
         shell.setSize(1000, 600);
         shell.setMinimumSize(300, 200);
         shell.setLocation(50, 50);
@@ -197,19 +199,20 @@ public class Main {
         final ToolItem tiNewModule = new ToolItem(toolBar, SWT.NONE);
         tiNewModule.setText("New Module");
         tiNewModule.setImage(
-                SWTResourceManager.getImage(Main.class, "/Icons/module.png"));
+            SWTResourceManager.getImage(Main.class, "/Icons/module.png"));
         tiNewModule.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
-                currentFloGraph.addModule(
-                        "Module " + currentFloGraph.getModules().size());
+                currentFloGraph
+                    .addModule("Module " + currentFloGraph.getModules().size());
             }
         });
 
         final ToolItem tiNewBoxDefinition = new ToolItem(toolBar, SWT.NONE);
         tiNewBoxDefinition.setText("New Box Definition");
-        tiNewBoxDefinition.setImage(SWTResourceManager.getImage(Main.class,
-                "/Icons/box definition.png"));
+        tiNewBoxDefinition.setImage(
+            SWTResourceManager
+                .getImage(Main.class, "/Icons/box definition.png"));
         tiNewBoxDefinition.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
@@ -219,12 +222,14 @@ public class Main {
 
                 final TreeItem selectedItem = selectedItems[0];
                 final BoxDefinitionContainer selectedContainer =
-                        FloTree.findBoxDefContainerFromTreeItem(selectedItem,
-                                currentFloGraph);
+                    FloTree.findBoxDefContainerFromTreeItem(
+                        selectedItem,
+                        currentFloGraph);
                 final BoxDefinition newBoxDefinition =
-                        selectedContainer.addBoxDefinition("boxDefinition"
-                                + (selectedContainer.getBoxDefinitions().size()
-                                        + 1));
+                    selectedContainer.addBoxDefinition(
+                        "boxDefinition"
+                            + (selectedContainer.getBoxDefinitions().size()
+                                + 1));
                 currentFloGraph.setCurrentBoxDefinition(newBoxDefinition);
             }
         });
@@ -232,36 +237,37 @@ public class Main {
         final ToolItem tiNewBox = new ToolItem(toolBar, SWT.NONE);
         tiNewBox.setText("New Box");
         tiNewBox.setImage(
-                SWTResourceManager.getImage(Main.class, "/Icons/box.png"));
+            SWTResourceManager.getImage(Main.class, "/Icons/box.png"));
         tiNewBox.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
                 final BoxDefinition currentBoxDefinition =
-                        currentFloGraph.getCurrentBoxDefinition();
+                    currentFloGraph.getCurrentBoxDefinition();
                 if (currentBoxDefinition != null) {
-                    final BoxInterface bi = new BoxInterface("box"
-                            + (currentBoxDefinition.getBoxes().size() + 1));
-                    final int ID = currentBoxDefinition.addBox(bi,
-                            floCanvas.getDefaultBoxLocation());
+                    final BoxInterface bi = new BoxInterface(
+                        "box" + (currentBoxDefinition.getBoxes().size() + 1));
+                    final int ID = currentBoxDefinition
+                        .addBox(bi, floCanvas.getDefaultBoxLocation());
                     floCanvas.setClickedBoxID(ID);
                 }
             }
         });
-        currentFloGraph.addCurrentBoxDefinitionObserver(e -> tiNewBox
+        currentFloGraph.addCurrentBoxDefinitionObserver(
+            e -> tiNewBox
                 .setEnabled(currentFloGraph.getCurrentBoxDefinition() != null));
 
         new ToolItem(toolBar, SWT.SEPARATOR);
 
         final ToolItem tiCompile = new ToolItem(toolBar, SWT.NONE);
         tiCompile.setImage(
-                SWTResourceManager.getImage(Main.class, "/Icons/compile.png"));
+            SWTResourceManager.getImage(Main.class, "/Icons/compile.png"));
         tiCompile.setText("Compile");
         tiCompile.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
                 if (savePath == null) {
                     final MessageBox dialog =
-                            new MessageBox(shell, SWT.ICON_WARNING);
+                        new MessageBox(shell, SWT.ICON_WARNING);
                     dialog.setText("File not saved");
                     dialog.setMessage("Please save the file before compiling.");
                     dialog.open();
@@ -270,7 +276,7 @@ public class Main {
 
                 try {
                     final ProcessBuilder pb = new ProcessBuilder(
-                            "../floBackend/dist/build/flo/./flo", savePath);
+                        "../floBackend/dist/build/flo/./flo", savePath);
                     pb.inheritIO();
                     pb.start();
                 } catch (final IOException e1) {
@@ -281,14 +287,14 @@ public class Main {
 
         final ToolItem tiRun = new ToolItem(toolBar, SWT.NONE);
         tiRun.setImage(
-                SWTResourceManager.getImage(Main.class, "/Icons/run.png"));
+            SWTResourceManager.getImage(Main.class, "/Icons/run.png"));
         tiRun.setText("Run");
         tiRun.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
                 if (savePath == null) {
                     final MessageBox dialog =
-                            new MessageBox(shell, SWT.ICON_WARNING);
+                        new MessageBox(shell, SWT.ICON_WARNING);
                     dialog.setText("File not saved");
                     dialog.setMessage("Please save the file before running.");
                     dialog.open();
@@ -299,9 +305,9 @@ public class Main {
                     final File file = new File(savePath);
                     final String directory = file.getParent();
                     final String exeName =
-                            FilenameUtils.removeExtension(file.getName());
+                        FilenameUtils.removeExtension(file.getName());
                     final ProcessBuilder pb = new ProcessBuilder(
-                            "/usr/bin/open", directory + "/./" + exeName);
+                        "/usr/bin/open", directory + "/./" + exeName);
                     pb.inheritIO();
                     pb.start();
                 } catch (final IOException e1) {
@@ -314,17 +320,35 @@ public class Main {
 
         final Scale scale = new Scale(toolBar, SWT.NONE);
         scale.setMinimum(0);
-        scale.setMaximum(20);
-        scale.setSelection(5);
+        scale.setMaximum(22);
+        scale.setSelection(7); // MIN_ZOOM + ZOOM_INCREMENT * 7 = 1
         scale.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
-                floCanvas.setZoom(ZOOM_INCREMENT * (1 + scale.getSelection()));
+                currentFloGraph
+                    .setZoom(MIN_ZOOM + ZOOM_INCREMENT * scale.getSelection());
+                floCanvas.redraw();
             }
         });
         final ToolItem scaleItem = new ToolItem(toolBar, SWT.SEPARATOR);
         scaleItem.setControl(scale);
         scaleItem.setWidth(100);
+
+        // Zoom in or out when the user performs a pinch gesture
+        floCanvas.addGestureListener(e -> {
+            if (e.detail == SWT.GESTURE_MAGNIFY) {
+                final double magnification = 1 + (e.magnification - 1) * 0.05;
+                final double zoom = Math.min(
+                    Math.max(
+                        currentFloGraph.getZoom() * magnification,
+                        MIN_ZOOM),
+                    MAX_ZOOM);
+                scale.setSelection((int) ((zoom - MIN_ZOOM) / ZOOM_INCREMENT));
+
+                currentFloGraph.setZoom(zoom);
+                floCanvas.redraw();
+            }
+        });
 
         // Set FormData properties
         final Tree treetree = tree.getTree();
@@ -347,7 +371,7 @@ public class Main {
                 final Rectangle sashRect = sash.getBounds();
                 final Rectangle shellRect = shell.getClientArea();
                 final int right =
-                        shellRect.width - sashRect.width - MIN_TREE_WIDTH;
+                    shellRect.width - sashRect.width - MIN_TREE_WIDTH;
                 e.x = Math.max(Math.min(e.x, right), MIN_TREE_WIDTH);
                 if (e.x != sashRect.x) {
                     fd_sash.left = new FormAttachment(0, e.x);
@@ -368,8 +392,8 @@ public class Main {
      * Update the title of the window to reflect the current Flo Graph's name
      */
     private static void updateShellText() {
-        final String title = savePath == null ? "Untitled"
-                : FilenameUtils.getBaseName(savePath);
+        final String title =
+            savePath == null ? "Untitled" : FilenameUtils.getBaseName(savePath);
         shell.setText("flo - " + title);
     }
 
@@ -379,7 +403,7 @@ public class Main {
      * @return
      */
     private static FloGraph createDefaultFloGraph() {
-        FloGraph floGraph = FloGraph.open("Default.flo");
+        FloGraph floGraph = FloGraph.open("../Sample Programs/Default.flo");
         if (floGraph == null) {
             floGraph = new FloGraph();
             floGraph.addModule("Main").addBoxDefinition("main");

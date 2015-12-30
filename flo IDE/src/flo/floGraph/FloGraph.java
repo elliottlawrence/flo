@@ -33,6 +33,11 @@ public class FloGraph implements Jsonable {
     private final List<Module> modules;
 
     /**
+     * The current zoom level
+     */
+    private double zoom;
+
+    /**
      * The box definition that is either selected in the tree or displayed in
      * the canvas
      */
@@ -42,38 +47,41 @@ public class FloGraph implements Jsonable {
      * Observables corresponding to the different events this object can emit
      */
     private final Observable<ModuleAddedEvent> moduleAddedObservable =
-            new Observable<ModuleAddedEvent>();
+        new Observable<ModuleAddedEvent>();
     private final Observable<ModuleRemovedEvent> moduleRemovedObservable =
-            new Observable<ModuleRemovedEvent>();
+        new Observable<ModuleRemovedEvent>();
     private final Observable<BoxDefinitionSelectedEvent> boxDefinitionSelectedObservable =
-            new Observable<BoxDefinitionSelectedEvent>();
+        new Observable<BoxDefinitionSelectedEvent>();
 
     /**
      * This observable emits events any time the current box definition changes.
      */
     private final Observable<CurrentBoxDefinitionEvent> currentBoxDefinitionObservable =
-            new Observable<CurrentBoxDefinitionEvent>();
+        new Observable<CurrentBoxDefinitionEvent>();
     private final Observer<CurrentBoxDefinitionEvent> currentBoxDefinitionObserver =
-            e -> currentBoxDefinitionObservable
-                    .notifyObservers(new CurrentBoxDefinitionEvent());
+        e -> currentBoxDefinitionObservable
+            .notifyObservers(new CurrentBoxDefinitionEvent());
 
     /**
      * Create a blank FloGraph
      */
     public FloGraph() {
         modules = new ArrayList<Module>();
+        zoom = 1.0;
     }
 
     /**
      * Load a FloGraph from a JSON object
      *
-     * @param jsonObject
+     * @param jo
      */
-    public FloGraph(final JsonObject jsonObject) {
+    public FloGraph(final JsonObject jo) {
         modules = new ArrayList<Module>();
-        final List<JsonObject> jsonModules = jsonObject.getJsonArray("modules")
-                .getValuesAs(JsonObject.class);
-        jsonModules.forEach(jo -> modules.add(new Module(jo)));
+        final List<JsonObject> jsonModules =
+            jo.getJsonArray("modules").getValuesAs(JsonObject.class);
+        jsonModules.forEach(m -> modules.add(new Module(m)));
+
+        zoom = jo.getInt("zoom");
     }
 
     // Methods related to modules
@@ -109,6 +117,16 @@ public class FloGraph implements Jsonable {
         removeModule(getModule(name));
     }
 
+    // Methods related to zoom
+
+    public double getZoom() {
+        return zoom;
+    }
+
+    public void setZoom(final double zoom) {
+        this.zoom = zoom;
+    }
+
     // Methods related to currentBoxDefinition
 
     public BoxDefinition getCurrentBoxDefinition() {
@@ -119,10 +137,10 @@ public class FloGraph implements Jsonable {
         // Remove this from the old box definition's observers
         if (currentBoxDefinition != null) {
             currentBoxDefinition.deleteCurrentBoxDefinitionObserver(
-                    currentBoxDefinitionObserver);
+                currentBoxDefinitionObserver);
             currentBoxDefinition.getBoxInterface()
-                    .deleteCurrentBoxDefinitionObserver(
-                            currentBoxDefinitionObserver);
+                .deleteCurrentBoxDefinitionObserver(
+                    currentBoxDefinitionObserver);
         }
 
         // Set the new box definition
@@ -130,18 +148,17 @@ public class FloGraph implements Jsonable {
 
         // Add this as an observer to the new box definition
         if (currentBoxDefinition != null) {
-            currentBoxDefinition.addCurrentBoxDefinitionObserver(
-                    currentBoxDefinitionObserver);
+            currentBoxDefinition
+                .addCurrentBoxDefinitionObserver(currentBoxDefinitionObserver);
             currentBoxDefinition.getBoxInterface()
-                    .addCurrentBoxDefinitionObserver(
-                            currentBoxDefinitionObserver);
+                .addCurrentBoxDefinitionObserver(currentBoxDefinitionObserver);
         }
 
         // Notify observers
         boxDefinitionSelectedObservable
-                .notifyObservers(new BoxDefinitionSelectedEvent(bd));
+            .notifyObservers(new BoxDefinitionSelectedEvent(bd));
         currentBoxDefinitionObservable
-                .notifyObservers(new CurrentBoxDefinitionEvent());
+            .notifyObservers(new CurrentBoxDefinitionEvent());
     }
 
     // Methods related to observers
@@ -155,12 +172,12 @@ public class FloGraph implements Jsonable {
     }
 
     public void addBoxDefinitionSelectedObserver(
-            final Observer<BoxDefinitionSelectedEvent> o) {
+        final Observer<BoxDefinitionSelectedEvent> o) {
         boxDefinitionSelectedObservable.addObserver(o);
     }
 
     public void addCurrentBoxDefinitionObserver(
-            final Observer<CurrentBoxDefinitionEvent> o) {
+        final Observer<CurrentBoxDefinitionEvent> o) {
         currentBoxDefinitionObservable.addObserver(o);
     }
 
@@ -179,7 +196,8 @@ public class FloGraph implements Jsonable {
         final JsonArrayBuilder modulesBuilder = Json.createArrayBuilder();
         modules.forEach(m -> modulesBuilder.add(m.toJsonObjectBuilder()));
 
-        return Json.createObjectBuilder().add("modules", modulesBuilder);
+        return Json.createObjectBuilder().add("modules", modulesBuilder)
+            .add("zoom", zoom);
     }
 
     /**
@@ -189,7 +207,7 @@ public class FloGraph implements Jsonable {
         JsonObject jsonObject = null;
         try {
             final JsonReader reader =
-                    Json.createReader(new FileInputStream(path));
+                Json.createReader(new FileInputStream(path));
             jsonObject = reader.readObject();
             reader.close();
         } catch (final FileNotFoundException e) {
@@ -207,7 +225,7 @@ public class FloGraph implements Jsonable {
     public void save(final String path) {
         try {
             final JsonWriter writer =
-                    Json.createWriter(new FileOutputStream(path));
+                Json.createWriter(new FileOutputStream(path));
             writer.writeObject(toJsonObjectBuilder().build());
             writer.close();
         } catch (final FileNotFoundException e1) {

@@ -3,12 +3,11 @@ package flo.Canvas;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseMoveListener;
-import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
 
 import flo.Util.Pair;
 import flo.Util.Pnt;
 import flo.Util.Rect;
+import flo.floGraph.FloGraph;
 
 public class CanvasMouseListener extends MouseAdapter
     implements MouseMoveListener {
@@ -25,7 +24,7 @@ public class CanvasMouseListener extends MouseAdapter
     private boolean canvasDrag = false;
     private boolean boxDrag = false;
     private int draggedBoxID;
-    private final Point dragOffset = new Point(0, 0);
+    private Pnt dragOffset = new Pnt(0, 0);
 
     public CanvasMouseListener(final FloCanvas floCanvas) {
         this.floCanvas = floCanvas;
@@ -44,31 +43,29 @@ public class CanvasMouseListener extends MouseAdapter
     }
 
     @Override
-    public void mouseDown(final MouseEvent e) {
-        if (e.button != 1)
+    public void mouseDown(final MouseEvent e1) {
+        if (e1.button != 1)
             return;
 
         // Reset variable
         clickedBoxID = -1;
 
         // See if the user clicked on a box
-        final Pair<Rect, Integer> pair =
-            floCanvas.getContainingBox(new Pnt(e.x, e.y));
-        if (pair != null) {
-            final Rectangle rect = pair.x.rect;
+        final Pnt e = new Pnt(e1.x, e1.y);
+        final Pair<Rect, Integer> pair = floCanvas.getContainingBox(e);
+        if (pair != null && pair.y != -1) {
             clickedBoxID = pair.y;
 
             boxDrag = true;
             draggedBoxID = pair.y;
-            dragOffset.x = rect.x - e.x;
-            dragOffset.y = rect.y - e.y;
+            dragOffset = pair.x.getLocation().minus(e);
         }
         // Otherwise drag the canvas around
         else {
+            final FloGraph floGraph = floCanvas.getFloGraph();
             canvasDrag = true;
-            final Pnt offset = floCanvas.getOffset();
-            dragOffset.x = offset.x - e.x;
-            dragOffset.y = offset.y - e.y;
+            dragOffset = floGraph.getCurrentBoxDefinition().getOffset()
+                .minus(e.scalarMult(1 / floGraph.getZoom()));
         }
     }
 
@@ -79,13 +76,16 @@ public class CanvasMouseListener extends MouseAdapter
     }
 
     @Override
-    public void mouseMove(final MouseEvent e) {
-        if (boxDrag)
+    public void mouseMove(final MouseEvent e1) {
+        final Pnt e = new Pnt(e1.x, e1.y);
+        if (boxDrag && draggedBoxID != -1)
             floCanvas.getFloGraph().getCurrentBoxDefinition().setBoxLocation(
                 draggedBoxID,
-                floCanvas
-                    .absToRel(new Pnt(dragOffset.x + e.x, dragOffset.y + e.y)));
-        else if (canvasDrag)
-            floCanvas.setOffset(new Pnt(0, 0));
+                floCanvas.absToRel(dragOffset.plus(e)));
+        else if (canvasDrag) {
+            final FloGraph floGraph = floCanvas.getFloGraph();
+            floGraph.getCurrentBoxDefinition().setOffset(
+                dragOffset.plus(e.scalarMult(1 / floGraph.getZoom())));
+        }
     }
 }

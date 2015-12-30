@@ -35,7 +35,7 @@ public class Cable implements Jsonable {
      * @param parent
      */
     public Cable(final Output output, final Input input,
-            final BoxDefinition parent) {
+        final BoxDefinition parent) {
         this.output = output;
         this.input = input;
         this.parent = parent;
@@ -64,15 +64,15 @@ public class Cable implements Jsonable {
         final int inputParentID = inputObject.getInt("parentID");
         final String inputName = inputObject.getString("name");
         input = inputParentID == -1
-                ? parent.getBoxInterface().getOutput().getEndInput()
-                : parent.getBoxes().get(inputParentID).x.getInput(inputName);
+            ? parent.getBoxInterface().getOutput().getEndInput()
+            : parent.getBoxes().get(inputParentID).x.getInput(inputName);
 
         final JsonObject joOutput = jo.getJsonObject("output");
         final int outputParentID = joOutput.getInt("parentID");
         if (outputParentID == -1) {
             final String endInputName = joOutput.getString("endInputName");
             output = parent.getBoxInterface().getInput(endInputName)
-                    .getStartOutput();
+                .getStartOutput();
         } else
             output = parent.getBoxes().get(outputParentID).x.getOutput();
 
@@ -110,7 +110,7 @@ public class Cable implements Jsonable {
     @Override
     public JsonObjectBuilder toJsonObjectBuilder() {
         return Json.createObjectBuilder()
-                .add("input", input.toJsonObjectBuilder())
-                .add("output", output.toJsonObjectBuilder());
+            .add("input", input.toJsonObjectBuilder())
+            .add("output", output.toJsonObjectBuilder());
     }
 }

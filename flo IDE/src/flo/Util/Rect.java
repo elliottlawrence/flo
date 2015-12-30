@@ -16,6 +16,10 @@ public class Rect implements Shape {
         rect = new Rectangle(x, y, w, h);
     }
 
+    public Rect(final Pnt loc, final int w, final int h) {
+        rect = new Rectangle(loc.x, loc.y, w, h);
+    }
+
     @Override
     public boolean contains(final Pnt p) {
         return rect.contains(p.toPoint());

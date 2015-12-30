@@ -54,10 +54,8 @@ public class FloCanvas extends Canvas {
     // Drawing jobs
     private final Drawer drawer = new Drawer();
 
-    // Zoom and offset
-    private double zoom = 1.0;
-    private Pnt offset = new Pnt(0, 0);
-    private Pnt minBoundingRectLoc = new Pnt(50, 50);
+    // Relative location of the previous minimum bounding rectangle
+    private Pnt minBoundingRectLoc = new Pnt(0, 0);
 
     /**
      * Create a FloCanvas used for editing the given FloGraph
@@ -75,6 +73,10 @@ public class FloCanvas extends Canvas {
 
         // Listen for when the current box definition changes in any way
         this.floGraph.addCurrentBoxDefinitionObserver(e -> redraw());
+
+        // Listen for when a new box definition is selected
+        this.floGraph.addBoxDefinitionSelectedObserver(
+            e -> minBoundingRectLoc = new Pnt(0, 0));
 
         // Redraw on mouse moves
         addMouseMoveListener(e -> redraw());
@@ -131,28 +133,8 @@ public class FloCanvas extends Canvas {
 
     // Methods related to zoom, offset, and sizing
 
-    private Pnt getCanvasSize() {
+    public Pnt getCanvasSize() {
         return new Pnt(getSize());
-    }
-
-    public double getZoom() {
-        return zoom;
-    }
-
-    public void setZoom(final double zoom) {
-        this.zoom = zoom;
-
-        // Adjust the offset so we're zooming into the center of the canvas
-
-        redraw();
-    }
-
-    public Pnt getOffset() {
-        return offset;
-    }
-
-    public void setOffset(final Pnt newOffset) {
-        offset = newOffset;
     }
 
     /**
@@ -162,7 +144,7 @@ public class FloCanvas extends Canvas {
      * @return
      */
     private int scale(final int x) {
-        return (int) (zoom * x);
+        return (int) (floGraph.getZoom() * x);
     }
 
     /**
@@ -171,8 +153,10 @@ public class FloCanvas extends Canvas {
      * @param p
      * @return
      */
-    private Pnt relToAbs(final Pnt p) {
-        return p.scalarMult(zoom);
+    public Pnt relToAbs(final Pnt p) {
+        return p.plus(floGraph.getCurrentBoxDefinition().getOffset())
+            .scalarMult(floGraph.getZoom())
+            .plus(getCanvasSize().scalarMult(0.5));
     }
 
     /**
@@ -182,11 +166,13 @@ public class FloCanvas extends Canvas {
      * @return
      */
     public Pnt absToRel(final Pnt p) {
-        return p.scalarMult(1 / zoom);
+        return p.minus(getCanvasSize().scalarMult(0.5))
+            .scalarMult(1 / floGraph.getZoom())
+            .minus(floGraph.getCurrentBoxDefinition().getOffset());
     }
 
     public Pnt getDefaultBoxLocation() {
-        return absToRel(minBoundingRectLoc);
+        return minBoundingRectLoc;
     }
 
     // Methods for painting the canvas
@@ -342,19 +328,20 @@ public class FloCanvas extends Canvas {
         for (final Input i : bi.getInputs()) {
             final Pnt textExtent = textExtent(gc, i.getName());
             final Pnt inputLoc = new Pnt(p.x + scale(CIRCLE_PADDING), y);
-            final int rectX = p.x + scale(CIRCLE_PADDING + 2 * TEXT_PADDING);
-            final int rectY = y - textExtent.y / 2;
+            final Pnt rectLoc =
+                new Pnt(p.x + scale(CIRCLE_PADDING + 2 * TEXT_PADDING),
+                    y - textExtent.y / 2);
 
             if (isMainBox)
                 drawOutput(gc, i.getStartOutput(), inputLoc);
             else
                 drawInput(gc, i, inputLoc);
 
-            gc.drawText(i.getName(), rectX, rectY, true);
+            gc.drawText(i.getName(), rectLoc.x, rectLoc.y, true);
 
             // Add this to the list of input name rectangles
             final Rect inputRect =
-                new Rect(rectX, rectY, textExtent.x, textExtent.y);
+                new Rect(rectLoc, textExtent.x, textExtent.y);
             inputNameRects.add(new Pair<Rect, Input>(inputRect, i));
 
             y += spacing;
@@ -367,10 +354,14 @@ public class FloCanvas extends Canvas {
         final int topHeight = stringExtent.y + scale(2 * TEXT_PADDING);
 
         // Find the minimum rectangle bounding the boxes
-        final Rect minBoundingRect = boxRects.isEmpty()
-            ? new Rect(minBoundingRectLoc.x, minBoundingRectLoc.y, 50, 0)
-            : Rect.getContainingRect(Pair.unzip1(boxRects));
-        minBoundingRectLoc = minBoundingRect.getLocation();
+        Rect minBoundingRect;
+        if (boxRects.isEmpty())
+            minBoundingRect =
+                new Rect(relToAbs(minBoundingRectLoc), scale(50), 0);
+        else {
+            minBoundingRect = Rect.getContainingRect(Pair.unzip1(boxRects));
+            minBoundingRectLoc = absToRel(minBoundingRect.getLocation());
+        }
 
         // Adjust with some padding
         final Rectangle boundingRect =
@@ -405,8 +396,8 @@ public class FloCanvas extends Canvas {
             stringExtent.x + scale(TOTAL_SIDE_PADDING));
         final int height = topHeight + Math.max(boundingRect.height, minHeight);
 
-        final Rect boxRect = new Rect(p.x, p.y, width, height);
-        final Rect topBoxRect = new Rect(p.x, p.y, width, topHeight);
+        final Rect boxRect = new Rect(p, width, height);
+        final Rect topBoxRect = new Rect(p, width, topHeight);
 
         return new Pair<Rect, Rect>(boxRect, topBoxRect);
     }
@@ -417,7 +408,7 @@ public class FloCanvas extends Canvas {
         final int topHeight = stringExtent.y + scale(2 * TEXT_PADDING);
         int width, height = topHeight;
 
-        // Calculuate size needed for inputs
+        // Calculate size needed for inputs
         final int numInputs = inputs.size();
         if (numInputs == 0)
             width = stringExtent.x + scale(TOTAL_SIDE_PADDING);
@@ -433,8 +424,8 @@ public class FloCanvas extends Canvas {
                 + scale(TEXT_PADDING * (numInputs + 1));
         }
 
-        final Rect boxRect = new Rect(p.x, p.y, width, height);
-        final Rect topBoxRect = new Rect(p.x, p.y, width, topHeight);
+        final Rect boxRect = new Rect(p, width, height);
+        final Rect topBoxRect = new Rect(p, width, topHeight);
 
         return new Pair<Rect, Rect>(boxRect, topBoxRect);
     }
@@ -572,7 +563,7 @@ public class FloCanvas extends Canvas {
         final Pnt stringExtent = textExtent(gc, string);
         final Pnt rectP = p.minus(stringExtent.scalarMult(0.5));
         gc.drawText(string, rectP.x, rectP.y, true);
-        return new Rect(rectP.x, rectP.y, stringExtent.x, stringExtent.y);
+        return new Rect(rectP, stringExtent.x, stringExtent.y);
     }
 
     private Pnt textExtent(final GC gc, final String string) {

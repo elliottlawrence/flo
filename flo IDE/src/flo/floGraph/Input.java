@@ -84,6 +84,6 @@ public class Input implements Jsonable {
     @Override
     public JsonObjectBuilder toJsonObjectBuilder() {
         return Json.createObjectBuilder().add("parentID", parent.getID())
-                .add("name", name);
+            .add("name", name);
     }
 }

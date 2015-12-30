@@ -37,12 +37,12 @@ public class Module extends BoxDefinitionContainer implements Jsonable {
     /**
      * Load a module from the given JSON object
      *
-     * @param jsonObject
+     * @param jo
      */
-    public Module(final JsonObject jsonObject) {
-        super(jsonObject, null);
+    public Module(final JsonObject jo) {
+        super(jo, null);
 
-        name = jsonObject.getString("name");
+        name = jo.getString("name");
     }
 
     // Methods related to name

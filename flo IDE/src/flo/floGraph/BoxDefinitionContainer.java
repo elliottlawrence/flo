@@ -36,9 +36,9 @@ public abstract class BoxDefinitionContainer implements Jsonable {
      * Observables corresponding to the different events this object can emit
      */
     private final Observable<BoxDefinitionAddedEvent> boxDefinitionAddedObservable =
-            new Observable<BoxDefinitionAddedEvent>();
+        new Observable<BoxDefinitionAddedEvent>();
     private final Observable<BoxDefinitionRemovedEvent> boxDefinitionRemovedObservable =
-            new Observable<BoxDefinitionRemovedEvent>();
+        new Observable<BoxDefinitionRemovedEvent>();
 
     /**
      * Create an empty box definition container which is a child of the given
@@ -55,18 +55,18 @@ public abstract class BoxDefinitionContainer implements Jsonable {
      * Load a box definition container from the given JSON object with the given
      * parent
      *
-     * @param jsonObject
+     * @param jo
      * @param parent
      */
-    public BoxDefinitionContainer(final JsonObject jsonObject,
-            final BoxDefinitionContainer parent) {
+    public BoxDefinitionContainer(final JsonObject jo,
+        final BoxDefinitionContainer parent) {
         this.parent = parent;
 
         boxDefinitions = new ArrayList<BoxDefinition>();
-        final List<JsonObject> jsonBoxDefinitions = jsonObject
-                .getJsonArray("boxDefinitions").getValuesAs(JsonObject.class);
+        final List<JsonObject> jsonBoxDefinitions =
+            jo.getJsonArray("boxDefinitions").getValuesAs(JsonObject.class);
         jsonBoxDefinitions
-                .forEach(jo -> boxDefinitions.add(new BoxDefinition(jo, this)));
+            .forEach(bd -> boxDefinitions.add(new BoxDefinition(bd, this)));
     }
 
     // Methods related to boxDefinitions
@@ -87,7 +87,7 @@ public abstract class BoxDefinitionContainer implements Jsonable {
         boxDefinitions.add(bd);
 
         boxDefinitionAddedObservable
-                .notifyObservers(new BoxDefinitionAddedEvent(bd));
+            .notifyObservers(new BoxDefinitionAddedEvent(bd));
         return bd;
     }
 
@@ -101,7 +101,7 @@ public abstract class BoxDefinitionContainer implements Jsonable {
         boxDefinitions.remove(bd);
 
         boxDefinitionRemovedObservable
-                .notifyObservers(new BoxDefinitionRemovedEvent(index));
+            .notifyObservers(new BoxDefinitionRemovedEvent(index));
     }
 
     /**
@@ -126,12 +126,12 @@ public abstract class BoxDefinitionContainer implements Jsonable {
     // Methods related to observers
 
     public void addBoxDefinitionAddedObserver(
-            final Observer<BoxDefinitionAddedEvent> o) {
+        final Observer<BoxDefinitionAddedEvent> o) {
         boxDefinitionAddedObservable.addObserver(o);
     }
 
     public void addBoxDefinitionRemovedObserver(
-            final Observer<BoxDefinitionRemovedEvent> o) {
+        final Observer<BoxDefinitionRemovedEvent> o) {
         boxDefinitionRemovedObservable.addObserver(o);
     }
 
@@ -146,11 +146,11 @@ public abstract class BoxDefinitionContainer implements Jsonable {
     @Override
     public JsonObjectBuilder toJsonObjectBuilder() {
         final JsonArrayBuilder boxDefinitionsBuilder =
-                Json.createArrayBuilder();
-        boxDefinitions.forEach(
-                bd -> boxDefinitionsBuilder.add(bd.toJsonObjectBuilder()));
+            Json.createArrayBuilder();
+        boxDefinitions
+            .forEach(bd -> boxDefinitionsBuilder.add(bd.toJsonObjectBuilder()));
 
-        return Json.createObjectBuilder().add("boxDefinitions",
-                boxDefinitionsBuilder);
+        return Json.createObjectBuilder()
+            .add("boxDefinitions", boxDefinitionsBuilder);
     }
 }
