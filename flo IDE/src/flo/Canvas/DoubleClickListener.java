@@ -7,7 +7,6 @@ import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Text;
 
 import flo.Util.Pair;
@@ -39,7 +38,7 @@ public class DoubleClickListener extends MouseAdapter {
             final int ID = pair1.y;
 
             createEditor(
-                rect.rect,
+                rect,
                 textEditor -> setBoxName(ID, textEditor.getText()));
             return;
         }
@@ -51,7 +50,7 @@ public class DoubleClickListener extends MouseAdapter {
             final Input input = pair2.y;
 
             createEditor(
-                rect.rect,
+                rect,
                 textEditor -> setInputName(input, textEditor.getText()));
             return;
         }
@@ -79,12 +78,11 @@ public class DoubleClickListener extends MouseAdapter {
      * @param rect
      * @param consumer
      */
-    private void createEditor(final Rectangle rect,
-        final Consumer<Text> consumer) {
+    private void createEditor(final Rect rect, final Consumer<Text> consumer) {
         // Create new editor
         final Text textEditor = new Text(floCanvas, SWT.NONE);
-        textEditor.setLocation(rect.x, rect.y);
-        textEditor.setSize(rect.width, rect.height);
+        textEditor.setFont(floCanvas.getFont());
+        textEditor.setBounds(rect.rect);
         textEditor.selectAll();
         textEditor.setFocus();
 

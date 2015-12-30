@@ -51,9 +51,6 @@ public class FloCanvas extends Canvas {
     private final Hotspots<Circle, Output> outputCircles =
         new Hotspots<Circle, Output>();
 
-    // Drawing jobs
-    private final Drawer drawer = new Drawer();
-
     // Relative location of the previous minimum bounding rectangle
     private Pnt minBoundingRectLoc = new Pnt(0, 0);
 
@@ -177,17 +174,19 @@ public class FloCanvas extends Canvas {
 
     // Methods for painting the canvas
 
+    @Override
+    public Font getFont() {
+        return new Font(getDisplay(), ".SF NS Text", scale(13), SWT.NONE);
+    }
+
     private void paint(final GC gc) {
         resetHotspots();
 
         // Set GC properties
-        gc.setFont(new Font(getDisplay(), ".SF NS Text", scale(13), SWT.NONE));
+        gc.setFont(getFont());
         gc.setLineCap(SWT.CAP_ROUND);
 
         paintCanvas(gc);
-
-        // Draw everything
-        drawer.draw(gc);
     }
 
     private void paintCanvas(final GC gc) {
@@ -327,21 +326,24 @@ public class FloCanvas extends Canvas {
         int y = p.y + topHeight + spacing / 2;
         for (final Input i : bi.getInputs()) {
             final Pnt textExtent = textExtent(gc, i.getName());
-            final Pnt inputLoc = new Pnt(p.x + scale(CIRCLE_PADDING), y);
-            final Pnt rectLoc =
-                new Pnt(p.x + scale(CIRCLE_PADDING + 2 * TEXT_PADDING),
+            final Pnt textLoc = isMainBox
+                ? new Pnt(p.x + scale(2 * TEXT_PADDING), y - textExtent.y / 2)
+                : new Pnt(p.x + scale(CIRCLE_PADDING + 2 * TEXT_PADDING),
                     y - textExtent.y / 2);
+            final Pnt inputLoc = isMainBox
+                ? new Pnt(p.x + scale(4 * TEXT_PADDING) + textExtent.x, y)
+                : new Pnt(p.x + scale(CIRCLE_PADDING), y);
 
             if (isMainBox)
                 drawOutput(gc, i.getStartOutput(), inputLoc);
             else
                 drawInput(gc, i, inputLoc);
 
-            gc.drawText(i.getName(), rectLoc.x, rectLoc.y, true);
+            gc.drawText(i.getName(), textLoc.x, textLoc.y, true);
 
             // Add this to the list of input name rectangles
             final Rect inputRect =
-                new Rect(rectLoc, textExtent.x, textExtent.y);
+                new Rect(textLoc, textExtent.x, textExtent.y);
             inputNameRects.add(new Pair<Rect, Input>(inputRect, i));
 
             y += spacing;
