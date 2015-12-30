@@ -4,6 +4,7 @@ module FloGraph where
 import qualified Data.IntMap as IntMap
 import Data.List ((\\), find, intercalate)
 import Data.Maybe (fromMaybe)
+import Text.PrettyPrint
 
 type Name = String
 
@@ -20,16 +21,10 @@ data Input = Input {
   iParentID :: ID
 } deriving Eq
 
-instance Show Input where
-  show Input{..} = "Input {" ++ iName ++ ", " ++ show iParentID ++ "}"
-
 data Output = Output {
   oParentID :: ID,
   oEndInputName :: Name
 }
-
-instance Show Output where
-  show Output{..} = "Output {" ++ show oParentID ++ "}"
 
 data Cable = Output :-: Input deriving Show
 
@@ -39,10 +34,6 @@ data BoxInterface = BoxInterface {
   bFlavor :: BoxFlavor,
   bInputs :: [Input]
 }
-
-instance Show BoxInterface where
-  show BoxInterface{..} = "Box {" ++ bName ++ ", {" ++
-    intercalate ", " (map show bInputs) ++ "}}"
 
 {- Within a function definition, the same box can appear multiple times. Thus,
    boxes are identified by a unique key. -}
@@ -56,26 +47,14 @@ data BoxDef = BoxDef {
   localDefs :: [BoxDef]
 }
 
-instance Show BoxDef where
-  show BoxDef{..} = show boxInterface ++ " = " ++ "{\nBoxes {" ++
-    show boxes ++ "}\nCables {" ++ show cables ++
-    "}\nDefinitions " ++ show localDefs ++ "}"
-
 data Module = Module {
   mName :: Name,
   mDefs :: [BoxDef]
 }
 
-instance Show Module where
-  show Module{..} = "Module " ++ mName ++ "{\n" ++ defs' ++ "\n}"
-    where defs' = intercalate "\n" $ map show mDefs
-
 data FloGraph = FloGraph {
   modules :: [Module]
 }
-
-instance Show FloGraph where
-  show FloGraph{..} = intercalate "\n\n" $ map show modules
 
 {- Get the output of the box that is connected to a function's output. -}
 getOutput :: BoxDef -> Output
@@ -98,3 +77,48 @@ getUnappliedInputs bd@BoxDef{..} boxID = bInputs \\ appliedInputs
   where BoxInterface{..} = fromMaybe (error "Box not found") $
                            IntMap.lookup boxID boxes
         appliedInputs = map fst $ getAppliedInputs bd boxID
+
+-- Pretty printing functions
+commas :: [Doc] -> Doc
+commas = hsep . punctuate comma
+
+instance Show Input where
+  show = render . ppInput
+
+ppInput :: Input -> Doc
+ppInput Input{..} = text "Input:" <+> commas [text iName, int iParentID]
+
+instance Show Output where
+  show = render . ppOutput
+
+ppOutput :: Output -> Doc
+ppOutput Output{..} = text "Output:" <+> int oParentID
+
+instance Show BoxInterface where
+  show = render . ppBoxInterface
+
+ppBoxInterface :: BoxInterface -> Doc
+ppBoxInterface BoxInterface{..} = text "Box:" <+> text bName $$
+  text "Inputs:" <+> commas (map ppInput bInputs)
+
+instance Show BoxDef where
+  show = render . ppBoxDef
+
+ppBoxDef :: BoxDef -> Doc
+ppBoxDef BoxDef{..} = ppBoxInterface boxInterface <+> text "=" $+$
+  nest 4 (text "Boxes:" <+> text (show boxes) $+$
+          text "Cables:" <+> commas (map (text . show) cables) $+$
+          text "Definitions:" <+> cat (map ppBoxDef localDefs))
+
+instance Show Module where
+  show = render . ppModule
+
+ppModule :: Module -> Doc
+ppModule Module{..} = text "Module:" <+> text mName $+$
+  nest 4 (vcat $ map ppBoxDef mDefs)
+
+instance Show FloGraph where
+  show = render . ppFloGraph
+
+ppFloGraph :: FloGraph -> Doc
+ppFloGraph FloGraph{..} = vcat $ map ppModule modules
