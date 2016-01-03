@@ -7,17 +7,12 @@ import FloGraph
 
 import Control.Arrow (second)
 import qualified Data.IntMap as IntMap
-import Data.List ((\\), find, intercalate)
+import Data.List ((\\), find)
 import Data.Maybe (fromMaybe)
+import Text.PrettyPrint
 import Text.Regex.Posix
 
 data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
-
-instance Show Literal where
-  show (LitInt i) = show i
-  show (LitFloat d) = show d
-  show (LitChar c) = show c
-  show (LitString s) = '"' : s ++ "\""
 
 data FloExpr = FloLit Literal                     -- Literals
              | FloFun Name [Input]                -- Functions
@@ -33,22 +28,12 @@ data FloDef = FloDef {
   fdExpr :: FloExpr
 }
 
-instance Show FloDef where
-  show FloDef{..} = fdName ++ " " ++ show fdInputs ++ " = " ++ show fdExpr
-
 data FloModule = FloModule {
   fmName :: Name,
   fmDefs :: [FloDef]
 }
 
-instance Show FloModule where
-  show FloModule{..} = "FloModule " ++ fmName ++ "{\n" ++ defs' ++ "\n}"
-    where defs' = intercalate "\n" $ map show fmDefs
-
 data FloProgram = FloProgram [FloModule]
-
-instance Show FloProgram where
-  show (FloProgram modules) = intercalate "\n\n" $ map show modules
 
 {- The following functions convert the graphical representation of a program
    into a format composed of expressions and definitions. -}
@@ -70,7 +55,7 @@ instance Convertible BoxDef FloDef where
 {- Converts the box with the given output, defined in the given box definition, to
    a Flo Expression. -}
 instance Convertible (BoxDef, Output) FloExpr where
-  convert (bd@BoxDef{..}, Output{..}) 
+  convert (bd@BoxDef{..}, Output{..})
     | oParentID == -1 = FloFun oEndInputName []
     | otherwise = case bFlavor of Function -> createAp FloFun
                                   Constructor -> createAp FloCons
@@ -118,3 +103,36 @@ isLitInt = (=~ "^[0-9]+$")    -- ^[0-9]+$
 
 isLitFloat :: String -> Bool
 isLitFloat = (=~ "^[0-9]*\\.[0-9]+$")     -- ^[0-9]*\.[0-9]+$
+
+-- Pretty printing
+instance Show Literal where
+  show = render . ppLiteral
+
+ppLiteral :: Literal -> Doc
+ppLiteral (LitInt i) = int i
+ppLiteral (LitFloat d) = double d
+ppLiteral (LitChar c) = char c
+ppLiteral (LitString s) = char '"' <> text s <> char '"'
+
+instance Show FloDef where
+  show = render . ppFloDef
+
+ppFloDef :: FloDef -> Doc
+ppFloDef FloDef{..} = text fdName <+> hsep (map (text . iName) fdInputs) <+>
+  equals <+> nest 4 (ppExpr fdExpr)
+
+ppExpr :: FloExpr -> Doc
+ppExpr = text . show
+
+instance Show FloModule where
+  show = render . ppFloModule
+
+ppFloModule :: FloModule -> Doc
+ppFloModule FloModule{..} = text "FloModule" <+> text fmName <+> lbrace $$
+  nest 4 (vcat (map ppFloDef fmDefs) $$ rbrace)
+
+instance Show FloProgram where
+  show = render . ppFloProgram
+
+ppFloProgram :: FloProgram -> Doc
+ppFloProgram (FloProgram modules) = vcat $ map ppFloModule modules

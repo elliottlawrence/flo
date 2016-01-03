@@ -2,7 +2,7 @@
 module FloGraph where
 
 import qualified Data.IntMap as IntMap
-import Data.List ((\\), find, intercalate)
+import Data.List ((\\), find)
 import Data.Maybe (fromMaybe)
 import Text.PrettyPrint
 
@@ -78,7 +78,7 @@ getUnappliedInputs bd@BoxDef{..} boxID = bInputs \\ appliedInputs
                            IntMap.lookup boxID boxes
         appliedInputs = map fst $ getAppliedInputs bd boxID
 
--- Pretty printing functions
+-- Pretty printing
 commas :: [Doc] -> Doc
 commas = hsep . punctuate comma
 
@@ -105,7 +105,7 @@ instance Show BoxDef where
   show = render . ppBoxDef
 
 ppBoxDef :: BoxDef -> Doc
-ppBoxDef BoxDef{..} = ppBoxInterface boxInterface <+> text "=" $+$
+ppBoxDef BoxDef{..} = ppBoxInterface boxInterface <+> equals $+$
   nest 4 (text "Boxes:" <+> text (show boxes) $+$
           text "Cables:" <+> commas (map (text . show) cables) $+$
           text "Definitions:" <+> cat (map ppBoxDef localDefs))

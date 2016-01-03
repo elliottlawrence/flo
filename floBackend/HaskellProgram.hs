@@ -6,6 +6,7 @@ import FloGraph
 import FloProgram
 
 import Data.List (intercalate)
+import Text.PrettyPrint
 
 data HaskellExpr = HaskellLit Literal
                  | HaskellFun Name
@@ -14,47 +15,17 @@ data HaskellExpr = HaskellLit Literal
                  | HaskellLambda [Input] HaskellExpr
                  | HaskellLet [HaskellDef] HaskellExpr
 
-instance Show HaskellExpr where
-  show (HaskellLit lit) = show lit
-  show (HaskellFun fun) = fixName fun
-  show (HaskellAp e1 e2) = show e1 ++ " " ++ e2'
-    where e2' | isAtomic e2 = show e2
-              | otherwise = "(" ++ show e2 ++ ")"
-  show (HaskellLambda inputs expr) = '\\' : showInputs inputs ++ " -> " ++
-    show expr
-  show (HaskellLet ld le)
-    = "let {" ++ intercalate "; " (map show ld) ++ "} in " ++ show le
-
-isAtomic :: HaskellExpr -> Bool
-isAtomic (HaskellLit _) = True
-isAtomic (HaskellFun _) = True
-isAtomic _ = False
-
-showInputs :: [Input] -> String
-showInputs inputs = unwords $ map (fixName . iName) inputs
-
 data HaskellDef = HaskellDef {
   hdName :: Name,
   hdInputs :: [Input],
   hdExpr :: HaskellExpr
 }
 
-instance Show HaskellDef where
-  show HaskellDef{..}
-    = fixName hdName ++ space ++ showInputs hdInputs ++ " = " ++ show hdExpr
-    where space | null hdInputs = ""
-                | otherwise = " "
-
 data HaskellModule = HaskellModule {
   hmName :: Name,
   hmDefs :: [HaskellDef],
   hmImports :: [Name]
 }
-
-instance Show HaskellModule where
-  show HaskellModule{..} = "module " ++ hmName ++ " where\n\n" ++ imports' ++
-    intercalate "\n\n" (map show hmDefs)
-    where imports' = intercalate "\n" (map ("import " ++) hmImports) ++ "\n\n"
 
 data HaskellProgram = HaskellProgram [HaskellModule] deriving Show
 
@@ -83,3 +54,42 @@ fixName "if" = "iff"
 fixName "then" = "thenn"
 fixName "else" = "elsee"
 fixName name = name
+
+-- Pretty printing
+instance Show HaskellExpr where
+  show = render . ppHaskellExpr
+
+ppHaskellExpr :: HaskellExpr -> Doc
+ppHaskellExpr (HaskellLit lit) = ppLiteral lit
+ppHaskellExpr (HaskellFun fun) = text $ fixName fun
+ppHaskellExpr (HaskellAp e1 e2) = ppHaskellExpr e1 <+> e2'
+  where e2' | isAtomic e2 = ppHaskellExpr e2
+            | otherwise = parens $ ppHaskellExpr e2
+ppHaskellExpr (HaskellLambda inputs expr) = char '\\' <> ppInputs inputs <+>
+  text "->" <+> ppHaskellExpr expr
+ppHaskellExpr (HaskellLet ld le) = text "let" <+>
+  braces (vcat $ punctuate semi (map ppHaskellDef ld)) <+>
+  text "in" $$ ppHaskellExpr le
+
+isAtomic :: HaskellExpr -> Bool
+isAtomic (HaskellLit _) = True
+isAtomic (HaskellFun _) = True
+isAtomic _ = False
+
+ppInputs :: [Input] -> Doc
+ppInputs inputs = hsep $ map (text . fixName . iName) inputs
+
+instance Show HaskellDef where
+  show = render . ppHaskellDef
+
+ppHaskellDef :: HaskellDef -> Doc
+ppHaskellDef HaskellDef{..} = hsep [text (fixName hdName), ppInputs hdInputs,
+  equals, ppHaskellExpr hdExpr]
+
+instance Show HaskellModule where
+  show = render . ppHaskellModule
+
+ppHaskellModule :: HaskellModule -> Doc
+ppHaskellModule HaskellModule{..} = text "module" <+> text hmName <+>
+  text "where" $+$ imports' $+$ vcat (map ppHaskellDef hmDefs)
+  where imports' = vcat $ map ((text "import" <+>) . text) hmImports
