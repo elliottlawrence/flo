@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
  * Boxes are a generic representation of functions, constructors, and literals.
  */
 public enum BoxFlavor {
-    Function, Constructor, Literal;
+    Function, Literal;
 
     // Regexes for the supported literals
 

@@ -1,9 +1,11 @@
-{-# LANGUAGE RecordWildCards, MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards, MultiParamTypeClasses, TypeSynonymInstances,
+  FlexibleInstances #-}
 module HaskellProgram where
 
 import Convertible
 import FloGraph
-import FloProgram
+import FloProgram hiding (isAtomic)
+import Pretty
 
 import Data.List (intercalate)
 import Text.PrettyPrint
@@ -27,10 +29,7 @@ data HaskellModule = HaskellModule {
   hmImports :: [Name]
 }
 
-data HaskellProgram = HaskellProgram [HaskellModule] deriving Show
-
-instance Convertible FloProgram HaskellProgram where
-  convert (FloProgram modules) = HaskellProgram $ convert modules
+type HaskellProgram = [HaskellModule]
 
 instance Convertible FloModule HaskellModule where
   convert FloModule{..} = HaskellModule fmName (convert fmDefs) imports
@@ -56,40 +55,30 @@ fixName "else" = "elsee"
 fixName name = name
 
 -- Pretty printing
-instance Show HaskellExpr where
-  show = render . ppHaskellExpr
-
-ppHaskellExpr :: HaskellExpr -> Doc
-ppHaskellExpr (HaskellLit lit) = ppLiteral lit
-ppHaskellExpr (HaskellFun fun) = text $ fixName fun
-ppHaskellExpr (HaskellAp e1 e2) = ppHaskellExpr e1 <+> e2'
-  where e2' | isAtomic e2 = ppHaskellExpr e2
-            | otherwise = parens $ ppHaskellExpr e2
-ppHaskellExpr (HaskellLambda inputs expr) = char '\\' <> ppInputs inputs <+>
-  text "->" <+> ppHaskellExpr expr
-ppHaskellExpr (HaskellLet ld le) = text "let" <+>
-  braces (vcat $ punctuate semi (map ppHaskellDef ld)) <+>
-  text "in" $$ ppHaskellExpr le
+instance Pretty HaskellExpr where
+  pp (HaskellLit lit) = pp lit
+  pp (HaskellFun fun) = text $ fixName fun
+  pp (HaskellAp e1 e2) = pp e1 <+> e2'
+    where e2' | isAtomic e2 = pp e2
+              | otherwise = parens $ pp e2
+  pp (HaskellLambda inputs expr)
+    = char '\\' <> pp inputs <+> text "->" <+> pp expr
+  pp (HaskellLet ld le) = text "let" <+>
+    braces (vcat $ punctuate semi (map pp ld)) <+> text "in" $$ pp le
 
 isAtomic :: HaskellExpr -> Bool
 isAtomic (HaskellLit _) = True
 isAtomic (HaskellFun _) = True
 isAtomic _ = False
 
-ppInputs :: [Input] -> Doc
-ppInputs inputs = hsep $ map (text . fixName . iName) inputs
+instance Pretty HaskellDef where
+  pp HaskellDef{..}
+    = hsep [text (fixName hdName), pp hdInputs, equals, pp hdExpr]
 
-instance Show HaskellDef where
-  show = render . ppHaskellDef
+instance Pretty HaskellModule where
+  pp HaskellModule{..} = text "module" <+> text hmName <+>
+    text "where" $+$ imports' $+$ vcat (map pp hmDefs)
+    where imports' = vcat $ map ((text "import" <+>) . text) hmImports
 
-ppHaskellDef :: HaskellDef -> Doc
-ppHaskellDef HaskellDef{..} = hsep [text (fixName hdName), ppInputs hdInputs,
-  equals, ppHaskellExpr hdExpr]
-
-instance Show HaskellModule where
-  show = render . ppHaskellModule
-
-ppHaskellModule :: HaskellModule -> Doc
-ppHaskellModule HaskellModule{..} = text "module" <+> text hmName <+>
-  text "where" $+$ imports' $+$ vcat (map ppHaskellDef hmDefs)
-  where imports' = vcat $ map ((text "import" <+>) . text) hmImports
+instance Pretty HaskellProgram where
+  pp modules = vcat $ map pp modules

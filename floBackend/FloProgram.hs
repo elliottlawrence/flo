@@ -4,6 +4,7 @@ module FloProgram where
 
 import Convertible
 import FloGraph
+import Pretty
 
 import Control.Arrow (second)
 import qualified Data.IntMap as IntMap
@@ -20,7 +21,6 @@ data FloExpr = FloLit Literal                     -- Literals
              | FloAp FloExpr FloExpr              -- Applications
              | FloLambda [Input] FloExpr          -- Lambdas
              | FloLet [FloDef] FloExpr            -- Let expressions
-             deriving Show
 
 data FloDef = FloDef {
   fdName :: Name,
@@ -33,12 +33,12 @@ data FloModule = FloModule {
   fmDefs :: [FloDef]
 }
 
-data FloProgram = FloProgram [FloModule]
+type FloProgram = [FloModule]
 
 {- The following functions convert the graphical representation of a program
    into a format composed of expressions and definitions. -}
 instance Convertible FloGraph FloProgram where
-  convert FloGraph{..} = FloProgram $ convert modules
+  convert (FloGraph modules) = convert modules
 
 instance Convertible Module FloModule where
   convert Module{..} = FloModule mName $ convert mDefs
@@ -58,7 +58,6 @@ instance Convertible (BoxDef, Output) FloExpr where
   convert (bd@BoxDef{..}, Output{..})
     | oParentID == -1 = FloFun oEndInputName []
     | otherwise = case bFlavor of Function -> createAp FloFun
-                                  Constructor -> createAp FloCons
                                   Literal -> convert bi
     where bi@BoxInterface{..} = fromMaybe (error "Box not found") $
                                 IntMap.lookup oParentID boxes
@@ -105,34 +104,39 @@ isLitFloat :: String -> Bool
 isLitFloat = (=~ "^[0-9]*\\.[0-9]+$")     -- ^[0-9]*\.[0-9]+$
 
 -- Pretty printing
-instance Show Literal where
-  show = render . ppLiteral
+instance Pretty Literal where
+  pp (LitInt i) = int i
+  pp (LitFloat d) = double d
+  pp (LitChar c) = char c
+  pp (LitString s) = char '"' <> text s <> char '"'
 
-ppLiteral :: Literal -> Doc
-ppLiteral (LitInt i) = int i
-ppLiteral (LitFloat d) = double d
-ppLiteral (LitChar c) = char c
-ppLiteral (LitString s) = char '"' <> text s <> char '"'
+instance Pretty FloDef where
+  pp FloDef{..} = text fdName <+> hsep (map (text . iName) fdInputs) <+>
+    equals <+> nest 4 (pp fdExpr)
 
-instance Show FloDef where
-  show = render . ppFloDef
+instance Pretty FloExpr where
+  pp (FloLit lit) = pp lit
+  pp (FloFun name _) = text name
+  pp (FloCons name _) = text name
+  pp (FloAp e1 e2) = pp e1 <+> e2'
+    where e2' | isAtomic e2 = pp e2
+              | otherwise = parens $ pp e2
+  pp (FloLambda inputs expr) = char '\\' <> pp inputs <+>
+    text "->" <+> pp expr
+  pp (FloLet ld le) = text "let" <+> braces (vcat $ punctuate semi (map pp ld))
+    <+> text "in" $$ pp le
 
-ppFloDef :: FloDef -> Doc
-ppFloDef FloDef{..} = text fdName <+> hsep (map (text . iName) fdInputs) <+>
-  equals <+> nest 4 (ppExpr fdExpr)
+isAtomic :: FloExpr -> Bool
+isAtomic (FloLit _) = True
+isAtomic (FloFun _ _) = True
+isAtomic _ = False
 
-ppExpr :: FloExpr -> Doc
-ppExpr = text . show
+instance Pretty [Input] where
+  pp inputs = hsep $ map (text . iName) inputs
 
-instance Show FloModule where
-  show = render . ppFloModule
+instance Pretty FloModule where
+  pp FloModule{..} = text "FloModule" <+> text fmName <+> lbrace $$
+    nest 4 (vcat (map pp fmDefs) $$ rbrace)
 
-ppFloModule :: FloModule -> Doc
-ppFloModule FloModule{..} = text "FloModule" <+> text fmName <+> lbrace $$
-  nest 4 (vcat (map ppFloDef fmDefs) $$ rbrace)
-
-instance Show FloProgram where
-  show = render . ppFloProgram
-
-ppFloProgram :: FloProgram -> Doc
-ppFloProgram (FloProgram modules) = vcat $ map ppFloModule modules
+instance Pretty FloProgram where
+  pp = vcat . map pp

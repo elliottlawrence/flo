@@ -1,4 +1,8 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
 module STG where
+
+import Convertible
+import FloProgram
 
 type STGProgram = [STGBinding]
 
@@ -41,3 +45,6 @@ data Atom = AtomVar Var | AtomLit Lit
 
 type Var = String
 type Constr = String
+
+instance Convertible FloProgram STGProgram where
+  convert (FloProgram modules) = undefined

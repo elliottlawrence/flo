@@ -1,5 +1,7 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, TypeSynonymInstances, FlexibleInstances #-}
 module FloGraph where
+
+import Pretty
 
 import qualified Data.IntMap as IntMap
 import Data.List ((\\), find)
@@ -7,14 +9,6 @@ import Data.Maybe (fromMaybe)
 import Text.PrettyPrint
 
 type Name = String
-
-{-
-data Type = RawType Name | Type :-> Type
-getBoxType :: BoxInterface -> Type
-getBoxType box = foldr1 (:->) (inputTypes ++ [outputType])
-  where inputTypes = map getInputType $ getBoxInputs box
-        outputType = getOutputType $ getBoxOutput box
--}
 
 data Input = Input {
   iName :: Name,
@@ -26,9 +20,9 @@ data Output = Output {
   oEndInputName :: Name
 }
 
-data Cable = Output :-: Input deriving Show
+data Cable = Output :-: Input
 
-data BoxFlavor = Function | Constructor | Literal deriving Show
+data BoxFlavor = Function | Literal
 data BoxInterface = BoxInterface {
   bName :: Name,
   bFlavor :: BoxFlavor,
@@ -52,9 +46,7 @@ data Module = Module {
   mDefs :: [BoxDef]
 }
 
-data FloGraph = FloGraph {
-  modules :: [Module]
-}
+data FloGraph = FloGraph [Module]
 
 {- Get the output of the box that is connected to a function's output. -}
 getOutput :: BoxDef -> Output
@@ -79,46 +71,32 @@ getUnappliedInputs bd@BoxDef{..} boxID = bInputs \\ appliedInputs
         appliedInputs = map fst $ getAppliedInputs bd boxID
 
 -- Pretty printing
-commas :: [Doc] -> Doc
-commas = hsep . punctuate comma
+instance Pretty Input where
+  pp Input{..} = text "Input:" <+> commas [text iName, int iParentID]
 
-instance Show Input where
-  show = render . ppInput
+instance Pretty Output where
+  pp Output{..} = text "Output:" <+> int oParentID
 
-ppInput :: Input -> Doc
-ppInput Input{..} = text "Input:" <+> commas [text iName, int iParentID]
+instance Pretty Cable where
+  pp (o :-: i) = pp o <+> text ":-:" <+> pp i
 
-instance Show Output where
-  show = render . ppOutput
+instance Pretty BoxInterface where
+  pp BoxInterface{..} = text "Box:" <+> text bName $$
+    text "Inputs:" <+> vcat (map pp bInputs)
 
-ppOutput :: Output -> Doc
-ppOutput Output{..} = text "Output:" <+> int oParentID
+instance Pretty BoxInterfaceMap where
+  pp biMap = vcat $ map (\(key,a) -> int key <> colon <+> pp a)
+    (IntMap.toList biMap)
 
-instance Show BoxInterface where
-  show = render . ppBoxInterface
+instance Pretty BoxDef where
+  pp BoxDef{..} = pp boxInterface <+> equals $+$
+    nest 4 (text "Boxes:" <+> pp boxes $+$
+            text "Cables:" <+> vcat (map pp cables) $+$
+            text "Definitions:" <+> cat (map pp localDefs))
 
-ppBoxInterface :: BoxInterface -> Doc
-ppBoxInterface BoxInterface{..} = text "Box:" <+> text bName $$
-  text "Inputs:" <+> commas (map ppInput bInputs)
+instance Pretty Module where
+  pp Module{..} = text "Module:" <+> text mName $+$
+    nest 4 (vcat $ map pp mDefs)
 
-instance Show BoxDef where
-  show = render . ppBoxDef
-
-ppBoxDef :: BoxDef -> Doc
-ppBoxDef BoxDef{..} = ppBoxInterface boxInterface <+> equals $+$
-  nest 4 (text "Boxes:" <+> text (show boxes) $+$
-          text "Cables:" <+> commas (map (text . show) cables) $+$
-          text "Definitions:" <+> cat (map ppBoxDef localDefs))
-
-instance Show Module where
-  show = render . ppModule
-
-ppModule :: Module -> Doc
-ppModule Module{..} = text "Module:" <+> text mName $+$
-  nest 4 (vcat $ map ppBoxDef mDefs)
-
-instance Show FloGraph where
-  show = render . ppFloGraph
-
-ppFloGraph :: FloGraph -> Doc
-ppFloGraph FloGraph{..} = vcat $ map ppModule modules
+instance Pretty FloGraph where
+  pp (FloGraph modules) = vcat . map pp $ modules
