@@ -83,4 +83,10 @@ public class Rect implements Shape {
 
         return new Rect(minX, minY, maxX - minX, maxY - minY);
     }
+
+    @Override
+    public String toString() {
+        return "Rect: " + rect.x + ", " + rect.y + ", " + rect.width + ", "
+            + rect.height;
+    }
 }

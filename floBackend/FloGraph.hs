@@ -22,10 +22,8 @@ data Output = Output {
 
 data Cable = Output :-: Input
 
-data BoxFlavor = Function | Literal
 data BoxInterface = BoxInterface {
   bName :: Name,
-  bFlavor :: BoxFlavor,
   bInputs :: [Input]
 }
 

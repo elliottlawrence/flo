@@ -57,8 +57,7 @@ instance Convertible BoxDef FloDef where
 instance Convertible (BoxDef, Output) FloExpr where
   convert (bd@BoxDef{..}, Output{..})
     | oParentID == -1 = FloFun oEndInputName []
-    | otherwise = case bFlavor of Function -> createAp FloFun
-                                  Literal -> convert bi
+    | otherwise = fromMaybe (createAp FloFun) (convert bi)
     where bi@BoxInterface{..} = fromMaybe (error "Box not found") $
                                 IntMap.lookup oParentID boxes
           {- To create an expression out of a function or constructor, convert
@@ -82,13 +81,14 @@ applyExprs (i@Input{..}:inputs) apps =
 applyExprs [] apps = []
 
 {- A literal is simply the box's name. -}
-instance Convertible BoxInterface FloExpr where
-  convert BoxInterface{..} = FloLit literal
-    where literal | isLitString bName = LitString (init $ tail bName)
-                  | isLitChar bName = LitChar (read bName)
-                  | isLitInt bName = LitInt (read bName)
-                  | isLitFloat bName = LitFloat (read bName)
-                  | otherwise = error "Not valid literal"
+instance Convertible BoxInterface (Maybe FloExpr) where
+  convert BoxInterface{..}
+    | isLitString bName = justLit $ LitString (init $ tail bName)
+    | isLitChar bName = justLit $ LitChar (read bName)
+    | isLitInt bName = justLit $ LitInt (read bName)
+    | isLitFloat bName = justLit $ LitFloat (read bName)
+    | otherwise = Nothing
+    where justLit = Just . FloLit
 
 isLitString :: String -> Bool
 isLitString = (=~ "^\".*\"$")   -- ^".*"$
@@ -121,8 +121,7 @@ instance Pretty FloExpr where
   pp (FloAp e1 e2) = pp e1 <+> e2'
     where e2' | isAtomic e2 = pp e2
               | otherwise = parens $ pp e2
-  pp (FloLambda inputs expr) = char '\\' <> pp inputs <+>
-    text "->" <+> pp expr
+  pp (FloLambda inputs expr) = char '\\' <> pp inputs <+> text "->" <+> pp expr
   pp (FloLet ld le) = text "let" <+> braces (vcat $ punctuate semi (map pp ld))
     <+> text "in" $$ pp le
 

@@ -177,7 +177,6 @@ public class BoxInterface implements Jsonable {
         inputs.forEach(i -> inputBuilder.add(i.toJsonObjectBuilder()));
 
         return Json.createObjectBuilder().add("name", name)
-            .add("boxFlavor", BoxFlavor.getBoxFlavor(name).toString())
             .add("inputs", inputBuilder);
     }
 }

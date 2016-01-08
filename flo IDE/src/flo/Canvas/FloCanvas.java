@@ -6,6 +6,7 @@ import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Path;
 import org.eclipse.swt.graphics.Rectangle;
@@ -176,7 +177,9 @@ public class FloCanvas extends Canvas {
 
     @Override
     public Font getFont() {
-        return new Font(getDisplay(), ".SF NS Text", scale(13), SWT.NONE);
+        final FontData fd = getDisplay().getSystemFont().getFontData()[0];
+        fd.setHeight(scale(13));
+        return new Font(getDisplay(), fd);
     }
 
     private void paint(final GC gc) {
