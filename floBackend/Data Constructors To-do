@@ -1,0 +1,40 @@
+Data Constructors To-do
+-----------------------
+
+idMono
+
+DataCons
+
+TypeCons
+
+detect constructors
+
+A box definition corresponds to a Flo declaration. That is, it is either a
+function definition, a type constructor definition, or a data constructor
+definition. Here is how the translation works:
+
+Type constructor definitions are very limited. They must consist of a single
+box, TypeCons, and all of the box definition inputs must be hooked up to
+TypeCons, with no unapplied inputs. The reason for this is that you can't really
+do computations at the type level. All a type constructor does is take its
+input types and combine them into a new type, and the built-in TypeCons
+signifies this.
+
+Data constructor definitions are also limited, but slightly less so. The box
+that's hooked up to the output must be DataCons. All the box definition inputs
+must be hooked up to DataCons, with no unapplied inputs, for the same reason as
+with type constructors.
+
+Function definitions are simply box definitions without either TypeCons or
+DataCons.
+
+idMono is the built-in monomorphic identity function. It is used for adding
+type annotations. In a function definition it simply creates an annotated
+expression. In a data constructor it is used in two ways. If DataCons is the
+input to idMono, the data constructor will return that type. Otherwise the data
+constructor will return a type with the same name as the constructor. If the
+constructor fields are inputs to idMono, those fields have those corresponding
+types. Otherwise, the fields can be arbitrary types.
+
+Note that the cases described above are by no means exhaustive. This means that
+there are many ways to write meaningless code with Flo.

@@ -4,8 +4,7 @@ module FloGraph where
 import Pretty
 
 import qualified Data.IntMap as IntMap
-import Data.List ((\\), find)
-import Data.Maybe (fromMaybe)
+import Data.List (find)
 import Text.PrettyPrint
 
 type Name = String
@@ -46,27 +45,17 @@ data Module = Module {
 
 data FloGraph = FloGraph [Module]
 
-{- Get the output of the box that is connected to a function's output. -}
-getOutput :: BoxDef -> Output
-getOutput BoxDef{..} = output
-  where output :-: _ = fromMaybe (error "No last cable") $
-                       find isLastCable cables
-        isLastCable (_ :-: Input{..}) = iParentID == -1
+endInput :: Input
+endInput = Input "endInput" (-1)
 
-{- Given a box definition and a specific box, find all of its applied inputs. -}
-getAppliedInputs :: BoxDef -> ID -> [(Input, Output)]
-getAppliedInputs BoxDef{..} boxID = concatMap filterCables cables
-  where filterCables (o :-: i@Input{..})
-          | iParentID == boxID = [(i, o)]
-        filterCables (_ :-: _) = []
+{- Get the output of the box that is connected to a given input. -}
+getConnectedOutput :: BoxDef -> Input -> Maybe Output
+getConnectedOutput BoxDef{..} i = maybe Nothing (\(o :-: _) -> Just o) $
+  find (\(_ :-: i') -> i == i') cables
 
-{- Given a box definition and a specific box, find all of its unapplied
-   inputs. -}
-getUnappliedInputs :: BoxDef -> ID -> [Input]
-getUnappliedInputs bd@BoxDef{..} boxID = bInputs \\ appliedInputs
-  where BoxInterface{..} = fromMaybe (error "Box not found") $
-                           IntMap.lookup boxID boxes
-        appliedInputs = map fst $ getAppliedInputs bd boxID
+{- Returns whether the given input has a cable connected to it -}
+isApplied :: BoxDef -> Input -> Bool
+isApplied BoxDef{..} i = any (\(_ :-: i') -> i == i') cables
 
 -- Pretty printing
 instance Pretty Input where

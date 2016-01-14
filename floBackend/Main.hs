@@ -49,7 +49,7 @@ main = do
       [dump </> "Prologue.hs"]
 
     -- Remove the dump directory
-    removeDirectoryRecursive dump
+    --removeDirectoryRecursive dump
 
 getFileName :: String -> HaskellModule -> String
 getFileName dump HaskellModule{..} = dump </> hmName ++ ".hs"

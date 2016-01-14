@@ -23,8 +23,7 @@ instance FromJSON BoxDef where
   parseJSON _ = mzero
 
 instance FromJSON BoxInterface where
-  parseJSON (Object v) = BoxInterface <$> v .: "name" <*> v .: "boxFlavor"
-                         <*> v .: "inputs"
+  parseJSON (Object v) = BoxInterface <$> v .: "name" <*> v .: "inputs"
   parseJSON _ = mzero
 
 instance FromJSON BoxInterfaceMap where
@@ -33,12 +32,6 @@ instance FromJSON BoxInterfaceMap where
                                    val <- v .: "boxInterface"
                                    return (key, val)
           parseBox _ = mzero
-  parseJSON _ = mzero
-
-instance FromJSON BoxFlavor where
-  parseJSON (String "Function") = pure Function
-  parseJSON (String "Constructor") = pure Constructor
-  parseJSON (String "Literal") = pure Literal
   parseJSON _ = mzero
 
 instance FromJSON Cable where

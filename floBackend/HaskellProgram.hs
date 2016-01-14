@@ -11,38 +11,56 @@ import Data.List (intercalate)
 import Text.PrettyPrint
 
 data HaskellExpr = HaskellLit Literal
-                 | HaskellFun Name
+                 | HaskellVar Name
                  | HaskellCons Name
                  | HaskellAp HaskellExpr HaskellExpr
-                 | HaskellLambda [Input] HaskellExpr
+                 | HaskellLambda [Name] HaskellExpr
                  | HaskellLet [HaskellDef] HaskellExpr
 
 data HaskellDef = HaskellDef {
   hdName :: Name,
-  hdInputs :: [Input],
+  hdInputs :: [Name],
   hdExpr :: HaskellExpr
 }
 
+data HaskellDataType = HaskellDataType {
+  dtName :: Name,
+  dtTyVars :: [Name],
+  dtDataConses :: [HaskellDataCons]
+}
+
+data HaskellDataCons = HaskellDataCons {
+  hdcName :: Name,
+  hdcFields :: [Type]
+}
+
+data HaskellDecl = HD HaskellDef | HDT HaskellDataType
+
 data HaskellModule = HaskellModule {
   hmName :: Name,
-  hmDefs :: [HaskellDef],
+  hmDecls :: [HaskellDecl],
   hmImports :: [Name]
 }
 
 type HaskellProgram = [HaskellModule]
 
 instance Convertible FloModule HaskellModule where
-  convert FloModule{..} = HaskellModule fmName (convert fmDefs) imports
+  convert FloModule{..} = HaskellModule fmName (convert fmDecls) imports
     where imports | fmName /= "Prologue" = ["Prologue"]
                   | otherwise = []
+
+instance Convertible FloDecl HaskellDecl where
+  convert (FD def) = HD $ convert def
+  convert (TC typeCons) = error "Type constructors not supported"
+  convert (DC dataCons) = error "Data constructors not supported"
 
 instance Convertible FloDef HaskellDef where
   convert FloDef{..} = HaskellDef fdName fdInputs (convert fdExpr)
 
 instance Convertible FloExpr HaskellExpr where
   convert (FloLit lit) = HaskellLit lit
-  convert (FloFun name _) = HaskellFun $ fixName name
-  convert (FloCons name _) = HaskellCons name
+  convert (FloVar name) = HaskellVar $ fixName name
+  convert (FloCons name) = HaskellCons name
   convert (FloAp e1 e2) = HaskellAp (convert e1) (convert e2)
   convert (FloLambda inputs expr) = HaskellLambda inputs (convert expr)
   convert (FloLet ld le) = HaskellLet (convert ld) (convert le)
@@ -57,7 +75,7 @@ fixName name = name
 -- Pretty printing
 instance Pretty HaskellExpr where
   pp (HaskellLit lit) = pp lit
-  pp (HaskellFun fun) = text $ fixName fun
+  pp (HaskellVar fun) = text $ fixName fun
   pp (HaskellAp e1 e2) = pp e1 <+> e2'
     where e2' | isAtomic e2 = pp e2
               | otherwise = parens $ pp e2
@@ -68,16 +86,27 @@ instance Pretty HaskellExpr where
 
 isAtomic :: HaskellExpr -> Bool
 isAtomic (HaskellLit _) = True
-isAtomic (HaskellFun _) = True
+isAtomic (HaskellVar _) = True
 isAtomic _ = False
 
 instance Pretty HaskellDef where
   pp HaskellDef{..}
     = hsep [text (fixName hdName), pp hdInputs, equals, pp hdExpr]
 
+instance Pretty HaskellDataType where
+  pp HaskellDataType{..} = text "data" <+> text dtName <+> pp dtTyVars <+>
+    equals <+> hsep (punctuate (text "|") (map pp dtDataConses))
+
+instance Pretty HaskellDataCons where
+  pp HaskellDataCons{..} = text hdcName <+> pp hdcFields
+
+instance Pretty HaskellDecl where
+  pp (HD def) = pp def
+  pp (HDT dt) = pp dt
+
 instance Pretty HaskellModule where
   pp HaskellModule{..} = text "module" <+> text hmName <+>
-    text "where" $+$ imports' $+$ vcat (map pp hmDefs)
+    text "where" $+$ imports' $+$ vcat (map pp hmDecls)
     where imports' = vcat $ map ((text "import" <+>) . text) hmImports
 
 instance Pretty HaskellProgram where

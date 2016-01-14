@@ -6,79 +6,112 @@ import Convertible
 import FloGraph
 import Pretty
 
-import Control.Arrow (second)
 import qualified Data.IntMap as IntMap
-import Data.List ((\\), find)
-import Data.Maybe (fromMaybe)
+import Data.List (find)
+import Data.Maybe (fromMaybe, isJust)
 import Text.PrettyPrint
 import Text.Regex.Posix
 
 data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
 
+data Type = RawType Name | TypeCons FloTypeCons [Type]
+
 data FloExpr = FloLit Literal                     -- Literals
-             | FloFun Name [Input]                -- Functions
-             | FloCons Name [Input]               -- Constructors
+             | FloVar Name                        -- Functions, variables
+             | FloCons Name                       -- Constructors
              | FloAp FloExpr FloExpr              -- Applications
-             | FloLambda [Input] FloExpr          -- Lambdas
+             | FloLambda [Name] FloExpr           -- Lambdas
              | FloLet [FloDef] FloExpr            -- Let expressions
+             | FloAnn Type FloExpr                -- Type annotations
 
 data FloDef = FloDef {
   fdName :: Name,
-  fdInputs :: [Input],
+  fdInputs :: [Name],
   fdExpr :: FloExpr
 }
 
+data FloTypeCons = FloTypeCons {                  -- Type constructors
+  tcName :: Name,
+  tcVars :: [Name]
+}
+
+data FloDataCons = FloDataCons {                  -- Data constructors
+  dcName :: Name,
+  dcFields :: [Type],
+  dcType :: Type
+}
+
+{- Top-level declarations may be either function definitions, type constructor
+   definitions, or data constructor definitions -}
+data FloDecl = FD FloDef | TC FloTypeCons | DC FloDataCons
+
 data FloModule = FloModule {
   fmName :: Name,
-  fmDefs :: [FloDef]
+  fmDecls :: [FloDecl]
 }
 
 type FloProgram = [FloModule]
 
-{- The following functions convert the graphical representation of a program
-   into a format composed of expressions and definitions. -}
 instance Convertible FloGraph FloProgram where
   convert (FloGraph modules) = convert modules
 
 instance Convertible Module FloModule where
   convert Module{..} = FloModule mName $ convert mDefs
 
+instance Convertible BoxDef FloDecl where
+  convert bd | hasBox "TypeCons" bd = TC $ convert bd
+             | hasBox "DataCons" bd = DC $ convert bd
+             | otherwise = FD $ convert bd
+
+{- Determines if a box definition contains a box with the given name -}
+hasBox :: String -> BoxDef -> Bool
+hasBox name BoxDef{..} = isJust $
+  find (\bi -> bName bi == name) $ IntMap.elems boxes
+
+instance Convertible BoxDef FloTypeCons where
+  convert _ = error "Type constructors not supported"
+
+instance Convertible BoxDef FloDataCons where
+  convert _ = error "Data constructors not supported"
+
 {- The expression component of a box definition is the expression determined by
    the output box. In addition, if a box has local definitions, these are
    captured by wrapping the box definition in a let expression. -}
 instance Convertible BoxDef FloDef where
-  convert bd@BoxDef{..} = FloDef bName bInputs $
-    if null localDefs then boxExpr else FloLet (convert localDefs) boxExpr
+  convert bd@BoxDef{..} = FloDef bName (map iName bInputs) $
+    if null localDefs then boxExpr
+                      else FloLet (map convert localDefs) boxExpr
     where BoxInterface{..} = boxInterface
-          boxExpr = convert (bd, getOutput bd)
+          boxExpr = convert (bd, endInput)
 
-{- Converts the box with the given output, defined in the given box definition, to
-   a Flo Expression. -}
-instance Convertible (BoxDef, Output) FloExpr where
-  convert (bd@BoxDef{..}, Output{..})
-    | oParentID == -1 = FloFun oEndInputName []
-    | otherwise = fromMaybe (createAp FloFun) (convert bi)
-    where bi@BoxInterface{..} = fromMaybe (error "Box not found") $
+{- Converts the input in the given box definition to an expression -}
+instance Convertible (BoxDef, Input) FloExpr where
+  convert (bd@BoxDef{..}, i)
+    | oParentID == -1 = FloVar oEndInputName
+    | bName == "idMono" = FloAnn (convert (bd, head bInputs))
+      (convert (bd, bInputs !! 1))
+    | otherwise = fromMaybe createAp (convert bi)
+    where Output{..} = fromMaybe (error "No connected output") $
+                       getConnectedOutput bd i
+          bi@BoxInterface{..} = fromMaybe (error "Box not found") $
                                 IntMap.lookup oParentID boxes
           {- To create an expression out of a function or constructor, convert
              all of its inputs to expressions and then apply them to the
              function. For constant applicative forms, no inputs need be
              applied. -}
-          createAp constructor | null unappliedInputs = rhs
-                               | otherwise = FloLambda unappliedInputs rhs
-            where unappliedInputs = getUnappliedInputs bd oParentID
-                  appliedInputs = getAppliedInputs bd oParentID
-                  appliedExprs = map (second $ convert . (bd,)) appliedInputs
-                  apps = applyExprs bInputs appliedExprs
-                  rhs = foldl1 FloAp $ constructor bName bInputs : apps
+          createAp :: FloExpr
+          createAp | null unappliedInputs = rhs
+                   | otherwise = FloLambda unappliedInputs rhs
+            where unappliedInputs = concatMap
+                    (mapApplied (const []) (replicate 1 . iName)) bInputs
+                  rhs = foldl1 FloAp $ FloVar bName :
+                    map (mapApplied (convert . (bd,)) (FloVar . iName)) bInputs
 
-{- Applies the expressions to the list of inputs -}
-applyExprs :: [Input] -> [(Input, FloExpr)] -> [FloExpr]
-applyExprs (i@Input{..}:inputs) apps =
-  case find ((== i) . fst) apps of
-    Just ie -> snd ie : applyExprs inputs apps
-    Nothing -> FloFun iName [] : applyExprs inputs apps
-applyExprs [] apps = []
+          mapApplied :: (Input -> b) -> (Input -> b) -> Input -> b
+          mapApplied t f i = if isApplied bd i then t i else f i
+
+instance Convertible (BoxDef, Input) Type where
+  convert (bd@BoxDef{..}, t) = error "Type annotations not supported"
 
 {- A literal is simply the box's name. -}
 instance Convertible BoxInterface (Maybe FloExpr) where
@@ -110,32 +143,54 @@ instance Pretty Literal where
   pp (LitChar c) = char c
   pp (LitString s) = char '"' <> text s <> char '"'
 
-instance Pretty FloDef where
-  pp FloDef{..} = text fdName <+> hsep (map (text . iName) fdInputs) <+>
-    equals <+> nest 4 (pp fdExpr)
-
 instance Pretty FloExpr where
   pp (FloLit lit) = pp lit
-  pp (FloFun name _) = text name
-  pp (FloCons name _) = text name
+  pp (FloVar name) = text name
+  pp (FloCons name) = text name
   pp (FloAp e1 e2) = pp e1 <+> e2'
-    where e2' | isAtomic e2 = pp e2
+    where e2' | isAtomicE e2 = pp e2
               | otherwise = parens $ pp e2
   pp (FloLambda inputs expr) = char '\\' <> pp inputs <+> text "->" <+> pp expr
   pp (FloLet ld le) = text "let" <+> braces (vcat $ punctuate semi (map pp ld))
     <+> text "in" $$ pp le
 
-isAtomic :: FloExpr -> Bool
-isAtomic (FloLit _) = True
-isAtomic (FloFun _ _) = True
-isAtomic _ = False
+isAtomicE :: FloExpr -> Bool
+isAtomicE (FloLit _) = True
+isAtomicE (FloVar _) = True
+isAtomicE _ = False
 
-instance Pretty [Input] where
-  pp inputs = hsep $ map (text . iName) inputs
+instance Pretty [Name] where
+  pp = hsep . map text
+
+instance Pretty FloDef where
+  pp FloDef{..} = text fdName <+> pp fdInputs <+> equals <+> nest 4 (pp fdExpr)
+
+instance Pretty FloTypeCons where
+  pp FloTypeCons{..} = text "type" <+> text tcName <+> pp tcVars
+
+instance Pretty FloDataCons where
+  pp FloDataCons{..} = text "data" <+> text dcName <+> pp dcFields <+>
+    text "::" <+> pp dcType
+
+instance Pretty Type where
+  pp (RawType name) = text name
+  pp (TypeCons FloTypeCons{..} vars) = text tcName <+> pp vars
+
+instance Pretty [Type] where
+  pp = hsep . map (\t -> if isAtomicT t then pp t else parens $ pp t)
+
+isAtomicT :: Type -> Bool
+isAtomicT (RawType _) = True
+isAtomicT _ = False
+
+instance Pretty FloDecl where
+  pp (FD fd) = pp fd
+  pp (TC tc) = pp tc
+  pp (DC dc) = pp dc
 
 instance Pretty FloModule where
   pp FloModule{..} = text "FloModule" <+> text fmName <+> lbrace $$
-    nest 4 (vcat (map pp fmDefs) $$ rbrace)
+    nest 4 (vcat (map pp fmDecls) $$ rbrace)
 
 instance Pretty FloProgram where
   pp = vcat . map pp
