@@ -24,8 +24,5 @@ Just as in other languages, a program can have multiple modules. The purpose of 
 #### Types
 Flo is strongly, statically typed, but type inference is performed so that type annotations are unnecessary. An important exception to this is when defining the types of fields in data constructors. To specify that an expression has a certain type, use the built-in function idMono, which is the monomorphic identity function. It takes two parameters, a type and an expression. It returns the seconds parameter unchanged, just like the regular identity function, but it forces it to have the type of the first parameter.
 
-#### Type Constructors
-Type constructors are defined just like normal functions, but they are essentially just a wrapper around TypeCons, which is a built-in type constructor. It can take zero or more arguments, and it returns the component types packaged up into a new type which has the same name as the surrounding box definition.
-
 #### Data Constructors
-Similarly, data constructors are also defined like normal functions that are simply a wrapper around DataCons, a built-in data constructor. It also takes zero or more arguments and packages up its components into a new data type. Use idMono to annotate the type of the data constructor. Alternatively, if no type annotation is provided, the constructor will have the same type as the name of the surrounding box definition.
+Data constructors are defined like normal functions that are simply a wrapper around DataCons, a built-in data constructor. It also takes zero or more arguments and packages up its components into a new data type. Use idMono to annotate the type of the data constructor. Alternatively, if no type annotation is provided, the constructor will have the same type as the name of the surrounding box definition.

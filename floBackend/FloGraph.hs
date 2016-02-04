@@ -5,6 +5,7 @@ import Pretty
 
 import qualified Data.IntMap as IntMap
 import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Text.PrettyPrint
 
 type Name = String
@@ -53,9 +54,23 @@ getConnectedOutput :: BoxDef -> Input -> Maybe Output
 getConnectedOutput BoxDef{..} i = maybe Nothing (\(o :-: _) -> Just o) $
   find (\(_ :-: i') -> i == i') cables
 
+getConnectedOutputUnsafe :: BoxDef -> Input -> Output
+getConnectedOutputUnsafe bd
+  = fromMaybe (error "No connected output") . getConnectedOutput bd
+
 {- Returns whether the given input has a cable connected to it -}
 isApplied :: BoxDef -> Input -> Bool
 isApplied BoxDef{..} i = any (\(_ :-: i') -> i == i') cables
+
+{- Lookup a box with a given ID. -}
+lookupUnsafe :: Int -> BoxInterfaceMap -> BoxInterface
+lookupUnsafe id boxes =
+  fromMaybe (error "Box not found") $ IntMap.lookup id boxes
+
+{- Get the box interface that is connected to the given input. -}
+getConnectedBox :: BoxDef -> Input -> BoxInterface
+getConnectedBox bd i
+  = lookupUnsafe (oParentID $ getConnectedOutputUnsafe bd i) (boxes bd)
 
 -- Pretty printing
 instance Pretty Input where

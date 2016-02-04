@@ -32,10 +32,10 @@ main = do
     -- Read the file and convert it to a Haskell program
     byteString <- B.readFile filePath
     let fg@(FloGraph _) = fromMaybe (error "Couldn't parse file") .
-                     decode $ byteString
+                          decode $ byteString
     let fp = convert fg :: FloProgram
     let modules = convert fp
-    --putStrLn (showP fp)
+    putStrLn (showP fp)
 
     -- Create the dump directory and copy all the modules into it
     createDirectoryIfMissing False dump

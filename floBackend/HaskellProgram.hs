@@ -8,6 +8,7 @@ import FloProgram hiding (isAtomic)
 import Pretty
 
 import Data.List (intercalate)
+import qualified Data.Map as Map
 import Text.PrettyPrint
 
 data HaskellExpr = HaskellLit Literal
@@ -45,14 +46,24 @@ data HaskellModule = HaskellModule {
 type HaskellProgram = [HaskellModule]
 
 instance Convertible FloModule HaskellModule where
-  convert FloModule{..} = HaskellModule fmName (convert fmDecls) imports
+  convert FloModule{..}
+    = HaskellModule fmName (collectDataTypes $ convert fmDecls) imports
     where imports | fmName /= "Prologue" = ["Prologue"]
                   | otherwise = []
 
+{- Combines data constructors with the same type into one declaration -}
+collectDataTypes :: [HaskellDecl] -> [HaskellDecl]
+collectDataTypes decls = dataTypes' ++ defs
+  where (dataTypes, defs) = span (\decl -> case decl of HDT hdt -> True
+                                                        HD _ -> False) decls
+        dataTypesMap = Map.fromListWith (++) [((dtName, dtTyVars), dtDataConses)
+          | HDT HaskellDataType{..} <- dataTypes]
+        dataTypes' = Map.elems $ Map.mapWithKey (\(name, tyVars) dataConses ->
+          HDT $ HaskellDataType name tyVars dataConses) dataTypesMap
+
 instance Convertible FloDecl HaskellDecl where
   convert (FD def) = HD $ convert def
-  convert (TC typeCons) = error "Type constructors not supported"
-  convert (DC dataCons) = error "Data constructors not supported"
+  convert (DC dataCons) = HDT $ convert dataCons
 
 instance Convertible FloDef HaskellDef where
   convert FloDef{..} = HaskellDef fdName fdInputs (convert fdExpr)
@@ -64,6 +75,14 @@ instance Convertible FloExpr HaskellExpr where
   convert (FloAp e1 e2) = HaskellAp (convert e1) (convert e2)
   convert (FloLambda inputs expr) = HaskellLambda inputs (convert expr)
   convert (FloLet ld le) = HaskellLet (convert ld) (convert le)
+
+{- Initially, we just convert each data constructor into a new data type. Later
+   on we collect the data constructors with the same types together. -}
+instance Convertible FloDataCons HaskellDataType where
+  convert FloDataCons{..} = HaskellDataType tyName tyVars'
+    [HaskellDataCons dcName dcFields]
+    where TypeCons tyName tyVars = dcType
+          tyVars' = map (\(TypeCons name []) -> name) tyVars
 
 {- To avoid name clashes with existing things in Haskell -}
 fixName :: String -> String
@@ -95,7 +114,7 @@ instance Pretty HaskellDef where
 
 instance Pretty HaskellDataType where
   pp HaskellDataType{..} = text "data" <+> text dtName <+> pp dtTyVars <+>
-    equals <+> hsep (punctuate (text "|") (map pp dtDataConses))
+    equals <+> hsep (punctuate (text " |") (map pp dtDataConses))
 
 instance Pretty HaskellDataCons where
   pp HaskellDataCons{..} = text hdcName <+> pp hdcFields

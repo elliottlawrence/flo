@@ -14,7 +14,7 @@ import Text.Regex.Posix
 
 data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
 
-data Type = RawType Name | TypeCons FloTypeCons [Type]
+data Type = TypeCons Name [Type]
 
 data FloExpr = FloLit Literal                     -- Literals
              | FloVar Name                        -- Functions, variables
@@ -30,20 +30,15 @@ data FloDef = FloDef {
   fdExpr :: FloExpr
 }
 
-data FloTypeCons = FloTypeCons {                  -- Type constructors
-  tcName :: Name,
-  tcVars :: [Name]
-}
-
 data FloDataCons = FloDataCons {                  -- Data constructors
   dcName :: Name,
   dcFields :: [Type],
   dcType :: Type
 }
 
-{- Top-level declarations may be either function definitions, type constructor
-   definitions, or data constructor definitions -}
-data FloDecl = FD FloDef | TC FloTypeCons | DC FloDataCons
+{- Top-level declarations may be either function definitions or data constructor
+   definitions -}
+data FloDecl = FD FloDef | DC FloDataCons
 
 data FloModule = FloModule {
   fmName :: Name,
@@ -59,8 +54,7 @@ instance Convertible Module FloModule where
   convert Module{..} = FloModule mName $ convert mDefs
 
 instance Convertible BoxDef FloDecl where
-  convert bd | hasBox "TypeCons" bd = TC $ convert bd
-             | hasBox "DataCons" bd = DC $ convert bd
+  convert bd | hasBox "DataCons" bd = DC $ convert bd
              | otherwise = FD $ convert bd
 
 {- Determines if a box definition contains a box with the given name -}
@@ -68,11 +62,20 @@ hasBox :: String -> BoxDef -> Bool
 hasBox name BoxDef{..} = isJust $
   find (\bi -> bName bi == name) $ IntMap.elems boxes
 
-instance Convertible BoxDef FloTypeCons where
-  convert _ = error "Type constructors not supported"
-
 instance Convertible BoxDef FloDataCons where
-  convert _ = error "Data constructors not supported"
+  convert bd@BoxDef{..} = FloDataCons dataConsName fields t
+    where bi = getConnectedBox bd endInput
+          dataConsName = bName boxInterface
+          (fields, t) | bName bi == "idMono" = (convert (bd, bInputs bi !! 1),
+                                                convert (bd, head $ bInputs bi))
+                      | bName bi == "DataCons" = (convert (bd, endInput),
+                                                  TypeCons dataConsName [])
+
+{- Converts "DataCons" into a list of types -}
+instance Convertible (BoxDef, Input) [Type] where
+  convert (bd@BoxDef{..}, i) = map (convertAnn . convert . (bd,)) bInputs
+    where BoxInterface{..} = getConnectedBox bd i
+          convertAnn (FloAnn t _) = t
 
 {- The expression component of a box definition is the expression determined by
    the output box. In addition, if a box has local definitions, these are
@@ -91,10 +94,8 @@ instance Convertible (BoxDef, Input) FloExpr where
     | bName == "idMono" = FloAnn (convert (bd, head bInputs))
       (convert (bd, bInputs !! 1))
     | otherwise = fromMaybe createAp (convert bi)
-    where Output{..} = fromMaybe (error "No connected output") $
-                       getConnectedOutput bd i
-          bi@BoxInterface{..} = fromMaybe (error "Box not found") $
-                                IntMap.lookup oParentID boxes
+    where Output{..} = getConnectedOutputUnsafe bd i
+          bi@BoxInterface{..} = lookupUnsafe oParentID boxes
           {- To create an expression out of a function or constructor, convert
              all of its inputs to expressions and then apply them to the
              function. For constant applicative forms, no inputs need be
@@ -110,8 +111,10 @@ instance Convertible (BoxDef, Input) FloExpr where
           mapApplied :: (Input -> b) -> (Input -> b) -> Input -> b
           mapApplied t f i = if isApplied bd i then t i else f i
 
+{- Converts the input in the given box definition to a type -}
 instance Convertible (BoxDef, Input) Type where
-  convert (bd@BoxDef{..}, t) = error "Type annotations not supported"
+  convert (bd@BoxDef{..}, t) = TypeCons bName $ map (convert . (bd,)) bInputs
+    where BoxInterface{..} = getConnectedBox bd t
 
 {- A literal is simply the box's name. -}
 instance Convertible BoxInterface (Maybe FloExpr) where
@@ -153,6 +156,9 @@ instance Pretty FloExpr where
   pp (FloLambda inputs expr) = char '\\' <> pp inputs <+> text "->" <+> pp expr
   pp (FloLet ld le) = text "let" <+> braces (vcat $ punctuate semi (map pp ld))
     <+> text "in" $$ pp le
+  pp (FloAnn t e) = parens $ e' <+> text "::" <+> pp t
+    where e' | isAtomicE e = pp e
+             | otherwise = parens $ pp e
 
 isAtomicE :: FloExpr -> Bool
 isAtomicE (FloLit _) = True
@@ -165,27 +171,22 @@ instance Pretty [Name] where
 instance Pretty FloDef where
   pp FloDef{..} = text fdName <+> pp fdInputs <+> equals <+> nest 4 (pp fdExpr)
 
-instance Pretty FloTypeCons where
-  pp FloTypeCons{..} = text "type" <+> text tcName <+> pp tcVars
-
 instance Pretty FloDataCons where
   pp FloDataCons{..} = text "data" <+> text dcName <+> pp dcFields <+>
     text "::" <+> pp dcType
 
 instance Pretty Type where
-  pp (RawType name) = text name
-  pp (TypeCons FloTypeCons{..} vars) = text tcName <+> pp vars
+  pp (TypeCons name vars) = text name <+> pp vars
 
 instance Pretty [Type] where
   pp = hsep . map (\t -> if isAtomicT t then pp t else parens $ pp t)
 
 isAtomicT :: Type -> Bool
-isAtomicT (RawType _) = True
+isAtomicT (TypeCons _ []) = True
 isAtomicT _ = False
 
 instance Pretty FloDecl where
   pp (FD fd) = pp fd
-  pp (TC tc) = pp tc
   pp (DC dc) = pp dc
 
 instance Pretty FloModule where
