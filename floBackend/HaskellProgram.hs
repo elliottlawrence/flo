@@ -49,7 +49,9 @@ type HaskellProgram = [HaskellModule]
 instance Convertible FloModule HaskellModule where
   convert FloModule{..}
     = HaskellModule fmName (collectDataTypes $ convert fmDecls) imports
-    where imports = ["qualified Prelude as Hask"]
+    where imports = "qualified Prelude as Hask" : others
+          others | fmName /= "Prologue" = ["Prologue"]
+                 | otherwise = []
 
 {- Combines data constructors with the same type into one declaration -}
 collectDataTypes :: [HaskellDecl] -> [HaskellDecl]

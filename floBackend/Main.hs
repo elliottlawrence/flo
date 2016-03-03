@@ -41,7 +41,6 @@ main = do
     createDirectoryIfMissing False dump
     let modulesList = map (getFileName dump) modules
     forM_ modules $ \m -> writeFile (getFileName dump m) (showP m)
-    --copyFile (directory </> "Prologue.hs") $ dump </> "Prologue.hs"
 
     -- Run GHC
     callProcess "/usr/local/bin/ghc" $
