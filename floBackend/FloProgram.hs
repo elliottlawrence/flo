@@ -16,13 +16,14 @@ data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
 
 data Type = TypeCons Name [Type]
 
-data FloExpr = FloLit Literal                     -- Literals
-             | FloVar Name                        -- Functions, variables
-             | FloCons Name                       -- Constructors
-             | FloAp FloExpr FloExpr              -- Applications
-             | FloLambda [Name] FloExpr           -- Lambdas
-             | FloLet [FloDef] FloExpr            -- Let expressions
-             | FloAnn Type FloExpr                -- Type annotations
+data FloExpr = FloLit Literal                       -- Literals
+             | FloVar Name                          -- Functions, variables
+             | FloCons Name                         -- Constructors
+             | FloAp FloExpr FloExpr                -- Applications
+             | FloLambda [Name] FloExpr             -- Lambdas
+             | FloLet [FloDef] FloExpr              -- Let expressions
+             | FloCase FloExpr [(FloExpr, FloExpr)] -- Case expressions
+             | FloAnn Type FloExpr                  -- Type annotations
 
 data FloDef = FloDef {
   fdName :: Name,
@@ -93,9 +94,16 @@ instance Convertible (BoxDef, Input) FloExpr where
     | oParentID == -1 = FloVar oEndInputName
     | bName == "idMono" = FloAnn (convert (bd, head bInputs))
       (convert (bd, bInputs !! 1))
+    | bName == "case" = FloCase (convert (bd, head bInputs)) $
+      pairZip $ map (convert . (bd,)) (tail bInputs)
     | otherwise = fromMaybe createAp (convert bi)
     where Output{..} = getConnectedOutputUnsafe bd i
           bi@BoxInterface{..} = lookupUnsafe oParentID boxes
+
+          pairZip :: [a] -> [(a,a)]
+          pairZip [] = []
+          pairZip (x:y:xs) = (x,y) : pairZip xs
+
           {- To create an expression out of a function or constructor, convert
              all of its inputs to expressions and then apply them to the
              function. For constant applicative forms, no inputs need be
@@ -156,6 +164,8 @@ instance Pretty FloExpr where
   pp (FloLambda inputs expr) = char '\\' <> pp inputs <+> text "->" <+> pp expr
   pp (FloLet ld le) = text "let" <+> braces (vcat $ punctuate semi (map pp ld))
     <+> text "in" $$ pp le
+  pp (FloCase e alts) = text "case" <+> pp e <+> text "of" <+>
+    vcat (map pp alts)
   pp (FloAnn t e) = parens $ e' <+> text "::" <+> pp t
     where e' | isAtomicE e = pp e
              | otherwise = parens $ pp e
@@ -180,6 +190,9 @@ instance Pretty Type where
 
 instance Pretty [Type] where
   pp = hsep . map (\t -> if isAtomicT t then pp t else parens $ pp t)
+
+instance Pretty (FloExpr, FloExpr) where
+  pp (e1, e2) = pp e1 <+> text "->" <+> pp e2
 
 isAtomicT :: Type -> Bool
 isAtomicT (TypeCons _ []) = True
