@@ -4,10 +4,12 @@ Flo is a visual, purely functional programming language. The syntax and semantic
 #### Boxes and Cables
 Flo's syntax is comprised entirely of boxes and cables. Boxes primarily represent functions, but they are also used for literals and constructors. Boxes may have a list of inputs, or they may have none if they are literals or constant applicative forms. Each box has an output, which is the expression the box returns.
 
-Cables connect outputs to inputs. They represent a flow of values from one box to another. To apply a function to a set of values, simply connect the outputs of the values to the corresponding inputs on the function's box. Boxes can also be partially applied if not all inputs have cables connected to them. In particular, if you need to pass a function as an input to another function, attach a cable to the box's output, and don't apply any inputs to it.
+Cables connect outputs to inputs. They represent a flow of values from one box to another. To apply a function to a set of values, simply connect the outputs of the values to the corresponding inputs on the function's box. Boxes can also be partially applied if not all inputs have cables connected to them.
 
 #### Inputs
 Box inputs have names which can provide helpful annotations. However, these names are essentially meaningless and are stripped away by the compiler. The only thing that really matters is the order of inputs.
+
+Another important thing to note is that you don't have to specify the exact inputs a box has. For example, if you want to pass a function as an argument to another box, you can represent the first function as a box with no inputs, even if it does take inputs. You can also add more inputs to a box if you want. One situation where this is useful is when you want to pass inputs into a box which itself is an input to the surrounding box definition. To accomplish this, pass the function followed by all of its arguments as inputs into "id". At first this flexibility may seem strange, but just keep in mind that functions are first-class entities and are also curried, so inputs are applied one by one. As long as everything type checks, you can pass any number of inputs into a box as you want.
 
 #### Literals
 Literals are represented as boxes with no inputs. The name of the box determines which kind of literal it is. Integers and floating point numbers are boxes with numbers for their names. Strings are surrounded by double quotes, while characters are surrounded by single quotes.
@@ -26,3 +28,6 @@ Flo is strongly, statically typed, but type inference is performed so that type 
 
 #### Data Constructors
 Data constructors are defined like normal functions that are simply a wrapper around DataCons, a built-in data constructor. It also takes zero or more arguments and packages up its components into a new data type. Use idMono to annotate the type of the data constructor. Alternatively, if no type annotation is provided, the constructor will have the same type as the name of the surrounding box definition.
+
+### Case Expressions
+Case expressions can be used for deconstructing data types. "case" is a built-in function that can take any odd number of arguments >= 3. The first input is the expression to perform case analysis on. Each subsequent pair of inputs signifies a pattern to match the expression against, and a resulting expression if that branch is selected.
