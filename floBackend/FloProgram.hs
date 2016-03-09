@@ -13,6 +13,7 @@ import Text.PrettyPrint
 import Text.Regex.Posix
 
 data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
+               deriving Eq
 
 data Type = TypeCons Name [Type]
 
@@ -151,8 +152,8 @@ isLitFloat = (=~ "^[0-9]*\\.[0-9]+$")     -- ^[0-9]*\.[0-9]+$
 instance Pretty Literal where
   pp (LitInt i) = int i
   pp (LitFloat d) = double d
-  pp (LitChar c) = char c
-  pp (LitString s) = char '"' <> text s <> char '"'
+  pp (LitChar c) = quotes $ char c
+  pp (LitString s) = doubleQuotes $ text s
 
 instance Pretty FloExpr where
   pp (FloLit lit) = pp lit
