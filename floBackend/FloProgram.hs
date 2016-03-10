@@ -6,6 +6,7 @@ import Convertible
 import FloGraph
 import Pretty
 
+import Data.Char (isUpper)
 import qualified Data.IntMap as IntMap
 import Data.List (find)
 import Data.Maybe (fromMaybe, isJust)
@@ -19,7 +20,7 @@ data Type = TypeCons Name [Type]
 
 data FloExpr = FloLit Literal                       -- Literals
              | FloVar Name                          -- Functions, variables
-             | FloCons Name                         -- Constructors
+             | FloCons Name Int                     -- Constructors (arity)
              | FloAp FloExpr FloExpr                -- Applications
              | FloLambda [Name] FloExpr             -- Lambdas
              | FloLet [FloDef] FloExpr              -- Let expressions
@@ -114,11 +115,16 @@ instance Convertible (BoxDef, Input) FloExpr where
                    | otherwise = FloLambda unappliedInputs rhs
             where unappliedInputs = concatMap
                     (mapApplied (const []) (replicate 1 . iName)) bInputs
-                  rhs = foldl1 FloAp $ FloVar bName :
+                  rhs = foldl1 FloAp $ floVarCons bName (length bInputs) :
                     map (mapApplied (convert . (bd,)) (FloVar . iName)) bInputs
 
           mapApplied :: (Input -> b) -> (Input -> b) -> Input -> b
           mapApplied t f i = if isApplied bd i then t i else f i
+
+          {- By convention, data constructors start with capital letters. -}
+          floVarCons :: Name -> Int -> FloExpr
+          floVarCons name@(n:ns) i | isUpper n = FloCons name i
+                                   | otherwise = FloVar name
 
 {- Converts the input in the given box definition to a type -}
 instance Convertible (BoxDef, Input) Type where
@@ -158,7 +164,7 @@ instance Pretty Literal where
 instance Pretty FloExpr where
   pp (FloLit lit) = pp lit
   pp (FloVar name) = text name
-  pp (FloCons name) = text name
+  pp (FloCons name i) = text name <+> int i
   pp (FloAp e1 e2) = pp e1 <+> e2'
     where e2' | isAtomicE e2 = pp e2
               | otherwise = parens $ pp e2
@@ -174,6 +180,7 @@ instance Pretty FloExpr where
 isAtomicE :: FloExpr -> Bool
 isAtomicE (FloLit _) = True
 isAtomicE (FloVar _) = True
+isAtomicE (FloCons _ _) = True
 isAtomicE _ = False
 
 instance Pretty [Name] where

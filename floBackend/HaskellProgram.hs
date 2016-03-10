@@ -74,7 +74,7 @@ instance Convertible FloDef HaskellDef where
 instance Convertible FloExpr HaskellExpr where
   convert (FloLit lit) = HaskellLit lit
   convert (FloVar name) = HaskellVar $ fixName name
-  convert (FloCons name) = HaskellCons name
+  convert (FloCons name i) = HaskellCons name
   convert (FloAp e1 e2) = HaskellAp (convert e1) (convert e2)
   convert (FloLambda inputs expr) = HaskellLambda inputs (convert expr)
   convert (FloLet ld le) = HaskellLet (convert ld) (convert le)
@@ -99,6 +99,7 @@ fixName name = name
 instance Pretty HaskellExpr where
   pp (HaskellLit lit) = pp lit
   pp (HaskellVar fun) = text fun
+  pp (HaskellCons cons) = text cons
   pp (HaskellAp e1 e2) = pp e1 <+> e2'
     where e2' | isAtomic e2 = pp e2
               | otherwise = parens $ pp e2
@@ -112,6 +113,7 @@ instance Pretty HaskellExpr where
 isAtomic :: HaskellExpr -> Bool
 isAtomic (HaskellLit _) = True
 isAtomic (HaskellVar _) = True
+isAtomic (HaskellCons _) = True
 isAtomic _ = False
 
 instance Pretty (HaskellExpr, HaskellExpr) where
