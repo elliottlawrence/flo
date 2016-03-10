@@ -94,11 +94,14 @@ instance Convertible BoxDef FloDef where
 instance Convertible (BoxDef, Input) FloExpr where
   convert (bd@BoxDef{..}, i)
     | oParentID == -1 = FloVar oEndInputName
+    -- Used for type annotations
     | bName == "idMono" = FloAnn (convert (bd, head bInputs))
       (convert (bd, bInputs !! 1))
+    -- Case expressions
     | bName == "case" = FloCase (convert (bd, head bInputs)) $
       pairZip $ map (convert . (bd,)) (tail bInputs)
-    | otherwise = fromMaybe createAp (convert bi)
+    -- Typical expressions
+    | otherwise = removeId $ fromMaybe createAp (convert bi)
     where Output{..} = getConnectedOutputUnsafe bd i
           bi@BoxInterface{..} = lookupUnsafe oParentID boxes
 
@@ -125,6 +128,13 @@ instance Convertible (BoxDef, Input) FloExpr where
           floVarCons :: Name -> Int -> FloExpr
           floVarCons name@(n:ns) i | isUpper n = FloCons name i
                                    | otherwise = FloVar name
+
+          {- A simple optimization that is also useful for simulating $. -}
+          removeId :: FloExpr -> FloExpr
+          removeId (FloAp (FloVar "id") e) = e
+          removeId (FloAp e1 e2) = FloAp (removeId e1) e2
+          removeId (FloLambda is e) = FloLambda is (removeId e)
+          removeId e = e
 
 {- Converts the input in the given box definition to a type -}
 instance Convertible (BoxDef, Input) Type where
@@ -164,7 +174,7 @@ instance Pretty Literal where
 instance Pretty FloExpr where
   pp (FloLit lit) = pp lit
   pp (FloVar name) = text name
-  pp (FloCons name i) = text name <+> int i
+  pp (FloCons name _) = text name
   pp (FloAp e1 e2) = pp e1 <+> e2'
     where e2' | isAtomicE e2 = pp e2
               | otherwise = parens $ pp e2

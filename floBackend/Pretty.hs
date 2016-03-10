@@ -12,3 +12,7 @@ showP = render . pp
 -- Separate a list of documents with commas
 commas :: [Doc] -> Doc
 commas = hsep . punctuate comma
+
+-- Same as commas but with no spaces
+commas' :: [Doc] -> Doc
+commas' = hcat . punctuate comma

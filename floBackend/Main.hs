@@ -8,6 +8,7 @@ import FloProgram
 import HaskellProgram
 import JSON
 import Pretty
+import STG
 
 import Control.Monad (forM_)
 import Data.Aeson
@@ -24,30 +25,48 @@ main = do
   args <- getArgs
   if null args then error "No command line argument"
   else do
+    -- Read the file and convert it to a FloProgram
     let filePath = head args
-        outputPath = dropExtension filePath
-        directory = takeDirectory filePath
-        dump = directory </> "dump_"
-
-    -- Read the file and convert it to a Haskell program
     byteString <- B.readFile filePath
     let fg@(FloGraph _) = fromMaybe (error "Couldn't parse file") .
                           decode $ byteString
-    let fp = convert fg :: FloProgram
-    let modules = convert fp
+        fp = convert fg :: FloProgram
+
+    -- Print out the FloProgram just for funsies
     putStrLn (showP fp)
 
-    -- Create the dump directory and copy all the modules into it
-    createDirectoryIfMissing False dump
-    let modulesList = map (getFileName dump) modules
-    forM_ modules $ \m -> writeFile (getFileName dump m) (showP m)
+    -- Route 1: Convert to Haskell
+    useHaskellCompiler fp filePath
+    -- Route 2: Convert to STG
+    useSTGCompiler fp
 
-    -- Run GHC
-    callProcess "/usr/local/bin/ghc" $
-      ["-o", outputPath, "-outputdir", dump] ++ modulesList
+{- Actually compile flo code using the STG machine. -}
+useSTGCompiler :: FloProgram -> IO ()
+useSTGCompiler fp = do
+  let stg = convert fp :: STGProgram
+  putStrLn (showP stg)
 
-    -- Remove the dump directory
-    --removeDirectoryRecursive dump
+{- Convert flo code to Haskell and use GHC to compile it. -}
+useHaskellCompiler :: FloProgram -> FilePath -> IO ()
+useHaskellCompiler fp filePath = do
+  let directory = takeDirectory filePath
+      dump = directory </> "dump_"
+      outputPath = dropExtension filePath
+
+      -- Convert a FloProgram to a HaskellProgram
+      modules = convert fp
+
+  -- Create the dump directory and copy all the modules into it
+  createDirectoryIfMissing False dump
+  let modulesList = map (getFileName dump) modules
+  forM_ modules $ \m -> writeFile (getFileName dump m) (showP m)
+
+  -- Run GHC
+  callProcess "/usr/local/bin/ghc" $
+    ["-o", outputPath, "-outputdir", dump] ++ modulesList
+
+  -- Remove the dump directory
+  --removeDirectoryRecursive dump
 
 getFileName :: String -> HaskellModule -> String
 getFileName dump HaskellModule{..} = dump </> hmName ++ ".hs"
