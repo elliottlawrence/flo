@@ -15,3 +15,5 @@ map f xs = case xs of Nil -> Nil
 map1 f = let {mf xs = case xs of Nil -> Nil
                                  Cons y ys -> Cons (f y) (mf ys)} in
          mf
+test list = case list of Nil -> Nil
+                         blah -> list

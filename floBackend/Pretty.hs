@@ -5,6 +5,10 @@ import Text.PrettyPrint
 class Pretty a where
   pp :: a -> Doc
 
+instance Pretty a => Pretty (Maybe a) where
+  pp (Just a) = pp a
+  pp Nothing = empty
+
 -- Convert a document to a string
 showP :: Pretty a => a -> String
 showP = render . pp

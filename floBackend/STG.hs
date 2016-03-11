@@ -42,13 +42,13 @@ data STGExpr = STGLet Rec [STGBinding] STGExpr      -- Local definition
              | STGLit Lit                           -- Literals
              | STGLambda LambdaForm                 -- Lambdas
 
-data STGAlts = STGAAlts [STGAAlt] --STGDAlt         -- Algebraic
-             | STGPAlts [STGPAlt] --STGDAlt         -- Primitive
+data STGAlts = STGAAlts [STGAAlt] (Maybe STGDAlt)   -- Algebraic
+             | STGPAlts [STGPAlt] (Maybe STGDAlt)   -- Primitive
 
 data STGAAlt = STGAAlt Cons [Var] STGExpr           -- Algebraic alt
 data STGPAlt = STGPAlt Lit STGExpr                  -- Primitive alt
---data STGDAlt = STGDAlt1 Var STGExpr               -- Default alt
---             | STGDAlt2 STGExpr
+data STGDAlt = STGDAlt1 Var STGExpr                 -- Default alt
+             | STGDAlt2 STGExpr
 
 {- So far, only integer literals are supported. -}
 type Lit = Int
@@ -73,6 +73,10 @@ instance (FreeVars a, FreeVars b) => FreeVars (a,b) where
   free (a,b) = do a' <- free a
                   b' <- free b
                   return $ Set.union a' b'
+
+instance FreeVars a => FreeVars (Maybe a) where
+  free (Just a) = free a
+  free Nothing = return Set.empty
 
 instance FreeVars Atom where
   free (AtomVar v) = do
@@ -103,8 +107,8 @@ instance FreeVars STGBinding where
     return $ Set.delete var lform'
 
 instance FreeVars STGAlts where
-  free (STGAAlts aalts) = free aalts
-  free (STGPAlts palts) = free palts
+  free (STGAAlts aalts def) = free (aalts,def)
+  free (STGPAlts palts def) = free (palts,def)
 
 instance FreeVars STGAAlt where
   free (STGAAlt _ vars e) = do
@@ -113,6 +117,10 @@ instance FreeVars STGAAlt where
 
 instance FreeVars STGPAlt where
   free (STGPAlt _ e) = free e
+
+instance FreeVars STGDAlt where
+  free (STGDAlt1 var e) = liftM (Set.delete var) (free e)
+  free (STGDAlt2 e) = free e
 
 {- Creates a lambda form complete with free variables and update flag -}
 createLForm :: [Var] -> STGExpr -> RBinds LambdaForm
@@ -246,17 +254,34 @@ maybeLet :: Bool -> [STGBinding] -> STGExpr -> STGExpr
 maybeLet _ [] = id
 maybeLet rec binds = STGLet rec binds
 
+{- Convenient data type for the different kinds of alts -}
+data Alt = AAlt STGAAlt | PAlt STGPAlt | DAlt STGDAlt
+
 instance Convertible [(FloExpr, FloExpr)] (RBinds STGAlts) where
   convert alts = do
     alts' <- mapM convert alts
-    return $ STGAAlts alts' --(STGDAlt2 $ STGAp "undefined" [])
 
-{- Converts a patt -> expr pair into an STG (algebraic) alt. -}
-instance Convertible (FloExpr, FloExpr) (RBinds STGAAlt) where
-  convert (patt, expr) = do expr' <- convert expr
-                            return $ STGAAlt cons vars expr'
-    where FloCons cons _ : exprs = flatten patt
-          vars = map (\(FloVar var) -> var) exprs
+    -- Split the alts into regular alts and a default alt, if one exists
+    let (def, alts'') = case last alts' of
+                          DAlt dalt -> (Just dalt, init alts')
+                          _ -> (Nothing, alts')
+
+    -- If the only alt is a default, just return that
+    if null alts'' then return $ STGAAlts [] def
+    -- Assume the alts are either all algebraic or all primitive
+    else return $ (case head alts'' of
+          AAlt _ -> STGAAlts . map (\(AAlt aalt) -> aalt)
+          PAlt _ -> STGPAlts . map (\(PAlt palt) -> palt)) alts'' def
+
+{- Converts a patt -> expr pair into an STG alt. -}
+instance Convertible (FloExpr, FloExpr) (RBinds Alt) where
+  convert (patt, expr) = liftM
+    (case flatten patt of
+      FloCons cons _ : exprs -> AAlt . STGAAlt cons vars
+        where vars = map (\(FloVar var) -> var) exprs
+      [FloLit (LitInt i)] -> PAlt . STGPAlt i
+      [FloVar var] -> DAlt . STGDAlt1 var
+      _ -> DAlt . STGDAlt2) (convert expr)
 
 -- Pretty printing
 instance Pretty STGProgram where
@@ -288,8 +313,8 @@ instance Pretty STGExpr where
   pp (STGLambda lform) = pp lform
 
 instance Pretty STGAlts where
-  pp (STGAAlts aalts {-dalt-}) = vcat (map pp aalts) -- $$ pp dalt
-  pp (STGPAlts palts {-dalt-}) = vcat (map pp palts) -- $$ pp dalt
+  pp (STGAAlts aalts dalt) = vcat (map pp aalts) $$ pp dalt
+  pp (STGPAlts palts dalt) = vcat (map pp palts) $$ pp dalt
 
 instance Pretty STGAAlt where
   pp (STGAAlt cons vars expr) = text cons <+> braces (commas' $ map text vars)
@@ -298,9 +323,9 @@ instance Pretty STGAAlt where
 instance Pretty STGPAlt where
   pp (STGPAlt lit expr) = int lit <+> text "->" <+> pp expr
 
---instance Pretty STGDAlt where
---  pp (STGDAlt1 var expr) = text var <+> text "->" <+> pp expr
---  pp (STGDAlt2 expr) = text "default" <+> text "->" <+> pp expr
+instance Pretty STGDAlt where
+  pp (STGDAlt1 var expr) = text var <+> text "->" <+> pp expr
+  pp (STGDAlt2 expr) = text "default" <+> text "->" <+> pp expr
 
 instance Pretty Atom where
   pp (AtomVar var) = text var
