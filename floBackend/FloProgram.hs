@@ -6,6 +6,7 @@ import Convertible
 import FloGraph
 import Pretty
 
+import Control.Monad.Reader
 import Data.Char (isUpper)
 import qualified Data.IntMap as IntMap
 import Data.List (elemIndex, find)
@@ -50,6 +51,9 @@ data FloModule = FloModule {
 
 type FloProgram = [FloModule]
 
+{- A reader monad for storing the current box definition -}
+type RBoxDef a = Reader BoxDef a
+
 instance Convertible FloGraph FloProgram where
   convert (FloGraph modules) = convert modules
 
@@ -66,19 +70,20 @@ hasBox name BoxDef{..} = isJust $
   find (\bi -> bName bi == name) $ IntMap.elems boxes
 
 instance Convertible BoxDef FloDataCons where
-  convert bd@BoxDef{..} = FloDataCons dataConsName fields t
+  convert bd@BoxDef{..} =
+    FloDataCons dataConsName (runReader fields bd) (runReader t bd)
     where bi = getConnectedBox bd endInput
           dataConsName = bName boxInterface
-          (fields, t) | bName bi == "idMono" = (convert (bd, bInputs bi !! 1),
-                                                convert (bd, head $ bInputs bi))
-                      | bName bi == "DataCons" = (convert (bd, endInput),
-                                                  TypeCons dataConsName [])
+          (fields, t) | bName bi == "idMono" = (convert $ bInputs bi !! 1,
+                        convert $ head $ bInputs bi)
+                      | bName bi == "DataCons" = (convert endInput,
+                        return $ TypeCons dataConsName [])
 
 {- Converts "DataCons" into a list of types -}
-instance Convertible (BoxDef, Input) [Type] where
-  convert (bd@BoxDef{..}, i) = map (convertAnn . convert . (bd,)) bInputs
-    where BoxInterface{..} = getConnectedBox bd i
-          convertAnn (FloAnn t _) = t
+instance Convertible Input (RBoxDef [Type]) where
+  convert i = do
+    bd <- ask
+    mapM (liftM (\(FloAnn t _) -> t) . convert) (bInputs $ getConnectedBox bd i)
 
 {- The expression component of a box definition is the expression determined by
    the output box. In addition, if a box has local definitions, these are
@@ -88,61 +93,77 @@ instance Convertible BoxDef FloDef where
     if null localDefs then boxExpr
                       else FloLet (map convert localDefs) boxExpr
     where BoxInterface{..} = boxInterface
-          boxExpr = convert (bd, endInput)
+          boxExpr = runReader (convert endInput) bd
 
 {- Converts the input in the given box definition to an expression -}
-instance Convertible (BoxDef, Input) FloExpr where
-  convert (bd@BoxDef{..}, i)
-    | oParentID == -1 = FloVar oEndInputName
+instance Convertible Input (RBoxDef FloExpr) where
+  convert i = do
+    bd@BoxDef{..} <- ask
+    let Output{..} = getConnectedOutputUnsafe bd i
+        bi@BoxInterface{..} = lookupUnsafe oParentID boxes
+
+    -- Box definition input
+    if oParentID == -1 then return $ FloVar oEndInputName
+
     -- Used for type annotations
-    | bName == "idMono" = FloAnn (convert (bd, head bInputs))
-      (convert (bd, bInputs !! 1))
+    else if bName == "idMono" then
+      liftM2 FloAnn (convert $ head bInputs) (convert $ bInputs !! 1)
+
     -- Case expressions
-    | bName == "case" = FloCase (convert (bd, head bInputs)) $
-      pairZip $ map (convert . (bd,)) (tail bInputs)
+    else if bName == "case" then
+      liftM2 FloCase (convert $ head bInputs)
+        (liftM pairZip $ mapM convert (tail bInputs))
+
     -- Typical expressions
-    | otherwise = removeId $ fromMaybe createAp (convert bi)
-    where Output{..} = getConnectedOutputUnsafe bd i
-          bi@BoxInterface{..} = lookupUnsafe oParentID boxes
-
-          pairZip :: [a] -> [(a,a)]
-          pairZip [] = []
-          pairZip (x:y:xs) = (x,y) : pairZip xs
-
-          {- To create an expression out of a function or constructor, convert
+    else do
+      let {- To create an expression out of a function or constructor, convert
              all of its inputs to expressions and then apply them to the
              function. For constant applicative forms, no inputs need be
              applied. -}
-          createAp :: FloExpr
-          createAp | null unappliedInputs = rhs
-                   | otherwise = FloLambda unappliedInputs rhs
-            where unappliedInputs = concatMap
-                    (mapApplied (const []) (replicate 1 . iName)) bInputs
-                  rhs = foldl1 FloAp $ floVarCons bName (length bInputs) :
-                    map (mapApplied (convert . (bd,)) (FloVar . iName)) bInputs
+          createAp :: RBoxDef FloExpr
+          createAp = do
+            bd <- ask
+            let unappliedInputs = concatMap
+                    (mapApplied bd (const []) (replicate 1 . iName)) bInputs
+                rhs = do aps <- mapM (mapApplied bd convert
+                                (return . FloVar . iName)) bInputs
+                         return $ foldl1 FloAp $
+                          floVarCons bName (length bInputs) : aps
+            if null unappliedInputs then rhs
+            else liftM (FloLambda unappliedInputs) rhs
 
-          mapApplied :: (Input -> b) -> (Input -> b) -> Input -> b
-          mapApplied t f i = if isApplied bd i then t i else f i
+      ap <- createAp
+      return $ removeId $ fromMaybe ap (convert bi)
 
-          {- By convention, data constructors start with capital letters. -}
-          floVarCons :: Name -> Int -> FloExpr
-          floVarCons name i | isUpper n = FloCons name i
-                            | otherwise = FloVar name
-            where name'@(n:ns) = case elemIndex '.' name of
-                                  Just i -> drop (i+1) name
-                                  Nothing -> name
+    where
+      mapApplied :: BoxDef -> (Input -> b) -> (Input -> b) -> Input -> b
+      mapApplied bd t f i = if isApplied bd i then t i else f i
 
-          {- A simple optimization that is also useful for simulating $. -}
-          removeId :: FloExpr -> FloExpr
-          removeId (FloAp (FloVar "id") e) = e
-          removeId (FloAp e1 e2) = FloAp (removeId e1) e2
-          removeId (FloLambda is e) = FloLambda is (removeId e)
-          removeId e = e
+      pairZip :: [a] -> [(a,a)]
+      pairZip [] = []
+      pairZip (x:y:xs) = (x,y) : pairZip xs
+
+      {- By convention, data constructors start with capital letters. -}
+      floVarCons :: Name -> Int -> FloExpr
+      floVarCons name i | isUpper n = FloCons name i
+                        | otherwise = FloVar name
+        where name'@(n:ns) = case elemIndex '.' name of
+                              Just i -> drop (i+1) name
+                              Nothing -> name
+
+      {- A simple optimization that is also useful for simulating $. -}
+      removeId :: FloExpr -> FloExpr
+      removeId (FloAp (FloVar "id") e) = e
+      removeId (FloAp e1 e2) = FloAp (removeId e1) e2
+      removeId (FloLambda is e) = FloLambda is (removeId e)
+      removeId e = e
 
 {- Converts the input in the given box definition to a type -}
-instance Convertible (BoxDef, Input) Type where
-  convert (bd@BoxDef{..}, t) = TypeCons bName $ map (convert . (bd,)) bInputs
-    where BoxInterface{..} = getConnectedBox bd t
+instance Convertible Input (RBoxDef Type) where
+  convert t = do
+    bd <- ask
+    let BoxInterface{..} = getConnectedBox bd t
+    liftM (TypeCons bName) (mapM convert bInputs)
 
 {- A literal is simply the box's name. -}
 instance Convertible BoxInterface (Maybe FloExpr) where

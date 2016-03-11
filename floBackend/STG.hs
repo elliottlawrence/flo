@@ -19,6 +19,9 @@ data STGBinding = STGBinding Var LambdaForm
 {- A set of global or free variables -}
 type Bindings = Set.Set Var
 
+{- A reader monad for storing the global variables -}
+type RBinds a = Reader Bindings a
+
 data LambdaForm = LambdaForm {
   fVars :: Bindings,
   flag :: UpdateFlag,
@@ -65,7 +68,7 @@ stgLamb fVars flag args expr = STGLambda $ LambdaForm fVars flag args expr
 
 {- Finds the free variables in an expression, atom, binding, etc. -}
 class FreeVars a where
-  free :: a -> Reader Bindings Bindings
+  free :: a -> RBinds Bindings
 
 instance FreeVars a => FreeVars [a] where
   free as = mapM free as >>= \frees -> return $ Set.unions frees
@@ -124,7 +127,7 @@ instance Convertible FloProgram STGProgram where
           globals = Set.fromList $ map fdName defs
 
 {- Each flo definition corresponds to an STG binding. -}
-instance Convertible FloDef (Reader Bindings STGBinding) where
+instance Convertible FloDef (RBinds STGBinding) where
   convert FloDef{..} = do
     globs <- ask
     expr <- convert fdExpr
@@ -132,7 +135,7 @@ instance Convertible FloDef (Reader Bindings STGBinding) where
     let fVars = (expr' Set.\\ Set.fromList fdInputs) Set.\\ globs
     return $ STGBinding fdName $ LambdaForm fVars N fdInputs expr
 
-instance Convertible FloExpr (Reader Bindings STGExpr) where
+instance Convertible FloExpr (RBinds STGExpr) where
   -- Only integer literals are supported at the moment
   convert (FloLit (LitInt i)) = return $ STGLit i
 
@@ -210,12 +213,12 @@ newArgs prefix = map (\num -> prefix ++ show num) [1..]
 
 {- Converts a list of expressions (function arguments) to a list of atomic
    expressions and bindings -}
-argsToAtomsBinds :: [FloExpr] -> Reader Bindings ([Atom], [STGBinding])
+argsToAtomsBinds :: [FloExpr] -> RBinds ([Atom], [STGBinding])
 argsToAtomsBinds es = do
   (atoms, maybeBinds) <- mapAndUnzipM toAtomBind (zip es [1..])
   return (atoms, catMaybes maybeBinds)
   where
-    toAtomBind :: (FloExpr, Int) -> Reader Bindings (Atom, Maybe STGBinding)
+    toAtomBind :: (FloExpr, Int) -> RBinds (Atom, Maybe STGBinding)
     toAtomBind (e,num)
       | isAtomic e = return (toAtom e, Nothing)
       | otherwise = do
@@ -241,13 +244,13 @@ maybeLet :: Bool -> [STGBinding] -> STGExpr -> STGExpr
 maybeLet _ [] = id
 maybeLet rec binds = STGLet rec binds
 
-instance Convertible [(FloExpr, FloExpr)] (Reader Bindings STGAlts) where
+instance Convertible [(FloExpr, FloExpr)] (RBinds STGAlts) where
   convert alts = do
     alts' <- mapM convert alts
     return $ STGAAlts alts' --(STGDAlt2 $ STGAp "undefined" [])
 
 {- Converts a patt -> expr pair into an STG (algebraic) alt. -}
-instance Convertible (FloExpr, FloExpr) (Reader Bindings STGAAlt) where
+instance Convertible (FloExpr, FloExpr) (RBinds STGAAlt) where
   convert (patt, expr) = do expr' <- convert expr
                             return $ STGAAlt cons vars expr'
     where FloCons cons _ : exprs = flatten patt
