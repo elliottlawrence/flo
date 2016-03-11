@@ -62,10 +62,6 @@ type Cons = String
 primOps :: [String]
 primOps = ["+", "-", "*", "/"]
 
-{- Convenience function -}
-stgLamb :: Bindings -> UpdateFlag -> [Var] -> STGExpr -> STGExpr
-stgLamb fVars flag args expr = STGLambda $ LambdaForm fVars flag args expr
-
 {- Finds the free variables in an expression, atom, binding, etc. -}
 class FreeVars a where
   free :: a -> RBinds Bindings
@@ -118,6 +114,24 @@ instance FreeVars STGAAlt where
 instance FreeVars STGPAlt where
   free (STGPAlt _ e) = free e
 
+{- Creates a lambda form complete with free variables and update flag -}
+createLForm :: [Var] -> STGExpr -> RBinds LambdaForm
+createLForm args expr = do
+  globs <- ask
+  expr' <- free expr
+  let fVars = (expr' Set.\\ Set.fromList args) Set.\\ globs
+  -- Add redundant free variables to ensure that constructors are standard
+  fVars' <- case expr of
+              STGCons _ atoms -> do atoms' <- free atoms
+                                    return $ fVars `Set.union` atoms'
+              _ -> return fVars
+  return $ LambdaForm fVars' (getFlag args expr) args expr
+
+  where getFlag (a:as) _ = N  -- Manifest functions
+        getFlag [] (STGCons _ _) = N  -- Constructors
+        getFlag [] _ = U  -- Thunks/default
+
+{- Converts a FloProgram to an STGProgram -}
 instance Convertible FloProgram STGProgram where
   convert modules = STGProgram $ runReader (mapM convert defs) globals
           -- Flatten the modules into a single list of declarations (for now)
@@ -128,12 +142,8 @@ instance Convertible FloProgram STGProgram where
 
 {- Each flo definition corresponds to an STG binding. -}
 instance Convertible FloDef (RBinds STGBinding) where
-  convert FloDef{..} = do
-    globs <- ask
-    expr <- convert fdExpr
-    expr' <- free expr
-    let fVars = (expr' Set.\\ Set.fromList fdInputs) Set.\\ globs
-    return $ STGBinding fdName $ LambdaForm fVars N fdInputs expr
+  convert FloDef{..} = do expr <- convert fdExpr
+                          liftM (STGBinding fdName) (createLForm fdInputs expr)
 
 instance Convertible FloExpr (RBinds STGExpr) where
   -- Only integer literals are supported at the moment
@@ -141,8 +151,8 @@ instance Convertible FloExpr (RBinds STGExpr) where
 
   convert (FloVar n)
     -- Case B1: Operator has no arguments
-    | n `elem` primOps = return $ STGLambda $
-      LambdaForm Set.empty N [a1,a2] $ STGPrim n (AtomVar a1) (AtomVar a2)
+    | n `elem` primOps = liftM STGLambda $
+      createLForm [a1,a2] $ STGPrim n (AtomVar a1) (AtomVar a2)
     | otherwise = return $ STGAp n []
     where [a1,a2] = take 2 $ newArgs "_"
 
@@ -150,8 +160,7 @@ instance Convertible FloExpr (RBinds STGExpr) where
     -- Case C1: Constructor takes no arguments
     | i == 0 = return $ STGCons n []
     -- Case C2: Constructor takes arguments, but none have been applied
-    | i > 0 = do fVars <- free expr
-                 return $ stgLamb fVars N args expr
+    | i > 0 = liftM STGLambda $ createLForm args expr
     where args = take i $ newArgs "_"
           expr = STGCons n (map AtomVar args)
 
@@ -168,18 +177,19 @@ instance Convertible FloExpr (RBinds STGExpr) where
         | i == length es -> retLetF (tail binds) (STGCons n atoms)
         -- Case C4: Constructor takes arguments, and some have been
         -- applied
-        | otherwise -> do fVars <- free lexp
-                          retLetF (tail binds) (stgLamb fVars N args lexp)
+        | otherwise -> do
+          lForm <- createLForm args lexp
+          retLetF (tail binds) (STGLambda lForm)
         where args = take (i - length es) $ newArgs "_"
               lexp = STGCons n $ atoms ++ map AtomVar args
       FloVar n
         -- Case B2: Operator has 1 argument
         | n `elem` primOps && length es == 1 -> do
-            fVars <- free lexp
-            retLetF binds (stgLamb fVars N [arg] lexp)
+          lForm <- createLForm [arg] lexp
+          retLetF binds (STGLambda lForm)
         -- Case B3: Operator has 2 arguments
         | n `elem` primOps && length es == 2 ->
-            retLetF binds (STGPrim n (head atoms) (atoms !! 1))
+          retLetF binds (STGPrim n (head atoms) (atoms !! 1))
         where [arg] = take 1 $ newArgs "_"
               lexp = STGPrim n (head atoms) (AtomVar arg)
       -- Default case
@@ -187,18 +197,11 @@ instance Convertible FloExpr (RBinds STGExpr) where
 
   convert (FloLambda ns e) = do
     e' <- convert e
-    fVars <- free e'
-    return $ stgLamb fVars N ns e'
+    liftM STGLambda $ createLForm ns e'
 
-  convert (FloLet defs e) = do
-    defs' <- mapM convert defs
-    e' <- convert e
-    return $ STGLet True defs' e'
+  convert (FloLet defs e) = liftM2 (STGLet True) (mapM convert defs) (convert e)
 
-  convert (FloCase e alts) = do
-    e' <- convert e
-    alts' <- convert alts
-    return $ STGCase e' alts'
+  convert (FloCase e alts) = liftM2 STGCase (convert e) (convert alts)
 
   convert (FloAnn _ e) = convert e
 
@@ -223,9 +226,8 @@ argsToAtomsBinds es = do
       | isAtomic e = return (toAtom e, Nothing)
       | otherwise = do
         let var = "__" ++ show num
-        e' <- convert e
-        fVars <- free e'
-        return (AtomVar var, Just $ STGBinding var $ LambdaForm fVars U [] e')
+        lForm <- join $ liftM (createLForm []) (convert e)
+        return (AtomVar var, Just $ STGBinding var lForm)
 
     {- This is slightly different from isAtomicE, since for the purposes
        of adding parentheses, constructors are atomic, but for STG, they
@@ -264,9 +266,9 @@ instance Pretty STGBinding where
   pp (STGBinding n lf) = text n <+> equals <+> nest 4 (pp lf)
 
 instance Pretty LambdaForm where
-  pp LambdaForm{..} = braces (commas' $ map text (Set.toList fVars)) <+>
-    text "\\" <> pp flag <+> braces (commas' $ map text args) <+> text "->"
-    <+> pp expr
+  pp LambdaForm{..} = fsep [braces (commas' $ map text (Set.toList fVars)) <+>
+    text "\\" <> pp flag <+> braces (commas' $ map text args) <+> text "->",
+    pp expr]
 
 instance Pretty UpdateFlag where
   pp U = text "u"
@@ -276,7 +278,8 @@ instance Pretty STGExpr where
   pp (STGLet rec binds expr) = text "let" <> rec' <+> vcat (map pp binds) $$
     text "in" <+> pp expr
     where rec' = text $ if rec then "rec" else ""
-  pp (STGCase expr alts) = text "case" <+> pp expr <+> text "of" $$ pp alts
+  pp (STGCase expr alts) = text "case" <+> pp expr <+> text "of" $$
+    nest 2 (pp alts)
   pp (STGAp var []) = text var
   pp (STGAp var atoms) = text var <+> braces (commas' $ map pp atoms)
   pp (STGCons cons atoms) = text cons <+> braces (commas' $ map pp atoms)
