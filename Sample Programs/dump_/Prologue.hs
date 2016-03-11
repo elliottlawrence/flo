@@ -11,4 +11,4 @@ iff cond thenn elsee = case cond of True -> thenn
                                     False -> elsee
 id x = x
 map f xs = case xs of Nil -> Nil
-                      Cons y ys -> Cons (f y) (map f xs)
+                      Cons y ys -> Cons (f y) (map f ys)

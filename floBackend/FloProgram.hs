@@ -8,7 +8,7 @@ import Pretty
 
 import Data.Char (isUpper)
 import qualified Data.IntMap as IntMap
-import Data.List (find)
+import Data.List (elemIndex, find)
 import Data.Maybe (fromMaybe, isJust)
 import Text.PrettyPrint
 import Text.Regex.Posix
@@ -126,8 +126,11 @@ instance Convertible (BoxDef, Input) FloExpr where
 
           {- By convention, data constructors start with capital letters. -}
           floVarCons :: Name -> Int -> FloExpr
-          floVarCons name@(n:ns) i | isUpper n = FloCons name i
-                                   | otherwise = FloVar name
+          floVarCons name i | isUpper n = FloCons name i
+                            | otherwise = FloVar name
+            where name'@(n:ns) = case elemIndex '.' name of
+                                  Just i -> drop (i+1) name
+                                  Nothing -> name
 
           {- A simple optimization that is also useful for simulating $. -}
           removeId :: FloExpr -> FloExpr

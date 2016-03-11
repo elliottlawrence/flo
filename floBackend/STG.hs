@@ -6,18 +6,21 @@ import Convertible
 import FloProgram
 import Pretty
 
-import Data.Maybe (catMaybes)
+import Control.Monad.Reader
 import Data.List ((\\))
+import Data.Maybe (catMaybes)
+import qualified Data.Set as Set
 import Text.PrettyPrint
-
-import Debug.Trace
 
 data STGProgram = STGProgram [STGBinding]
 
 data STGBinding = STGBinding Var LambdaForm
 
+{- A set of global or free variables -}
+type Bindings = Set.Set Var
+
 data LambdaForm = LambdaForm {
-  fVars :: [Var],
+  fVars :: Bindings,
   flag :: UpdateFlag,
   args :: [Var],
   expr :: STGExpr
@@ -56,95 +59,144 @@ type Cons = String
 primOps :: [String]
 primOps = ["+", "-", "*", "/"]
 
+{- Convenience function -}
+stgLamb :: Bindings -> UpdateFlag -> [Var] -> STGExpr -> STGExpr
+stgLamb fVars flag args expr = STGLambda $ LambdaForm fVars flag args expr
+
 {- Finds the free variables in an expression, atom, binding, etc. -}
 class FreeVars a where
-  free :: [String] -> a -> [Var]
+  free :: a -> Reader Bindings Bindings
 
 instance FreeVars a => FreeVars [a] where
-  free globs = concatMap (free globs)
+  free as = mapM free as >>= \frees -> return $ Set.unions frees
+
+instance (FreeVars a, FreeVars b) => FreeVars (a,b) where
+  free (a,b) = do a' <- free a
+                  b' <- free b
+                  return $ Set.union a' b'
 
 instance FreeVars Atom where
-  free globs (AtomVar v) | v `notElem` globs = [v]
-                         | otherwise = []
-  free _ (AtomLit _) = []
+  free (AtomVar v) = do
+    contains <- asks (v `elem`)
+    return $ if contains then Set.empty else Set.singleton v
+  free (AtomLit _) = return Set.empty
 
 instance FreeVars STGExpr where
-  free _ (STGLit _) = []
-  free globs (STGPrim _ a1 a2) = free globs [a1,a2]
-  free globs (STGCons _ as) = free globs as
-  free globs (STGAp v as) = free globs as ++ v'
-    where v' | v `notElem` globs = [v]
-             | otherwise = []
-  free globs (STGLet _ binds e) = undefined
-  free globs (STGCase e alts) = free globs e ++ free globs alts
-  free globs (STGLambda LambdaForm{..}) = (fVars \\ args) \\ globs
+  free (STGLit _) = return Set.empty
+  free (STGPrim _ a1 a2) = free [a1,a2]
+  free (STGCons _ as) = free as
+  free (STGAp v as) = free (AtomVar v, as)
+  free (STGLet _ binds e) = do
+    bindse' <- free (binds,e)
+    let bound = Set.fromList $ map (\(STGBinding var _) -> var) binds
+    return $ bindse' Set.\\ bound
+  free (STGCase e alts) = free (e,alts)
+  free (STGLambda lf) = free lf
+
+instance FreeVars LambdaForm where
+  -- We will always assume that a lambda form's list of free variables is
+  -- correct.
+  free LambdaForm{..} = return fVars
+
+instance FreeVars STGBinding where
+  free (STGBinding var lform) = do
+    lform' <- free lform
+    return $ Set.delete var lform'
 
 instance FreeVars STGAlts where
-  free globs (STGAAlts aalts) = free globs aalts
-  free globs (STGPAlts palts) = free globs palts
+  free (STGAAlts aalts) = free aalts
+  free (STGPAlts palts) = free palts
 
 instance FreeVars STGAAlt where
-  free globs (STGAAlt cons vars e) = undefined
+  free (STGAAlt _ vars e) = do
+    e' <- free e
+    return $ Set.fromList vars Set.\\ e'
 
 instance FreeVars STGPAlt where
-  free globs (STGPAlt lit e) = undefined
+  free (STGPAlt _ e) = free e
 
 instance Convertible FloProgram STGProgram where
-  convert modules = STGProgram $ convert defs
-    -- Flatten the modules into a single list of declarations (for now)
+  convert modules = STGProgram $ runReader (mapM convert defs) globals
+          -- Flatten the modules into a single list of declarations (for now)
     where defs = concatMap (\d -> case d of FD def -> [def]; DC _ -> [])
                  (concatMap fmDecls modules)
+          -- The globals are the top level definitions
+          globals = Set.fromList $ map fdName defs
 
 {- Each flo definition corresponds to an STG binding. -}
-instance Convertible FloDef STGBinding where
-  convert FloDef{..} = STGBinding fdName $
-    LambdaForm fVars N fdInputs (convert fdExpr)
-    where fVars = []
+instance Convertible FloDef (Reader Bindings STGBinding) where
+  convert FloDef{..} = do
+    globs <- ask
+    expr <- convert fdExpr
+    expr' <- free expr
+    let fVars = (expr' Set.\\ Set.fromList fdInputs) Set.\\ globs
+    return $ STGBinding fdName $ LambdaForm fVars N fdInputs expr
 
-instance Convertible FloExpr STGExpr where
+instance Convertible FloExpr (Reader Bindings STGExpr) where
   -- Only integer literals are supported at the moment
-  convert (FloLit (LitInt i)) = STGLit i
+  convert (FloLit (LitInt i)) = return $ STGLit i
+
   convert (FloVar n)
     -- Case B1: Operator has no arguments
-    | n `elem` primOps = STGLambda $ LambdaForm [] N [a1,a2] $
-      STGPrim n (AtomVar a1) (AtomVar a2)
-    | otherwise = STGAp n []
+    | n `elem` primOps = return $ STGLambda $
+      LambdaForm Set.empty N [a1,a2] $ STGPrim n (AtomVar a1) (AtomVar a2)
+    | otherwise = return $ STGAp n []
     where [a1,a2] = take 2 $ newArgs "_"
+
   convert (FloCons n i)
     -- Case C1: Constructor takes no arguments
-    | i == 0 = STGCons n []
+    | i == 0 = return $ STGCons n []
     -- Case C2: Constructor takes arguments, but none have been applied
-    | i > 0 = STGLambda $ LambdaForm [] N args expr
+    | i > 0 = do fVars <- free expr
+                 return $ stgLamb fVars N args expr
     where args = take i $ newArgs "_"
           expr = STGCons n (map AtomVar args)
-  convert aps@(FloAp e1 e2) = maybeLet False binds' expr
-    where e:es = flatten aps
-          (AtomVar av : atoms, binds) = argsToAtomsBinds (e:es)
 
-          -- Note: If e is a constructor, argsToAtomsBinds will create a binding
-          -- for it, so we must ignore it.
-          (binds', expr) = case e of
-            FloCons n i
-              -- Case C3: Constructor takes arguments, and all have been applied
-              | i == length es -> (tail binds, STGCons n atoms)
-              -- Case C4: Constructor takes arguments, and some have been
-              -- applied
-              | otherwise -> (tail binds, STGLambda $ LambdaForm [] N args lexp)
-              where args = take (i - length es) $ newArgs "_"
-                    lexp = STGCons n $ atoms ++ map AtomVar args
-            FloVar n
-              -- Case B2: Operator has 1 argument
-              | n `elem` primOps && length es == 1 -> (binds, STGLambda $
-                LambdaForm [] N [arg] $ STGPrim n (head atoms) (AtomVar arg))
-              -- Case B3: Operator has 2 arguments
-              | n `elem` primOps && length es == 2 ->
-                (binds, STGPrim n (head atoms) (atoms !! 1))
-              where [arg] = take 1 $ newArgs "_"
-            otherwise -> (binds, STGAp av atoms)
+  convert aps@(FloAp e1 e2) = do
+    let e:es = flatten aps
+        retLetF letb lete = return $ maybeLet False letb lete
+    (AtomVar av : atoms, binds) <- argsToAtomsBinds (e:es)
 
-  convert (FloLambda ns e) = STGLambda $ LambdaForm [] N ns (convert e)
-  convert (FloLet defs e) = STGLet True (convert defs) (convert e)
-  convert (FloCase e alts) = STGCase (convert e) (convert alts)
+    case e of
+    -- Note: If e is a constructor, argsToAtomsBinds will create a binding
+    -- for it, so we must ignore it.
+      FloCons n i
+        -- Case C3: Constructor takes arguments, and all have been applied
+        | i == length es -> retLetF (tail binds) (STGCons n atoms)
+        -- Case C4: Constructor takes arguments, and some have been
+        -- applied
+        | otherwise -> do fVars <- free lexp
+                          retLetF (tail binds) (stgLamb fVars N args lexp)
+        where args = take (i - length es) $ newArgs "_"
+              lexp = STGCons n $ atoms ++ map AtomVar args
+      FloVar n
+        -- Case B2: Operator has 1 argument
+        | n `elem` primOps && length es == 1 -> do
+            fVars <- free lexp
+            retLetF binds (stgLamb fVars N [arg] lexp)
+        -- Case B3: Operator has 2 arguments
+        | n `elem` primOps && length es == 2 ->
+            retLetF binds (STGPrim n (head atoms) (atoms !! 1))
+        where [arg] = take 1 $ newArgs "_"
+              lexp = STGPrim n (head atoms) (AtomVar arg)
+      -- Default case
+      otherwise -> retLetF binds (STGAp av atoms)
+
+  convert (FloLambda ns e) = do
+    e' <- convert e
+    fVars <- free e'
+    return $ stgLamb fVars N ns e'
+
+  convert (FloLet defs e) = do
+    defs' <- mapM convert defs
+    e' <- convert e
+    return $ STGLet True defs' e'
+
+  convert (FloCase e alts) = do
+    e' <- convert e
+    alts' <- convert alts
+    return $ STGCase e' alts'
+
   convert (FloAnn _ e) = convert e
 
 {- Flatten out a bunch of binary applications. -}
@@ -158,39 +210,46 @@ newArgs prefix = map (\num -> prefix ++ show num) [1..]
 
 {- Converts a list of expressions (function arguments) to a list of atomic
    expressions and bindings -}
-argsToAtomsBinds :: [FloExpr] -> ([Atom], [STGBinding])
-argsToAtomsBinds es = (atoms, catMaybes maybeBinds)
-  where (atoms, maybeBinds) = unzip $ zipWith toAtomBind es [1..]
-        toAtomBind e num
-          | isAtomic e = (toAtom e, Nothing)
-          | otherwise = (AtomVar var, Just $ STGBinding var $
-                         LambdaForm fVars U [] (convert e))
-                        where var = "__" ++ show num
-                              fVars = []
+argsToAtomsBinds :: [FloExpr] -> Reader Bindings ([Atom], [STGBinding])
+argsToAtomsBinds es = do
+  (atoms, maybeBinds) <- mapAndUnzipM toAtomBind (zip es [1..])
+  return (atoms, catMaybes maybeBinds)
+  where
+    toAtomBind :: (FloExpr, Int) -> Reader Bindings (Atom, Maybe STGBinding)
+    toAtomBind (e,num)
+      | isAtomic e = return (toAtom e, Nothing)
+      | otherwise = do
+        let var = "__" ++ show num
+        e' <- convert e
+        fVars <- free e'
+        return (AtomVar var, Just $ STGBinding var $ LambdaForm fVars U [] e')
 
-        {- This is slightly different from isAtomicE, since for the purposes
-           of adding parentheses, constructors are atomic, but for STG, they
-           aren't. -}
-        isAtomic :: FloExpr -> Bool
-        isAtomic (FloVar _) = True
-        isAtomic (FloLit _) = True
-        isAtomic _ = False
+    {- This is slightly different from isAtomicE, since for the purposes
+       of adding parentheses, constructors are atomic, but for STG, they
+       aren't. -}
+    isAtomic :: FloExpr -> Bool
+    isAtomic (FloVar _) = True
+    isAtomic (FloLit _) = True
+    isAtomic _ = False
 
-        toAtom :: FloExpr -> Atom
-        toAtom (FloVar n) = AtomVar n
-        toAtom (FloLit (LitInt i)) = AtomLit i
+    toAtom :: FloExpr -> Atom
+    toAtom (FloVar n) = AtomVar n
+    toAtom (FloLit (LitInt i)) = AtomLit i
 
 {- Creates a let expression if the list of bindings is not empty. -}
 maybeLet :: Bool -> [STGBinding] -> STGExpr -> STGExpr
 maybeLet _ [] = id
 maybeLet rec binds = STGLet rec binds
 
-instance Convertible [(FloExpr, FloExpr)] STGAlts where
-  convert alts = STGAAlts (convert alts) --(STGDAlt2 $ STGAp "undefined" [])
+instance Convertible [(FloExpr, FloExpr)] (Reader Bindings STGAlts) where
+  convert alts = do
+    alts' <- mapM convert alts
+    return $ STGAAlts alts' --(STGDAlt2 $ STGAp "undefined" [])
 
 {- Converts a patt -> expr pair into an STG (algebraic) alt. -}
-instance Convertible (FloExpr, FloExpr) STGAAlt where
-  convert (patt, expr) = STGAAlt cons vars (convert expr)
+instance Convertible (FloExpr, FloExpr) (Reader Bindings STGAAlt) where
+  convert (patt, expr) = do expr' <- convert expr
+                            return $ STGAAlt cons vars expr'
     where FloCons cons _ : exprs = flatten patt
           vars = map (\(FloVar var) -> var) exprs
 
@@ -202,8 +261,9 @@ instance Pretty STGBinding where
   pp (STGBinding n lf) = text n <+> equals <+> nest 4 (pp lf)
 
 instance Pretty LambdaForm where
-  pp LambdaForm{..} = braces (commas' $ map text fVars) <+> text "\\" <>
-    pp flag <+> braces (commas' $ map text args) <+> text "->" <+> pp expr
+  pp LambdaForm{..} = braces (commas' $ map text (Set.toList fVars)) <+>
+    text "\\" <> pp flag <+> braces (commas' $ map text args) <+> text "->"
+    <+> pp expr
 
 instance Pretty UpdateFlag where
   pp U = text "u"
