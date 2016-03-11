@@ -110,7 +110,7 @@ instance FreeVars STGAlts where
 instance FreeVars STGAAlt where
   free (STGAAlt _ vars e) = do
     e' <- free e
-    return $ Set.fromList vars Set.\\ e'
+    return $ e' Set.\\ Set.fromList vars
 
 instance FreeVars STGPAlt where
   free (STGPAlt _ e) = free e
