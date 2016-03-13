@@ -27,7 +27,8 @@ instance FromJSON BoxInterface where
   parseJSON _ = mzero
 
 instance FromJSON BoxInterfaceMap where
-  parseJSON (Array a) = IntMap.fromList <$> mapM parseBox (V.toList a)
+  parseJSON (Array a) =
+    BoxInterfaceMap . IntMap.fromList <$> mapM parseBox (V.toList a)
     where parseBox (Object v) = do key <- v .: "ID"
                                    val <- v .: "boxInterface"
                                    return (key, val)

@@ -2,6 +2,7 @@
   FlexibleInstances #-}
 module Main where
 
+import AbstractC
 import Convertible
 import FloGraph
 import FloProgram
@@ -15,7 +16,7 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy as B
 import Data.Maybe (fromMaybe)
 import System.Directory (
-  createDirectoryIfMissing, removeDirectoryRecursive, copyFile)
+  copyFile, createDirectoryIfMissing, removeDirectoryRecursive, removeFile)
 import System.Environment (getArgs)
 import System.FilePath
 import System.Process (callProcess)
@@ -32,19 +33,33 @@ main = do
                           decode $ byteString
         fp = convert fg :: FloProgram
 
-    -- Print out the FloProgram just for funsies
-    putStrLn (showP fp)
+    --putStrLn (showP fp)
 
+    (if "-hask" `elem` args
     -- Route 1: Convert to Haskell
-    useHaskellCompiler fp filePath
+    then useHaskellCompiler
     -- Route 2: Convert to STG
-    useSTGCompiler fp
+    else useSTGCompiler) fp filePath
 
 {- Actually compile flo code using the STG machine. -}
-useSTGCompiler :: FloProgram -> IO ()
-useSTGCompiler fp = do
-  let stg = convert fp :: STGProgram
+useSTGCompiler :: FloProgram -> FilePath -> IO ()
+useSTGCompiler fp filePath = do
+  let directory = takeDirectory filePath
+      outputPath = dropExtension filePath <.> ".c"
+
+      -- Convert a FloProgram to STG
+      stg = convert fp :: STGProgram
   putStrLn (showP stg)
+
+      -- Convert to C and write it to a file
+  let cProg = convert stg :: CProgram
+  writeFile outputPath (showP cProg)
+
+  -- Run gcc
+  callProcess "/usr/bin/gcc" [outputPath, "-o", dropExtension outputPath]
+
+  -- Remove the C file
+  --removeFile outputPath
 
 {- Convert flo code to Haskell and use GHC to compile it. -}
 useHaskellCompiler :: FloProgram -> FilePath -> IO ()
@@ -69,4 +84,4 @@ useHaskellCompiler fp filePath = do
   --removeDirectoryRecursive dump
 
 getFileName :: String -> HaskellModule -> String
-getFileName dump HaskellModule{..} = dump </> hmName ++ ".hs"
+getFileName dump HaskellModule{..} = dump </> hmName <.> ".hs"

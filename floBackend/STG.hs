@@ -10,7 +10,7 @@ import Control.Monad.Reader
 import Data.List ((\\))
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
-import Text.PrettyPrint
+import Text.PrettyPrint.Leijen hiding (Pretty)
 
 data STGProgram = STGProgram [STGBinding]
 
@@ -47,8 +47,7 @@ data STGAlts = STGAAlts [STGAAlt] (Maybe STGDAlt)   -- Algebraic
 
 data STGAAlt = STGAAlt Cons [Var] STGExpr           -- Algebraic alt
 data STGPAlt = STGPAlt Lit STGExpr                  -- Primitive alt
-data STGDAlt = STGDAlt1 Var STGExpr                 -- Default alt
-             | STGDAlt2 STGExpr
+data STGDAlt = STGDAlt (Maybe Var) STGExpr          -- Default alt
 
 {- So far, only integer literals are supported. -}
 type Lit = Int
@@ -119,8 +118,8 @@ instance FreeVars STGPAlt where
   free (STGPAlt _ e) = free e
 
 instance FreeVars STGDAlt where
-  free (STGDAlt1 var e) = liftM (Set.delete var) (free e)
-  free (STGDAlt2 e) = free e
+  free (STGDAlt (Just var) e) = liftM (Set.delete var) (free e)
+  free (STGDAlt Nothing e) = free e
 
 {- Creates a lambda form complete with free variables and update flag -}
 createLForm :: [Var] -> STGExpr -> RBinds LambdaForm
@@ -280,31 +279,31 @@ instance Convertible (FloExpr, FloExpr) (RBinds Alt) where
       FloCons cons _ : exprs -> AAlt . STGAAlt cons vars
         where vars = map (\(FloVar var) -> var) exprs
       [FloLit (LitInt i)] -> PAlt . STGPAlt i
-      [FloVar var] -> DAlt . STGDAlt1 var
-      _ -> DAlt . STGDAlt2) (convert expr)
+      [FloVar var] -> DAlt . STGDAlt (Just var)
+      _ -> DAlt . STGDAlt Nothing) (convert expr)
 
 -- Pretty printing
 instance Pretty STGProgram where
-  pp (STGProgram binds) = vcat $ map pp binds
+  pp (STGProgram binds) = pp binds
 
 instance Pretty STGBinding where
   pp (STGBinding n lf) = text n <+> equals <+> nest 4 (pp lf)
 
 instance Pretty LambdaForm where
-  pp LambdaForm{..} = fsep [braces (commas' $ map text (Set.toList fVars)) <+>
-    text "\\" <> pp flag <+> braces (commas' $ map text args) <+> text "->",
-    pp expr]
+  pp LambdaForm{..} = braces (commas' $ map text (Set.toList fVars)) <+>
+    text "\\" <> pp flag <+> align (braces (commas' $ map text args) <+>
+    text "->" </> align (pp expr))
 
 instance Pretty UpdateFlag where
-  pp U = text "u"
-  pp N = text "n"
+  pp U = char 'u'
+  pp N = char 'n'
 
 instance Pretty STGExpr where
-  pp (STGLet rec binds expr) = text "let" <> rec' <+> vcat (map pp binds) $$
-    text "in" <+> pp expr
+  pp (STGLet rec binds expr) = text "let" <> rec' <+> align (pp binds) <$$>
+    text "in" <+> align (pp expr)
     where rec' = text $ if rec then "rec" else ""
-  pp (STGCase expr alts) = text "case" <+> pp expr <+> text "of" $$
-    nest 2 (pp alts)
+  pp (STGCase expr alts) = text "case" <+> pp expr <+> text "of" <$$>
+    indent 2 (pp alts)
   pp (STGAp var []) = text var
   pp (STGAp var atoms) = text var <+> braces (commas' $ map pp atoms)
   pp (STGCons cons atoms) = text cons <+> braces (commas' $ map pp atoms)
@@ -313,19 +312,19 @@ instance Pretty STGExpr where
   pp (STGLambda lform) = pp lform
 
 instance Pretty STGAlts where
-  pp (STGAAlts aalts dalt) = vcat (map pp aalts) $$ pp dalt
-  pp (STGPAlts palts dalt) = vcat (map pp palts) $$ pp dalt
+  pp (STGAAlts aalts dalt) = pp aalts <$$> pp dalt
+  pp (STGPAlts palts dalt) = pp palts <$$> pp dalt
 
 instance Pretty STGAAlt where
   pp (STGAAlt cons vars expr) = text cons <+> braces (commas' $ map text vars)
-    <+> text "->" <+> pp expr
+    <+> text "->" <+> align (pp expr)
 
 instance Pretty STGPAlt where
-  pp (STGPAlt lit expr) = int lit <+> text "->" <+> pp expr
+  pp (STGPAlt lit expr) = int lit <+> text "->" <+> align (pp expr)
 
 instance Pretty STGDAlt where
-  pp (STGDAlt1 var expr) = text var <+> text "->" <+> pp expr
-  pp (STGDAlt2 expr) = text "default" <+> text "->" <+> pp expr
+  pp (STGDAlt (Just var) expr) = text var <+> text "->" <+> align (pp expr)
+  pp (STGDAlt Nothing expr) = text "default" <+> text "->" <+> align (pp expr)
 
 instance Pretty Atom where
   pp (AtomVar var) = text var

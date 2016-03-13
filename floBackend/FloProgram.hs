@@ -11,7 +11,7 @@ import Data.Char (isUpper)
 import qualified Data.IntMap as IntMap
 import Data.List (elemIndex, find)
 import Data.Maybe (fromMaybe, isJust)
-import Text.PrettyPrint
+import Text.PrettyPrint.Leijen as L hiding (Pretty)
 import Text.Regex.Posix
 
 data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
@@ -67,7 +67,7 @@ instance Convertible BoxDef FloDecl where
 {- Determines if a box definition contains a box with the given name -}
 hasBox :: String -> BoxDef -> Bool
 hasBox name BoxDef{..} = isJust $
-  find (\bi -> bName bi == name) $ IntMap.elems boxes
+  find (\bi -> bName bi == name) $ IntMap.elems (biMap boxes)
 
 instance Convertible BoxDef FloDataCons where
   convert bd@BoxDef{..} =
@@ -190,26 +190,22 @@ isLitFloat = (=~ "^[0-9]*\\.[0-9]+$")     -- ^[0-9]*\.[0-9]+$
 
 -- Pretty printing
 instance Pretty Literal where
-  pp (LitInt i) = int i
-  pp (LitFloat d) = double d
-  pp (LitChar c) = quotes $ char c
-  pp (LitString s) = doubleQuotes $ text s
+  pp (LitInt i) = pp i
+  pp (LitFloat d) = pp d
+  pp (LitChar c) = squotes $ char c
+  pp (LitString s) = dquotes $ text s
 
 instance Pretty FloExpr where
   pp (FloLit lit) = pp lit
   pp (FloVar name) = text name
   pp (FloCons name _) = text name
-  pp (FloAp e1 e2) = pp e1 <+> e2'
-    where e2' | isAtomicE e2 = pp e2
-              | otherwise = parens $ pp e2
+  pp (FloAp e1 e2) = pp e1 <+> maybeParens (not $ isAtomicE e2) (pp e2)
   pp (FloLambda inputs expr) = char '\\' <> pp inputs <+> text "->" <+> pp expr
   pp (FloLet ld le) = text "let" <+> braces (vcat $ punctuate semi (map pp ld))
-    <+> text "in" $$ pp le
-  pp (FloCase e alts) = text "case" <+> pp e <+> text "of" <+>
-    vcat (map pp alts)
-  pp (FloAnn t e) = parens $ e' <+> text "::" <+> pp t
-    where e' | isAtomicE e = pp e
-             | otherwise = parens $ pp e
+    </> text "in" <+> align (pp le)
+  pp (FloCase e alts) = text "case" <+> pp e <+> text "of" </> align (pp alts)
+  pp (FloAnn t e) = parens $ maybeParens (not $ isAtomicE e) (pp e) <+>
+    text "::" <+> pp t
 
 isAtomicE :: FloExpr -> Bool
 isAtomicE (FloLit _) = True
@@ -217,24 +213,22 @@ isAtomicE (FloVar _) = True
 isAtomicE (FloCons _ _) = True
 isAtomicE _ = False
 
-instance Pretty [Name] where
-  pp = hsep . map text
-
 instance Pretty FloDef where
-  pp FloDef{..} = text fdName <+> pp fdInputs <+> equals <+> nest 4 (pp fdExpr)
+  pp FloDef{..} = hsep [text fdName, hsep $ map pp fdInputs, equals,
+    align $ pp fdExpr]
 
 instance Pretty FloDataCons where
-  pp FloDataCons{..} = text "data" <+> text dcName <+> pp dcFields <+>
-    text "::" <+> pp dcType
+  pp FloDataCons{..} = hsep [text "data", text dcName, pp dcFields, text "::",
+    pp dcType]
 
 instance Pretty Type where
-  pp (TypeCons name vars) = text name <+> pp vars
-
-instance Pretty [Type] where
-  pp = hsep . map (\t -> if isAtomicT t then pp t else parens $ pp t)
+  pp (TypeCons name vars) = text name <> vars'
+    where vars' | null vars = L.empty
+                | otherwise = L.empty <+> pp vars
+  ppList = hsep . map (\t -> maybeParens (not $ isAtomicT t) (pp t))
 
 instance Pretty (FloExpr, FloExpr) where
-  pp (e1, e2) = pp e1 <+> text "->" <+> pp e2
+  pp (e1, e2) = pp e1 <+> text "->" <+> align (pp e2)
 
 isAtomicT :: Type -> Bool
 isAtomicT (TypeCons _ []) = True
@@ -245,8 +239,5 @@ instance Pretty FloDecl where
   pp (DC dc) = pp dc
 
 instance Pretty FloModule where
-  pp FloModule{..} = text "FloModule" <+> text fmName <+> lbrace $$
-    nest 4 (vcat (map pp fmDecls) $$ rbrace)
-
-instance Pretty FloProgram where
-  pp = vcat . map pp
+  pp FloModule{..} = text "FloModule" <+> text fmName <+> lbrace <$$>
+    indent 4 (pp fmDecls) <$$> rbrace

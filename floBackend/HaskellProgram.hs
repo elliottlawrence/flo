@@ -9,7 +9,7 @@ import Pretty
 
 import Data.List (intercalate)
 import qualified Data.Map as Map
-import Text.PrettyPrint
+import Text.PrettyPrint.Leijen hiding (Pretty)
 
 data HaskellExpr = HaskellLit Literal
                  | HaskellVar Name
@@ -100,15 +100,13 @@ instance Pretty HaskellExpr where
   pp (HaskellLit lit) = pp lit
   pp (HaskellVar fun) = text fun
   pp (HaskellCons cons) = text cons
-  pp (HaskellAp e1 e2) = pp e1 <+> e2'
-    where e2' | isAtomic e2 = pp e2
-              | otherwise = parens $ pp e2
+  pp (HaskellAp e1 e2) = pp e1 <+> maybeParens (not $ isAtomic e2) (pp e2)
   pp (HaskellLambda inputs expr)
     = char '\\' <> pp inputs <+> text "->" <+> pp expr
-  pp (HaskellLet ld le) = text "let" <+>
-    braces (vcat $ punctuate semi (map pp ld)) <+> text "in" $$ pp le
-  pp (HaskellCase e alts) = text "case" <+> pp e <+> text "of" <+>
-    vcat (map pp alts)
+  pp (HaskellLet ld le) = text "let" <+> braces
+    (vcat $ punctuate semi (map pp ld)) </> text "in" <+> align (pp le)
+  pp (HaskellCase e alts) = text "case" <+> pp e <+> text "of" </>
+    align (pp alts)
 
 isAtomic :: HaskellExpr -> Bool
 isAtomic (HaskellLit _) = True
@@ -117,27 +115,28 @@ isAtomic (HaskellCons _) = True
 isAtomic _ = False
 
 instance Pretty (HaskellExpr, HaskellExpr) where
-  pp (e1, e2) = pp e1 <+> text "->" <+> pp e2
+  pp (e1, e2) = pp e1 <+> text "->" <+> align (pp e2)
 
 instance Pretty HaskellDef where
-  pp HaskellDef{..}
-    = hsep [text hdName, pp hdInputs, equals, pp hdExpr]
+  pp HaskellDef{..} = hsep [text hdName, hsep $ map pp hdInputs, equals,
+    align $ pp hdExpr]
 
 instance Pretty HaskellDataType where
-  pp HaskellDataType{..} = text "data" <+> text dtName <+> pp dtTyVars <+>
-    equals <+> hsep (punctuate (text " |") (map pp dtDataConses))
+  pp HaskellDataType{..} = hsep [text "data", text dtName, pp dtTyVars, equals,
+    pp dtDataConses]
 
 instance Pretty HaskellDataCons where
-  pp HaskellDataCons{..} = text hdcName <+> pp hdcFields
+  pp HaskellDataCons{..} = text hdcName <> fields'
+    where fields' | null hdcFields = empty
+                  | otherwise = empty <+> pp hdcFields
+  ppList = hsep . punctuate (text " |") . map pp
 
 instance Pretty HaskellDecl where
   pp (HD def) = pp def
   pp (HDT dt) = pp dt
+  ppList = vcat . punctuate line . map pp
 
 instance Pretty HaskellModule where
   pp HaskellModule{..} = text "module" <+> text hmName <+>
-    text "where" $+$ imports' $+$ vcat (map pp hmDecls)
+    text "where" <$$> imports' <$$> empty <$$> pp hmDecls
     where imports' = vcat $ map ((text "import" <+>) . text) hmImports
-
-instance Pretty HaskellProgram where
-  pp modules = vcat $ map pp modules

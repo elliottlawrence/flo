@@ -6,7 +6,7 @@ import Pretty
 import qualified Data.IntMap as IntMap
 import Data.List (find)
 import Data.Maybe (fromMaybe)
-import Text.PrettyPrint
+import Text.PrettyPrint.Leijen hiding (Pretty)
 
 type Name = String
 
@@ -30,7 +30,7 @@ data BoxInterface = BoxInterface {
 {- Within a function definition, the same box can appear multiple times. Thus,
    boxes are identified by a unique key. -}
 type ID = Int
-type BoxInterfaceMap = IntMap.IntMap BoxInterface
+newtype BoxInterfaceMap = BoxInterfaceMap {biMap :: IntMap.IntMap BoxInterface}
 
 data BoxDef = BoxDef {
   boxInterface :: BoxInterface,
@@ -64,7 +64,7 @@ isApplied BoxDef{..} i = any (\(_ :-: i') -> i == i') cables
 
 {- Lookup a box with a given ID. -}
 lookupUnsafe :: Int -> BoxInterfaceMap -> BoxInterface
-lookupUnsafe id boxes =
+lookupUnsafe id (BoxInterfaceMap boxes) =
   fromMaybe (error "Box not found") $ IntMap.lookup id boxes
 
 {- Get the box interface that is connected to the given input. -}
@@ -83,22 +83,21 @@ instance Pretty Cable where
   pp (o :-: i) = pp o <+> text ":-:" <+> pp i
 
 instance Pretty BoxInterface where
-  pp BoxInterface{..} = text "Box:" <+> text bName $$
-    text "Inputs:" <+> vcat (map pp bInputs)
+  pp BoxInterface{..} = text "Box:" <+> text bName <$$>
+    text "Inputs:" <+> align (pp bInputs)
 
 instance Pretty BoxInterfaceMap where
-  pp biMap = vcat $ map (\(key,a) -> int key <> colon <+> pp a)
-    (IntMap.toList biMap)
+  pp (BoxInterfaceMap boxes) = vcat $
+    map (\(key,a) -> int key <> colon <+> pp a) (IntMap.toList boxes)
 
 instance Pretty BoxDef where
-  pp BoxDef{..} = pp boxInterface <+> equals $+$
-    nest 4 (text "Boxes:" <+> pp boxes $+$
-            text "Cables:" <+> vcat (map pp cables) $+$
-            text "Definitions:" <+> cat (map pp localDefs))
+  pp BoxDef{..} = pp boxInterface <$$>
+    indent 4 (text "Boxes:" <+> pp boxes <$$>
+              text "Cables:" <+> align (pp cables) <$$>
+              text "Definitions:" <+> align (pp localDefs))
 
 instance Pretty Module where
-  pp Module{..} = text "Module:" <+> text mName $+$
-    nest 4 (vcat $ map pp mDefs)
+  pp Module{..} = text "Module:" <+> text mName <$$> indent 4 (pp mDefs)
 
 instance Pretty FloGraph where
-  pp (FloGraph modules) = vcat . map pp $ modules
+  pp (FloGraph modules) = pp modules
