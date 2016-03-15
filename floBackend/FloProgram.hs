@@ -41,25 +41,22 @@ data FloDataCons = FloDataCons {                  -- Data constructors
   dcType :: Type
 }
 
-data FloModule = FloModule {
-  fmName :: Name,
-  fmDataConses :: [FloDataCons],
-  fmDefs :: [FloDef]
+data FloProgram = FloProgram {
+  fpDataConses :: [FloDataCons],
+  fpDefs :: [FloDef]
 }
-
-type FloProgram = [FloModule]
 
 {- Reader monads for storing the current box definition and data constructors -}
 type RBoxDef a = Reader BoxDef a
 type RDataConses a = Reader [FloDataCons] a
 type RBoxDefDataConses a = Reader (BoxDef, [FloDataCons]) a
 
+{- FloGraphs consist of modules, but FloPrograms do not, so we must flatten the
+   box definitions and data constructors into a single "module". -}
 instance Convertible FloGraph FloProgram where
-  convert (FloGraph modules) = convert modules
-
-instance Convertible Module FloModule where
-  convert Module{..} = FloModule mName dataConses defs
-    where (dataConses, defs') = partitionEithers $ convert mDefs
+  convert (FloGraph modules) = FloProgram dataConses defs
+    where module' = Module "main" (concatMap mDefs modules)
+          (dataConses, defs') = partitionEithers $ convert $ mDefs module'
           defs = map (`runReader` dataConses) defs'
 
 instance Convertible BoxDef (Either FloDataCons (RDataConses FloDef)) where
@@ -234,6 +231,5 @@ isAtomicT :: Type -> Bool
 isAtomicT (TypeCons _ []) = True
 isAtomicT _ = False
 
-instance Pretty FloModule where
-  pp FloModule{..} = text "FloModule" <+> text fmName <+> lbrace <$$>
-    indent 4 (pp fmDataConses <$$> pp fmDefs) <$$> rbrace
+instance Pretty FloProgram where
+  pp FloProgram{..} = pp fpDataConses <$$> pp fpDefs

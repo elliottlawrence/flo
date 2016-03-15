@@ -15,7 +15,10 @@ import Text.PrettyPrint.Leijen hiding (Pretty)
 
 {- An STG program consists of a list of function bindings, along with a list of
    data constructors. -}
-data STGProgram = STGProgram [STGBinding] [STGDataCons]
+data STGProgram = STGProgram {
+  stgBindings :: [STGBinding],
+  stgDataConses :: [STGDataCons]
+}
 
 data STGBinding = STGBinding Var LambdaForm
 
@@ -156,17 +159,14 @@ createLForm args expr = do
 
 {- Converts a FloProgram to an STGProgram -}
 instance Convertible FloProgram STGProgram where
-  convert modules =
-    STGProgram (runReader (mapM convert defs) (globals,dataConsMap)) dataConses
-          -- Flatten the modules into a single list of declarations (for now)
-    where defs = concatMap fmDefs modules
-          dataConses = map
-            (\dc -> STGDataCons (dcName dc) (length $ dcFields dc))
-            (concatMap fmDataConses modules)
+  convert FloProgram{..} = STGProgram
+    (runReader (mapM convert fpDefs) (globals,dataConsMap)) dataConses
+    where dataConses = map
+            (\dc -> STGDataCons (dcName dc) (length $ dcFields dc)) fpDataConses
           dataConsMap = foldl (\map (STGDataCons name arity) ->
             Map.insert name arity map) Map.empty dataConses
           -- The globals are the top level definitions
-          globals = Set.fromList $ map fdName defs
+          globals = Set.fromList $ map fdName fpDefs
 
 {- Each flo definition corresponds to an STG binding. -}
 instance Convertible FloDef (RBindsDataConses STGBinding) where
@@ -320,7 +320,7 @@ instance Convertible (FloExpr, FloExpr) (RBindsDataConses Alt) where
 
 -- Pretty printing
 instance Pretty STGProgram where
-  pp (STGProgram binds dataConses) = {-pp dataConses <$$>-} pp binds
+  pp STGProgram{..} = {-pp stgDataConses <$$>-} pp stgBindings
 
 instance Pretty STGDataCons where
   pp (STGDataCons name arity) = text name <+> int arity

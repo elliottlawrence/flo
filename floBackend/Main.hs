@@ -1,5 +1,4 @@
-{-# LANGUAGE RecordWildCards, MultiParamTypeClasses, TypeSynonymInstances,
-  FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances, FlexibleInstances #-}
 module Main where
 
 import AbstractC
@@ -56,7 +55,7 @@ useSTGCompiler fp filePath = do
   writeFile outputPath (showP cProg)
 
   -- Run gcc
-  callProcess "/usr/bin/gcc" [outputPath, "-o", dropExtension outputPath]
+  --callProcess "/usr/bin/gcc" [outputPath, "-o", dropExtension outputPath]
 
   -- Remove the C file
   --removeFile outputPath
@@ -67,21 +66,19 @@ useHaskellCompiler fp filePath = do
   let directory = takeDirectory filePath
       dump = directory </> "dump_"
       outputPath = dropExtension filePath
+      inputFilePath = dump </> "Main" <.> ".hs"
 
       -- Convert a FloProgram to a HaskellProgram
-      modules = convert fp
+      hp = convert fp :: HaskellProgram
+
 
   -- Create the dump directory and copy all the modules into it
   createDirectoryIfMissing False dump
-  let modulesList = map (getFileName dump) modules
-  forM_ modules $ \m -> writeFile (getFileName dump m) (showP m)
+  writeFile inputFilePath (showP hp)
 
   -- Run GHC
-  callProcess "/usr/local/bin/ghc" $
-    ["-o", outputPath, "-outputdir", dump] ++ modulesList
+  callProcess "/usr/local/bin/ghc"
+    ["-o", outputPath, "-outputdir", dump, inputFilePath]
 
   -- Remove the dump directory
   --removeDirectoryRecursive dump
-
-getFileName :: String -> HaskellModule -> String
-getFileName dump HaskellModule{..} = dump </> hmName <.> ".hs"

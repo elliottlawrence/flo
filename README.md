@@ -21,7 +21,7 @@ When using boxes in expressions, they appear as black boxes. Inputs go in and an
 Box definitions can be arbitrarily nested, creating the equivalent of a let expression in Haskell. When a box definition occurs nested inside another box definition, the scope of the local definition is only for the box definition it is contained in.
 
 #### Modules
-Just as in other languages, a program can have multiple modules. The purpose of modules is to limit the scope of box definitions and support code reusability.
+The flo editor allows you to create multiple modules which can be used for organizing and reusing code. Modules do not actually limit the scope of box definitions, however. Box definitions defined in one module are visible throughout the entire program (unless they are local definitions, of course).
 
 #### Types
 Flo is strongly, statically typed, but type inference is performed so that type annotations are unnecessary. An important exception to this is when defining the types of fields in data constructors. To specify that an expression has a certain type, use the built-in function idMono, which is the monomorphic identity function. It takes two parameters, a type and an expression. It returns the seconds parameter unchanged, just like the regular identity function, but it forces it to have the type of the first parameter.

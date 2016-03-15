@@ -36,22 +36,16 @@ data HaskellDataCons = HaskellDataCons {
   hdcFields :: [Type]
 }
 
-data HaskellModule = HaskellModule {
-  hmName :: Name,
-  hmDataTypes :: [HaskellDataType],
-  hmDefs :: [HaskellDef],
-  hmImports :: [Name]
+data HaskellProgram = HaskellProgram {
+  hpDataTypes :: [HaskellDataType],
+  hpDefs :: [HaskellDef],
+  hpImports :: [Name]
 }
 
-type HaskellProgram = [HaskellModule]
-
-instance Convertible FloModule HaskellModule where
-  convert FloModule{..}
-    = HaskellModule fmName (collectDataTypes $ convert fmDataConses)
-    (convert fmDefs) imports
-    where imports = "qualified Prelude as Hask" : others
-          others | fmName /= "Prologue" = ["Prologue"]
-                 | otherwise = []
+instance Convertible FloProgram HaskellProgram where
+  convert FloProgram{..} = HaskellProgram
+    (collectDataTypes $ convert fpDataConses) (convert fpDefs) imports
+    where imports = ["qualified Prelude as Hask"]
 
 {- Combines data constructors with the same type into one declaration -}
 collectDataTypes :: [HaskellDataType] -> [HaskellDataType]
@@ -126,9 +120,9 @@ instance Pretty HaskellDataCons where
                   | otherwise = space <> pp hdcFields
   ppList = hsep . punctuate (text " |") . map pp
 
-instance Pretty HaskellModule where
-  pp HaskellModule{..} = vcat [text "module" <+> text hmName
-    <+> text "where", imports', dataTypes', pp hmDefs]
-    where imports' = vcat $ map ((text "import" <+>) . text) hmImports
-          dataTypes' | null hmDataTypes = empty
-                     | otherwise = line <> pp hmDataTypes <> line
+instance Pretty HaskellProgram where
+  pp HaskellProgram{..} = vcat [text "module Main" <+> text "where", imports',
+    dataTypes', pp hpDefs]
+    where imports' = vcat $ map ((text "import" <+>) . text) hpImports
+          dataTypes' | null hpDataTypes = empty
+                     | otherwise = line <> pp hpDataTypes <> line

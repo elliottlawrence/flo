@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses, RecordWildCards #-}
 module AbstractC where
 
 import Convertible
@@ -47,7 +47,7 @@ interpreter = CSWhile (CLit $ CBool True)
   [CSExpr $ CAssign "cont" (CCall (CPointer "cont") [])]
 
 instance Convertible STGProgram CProgram where
-  convert (STGProgram binds dataConses) = CProgram
+  convert STGProgram{..} = CProgram
     [trueFalseMacro, enterMacro, jumpMacro] [] [cMain]
     where trueFalseMacro = "#define TRUE  1\n#define FALSE 0"
           jumpMacro = "#define JUMP(lbl)  return(lbl)"
