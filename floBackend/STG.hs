@@ -8,19 +8,30 @@ import Pretty
 
 import Control.Monad.Reader
 import Data.List ((\\))
-import Data.Maybe (catMaybes)
+import qualified Data.Map as Map
+import Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Set as Set
 import Text.PrettyPrint.Leijen hiding (Pretty)
 
-data STGProgram = STGProgram [STGBinding]
+{- An STG program consists of a list of function bindings, along with a list of
+   data constructors. -}
+data STGProgram = STGProgram [STGBinding] [STGDataCons]
 
 data STGBinding = STGBinding Var LambdaForm
+
+{- Since STG is untyped, the only information we need at this point about a data
+   constructor is its name and arity. -}
+data STGDataCons = STGDataCons Cons Int
 
 {- A set of global or free variables -}
 type Bindings = Set.Set Var
 
-{- A reader monad for storing the global variables -}
+{- A map of data constructors to their arities -}
+type DataConses = Map.Map Cons Int
+
+{- A reader monad for storing the global variables and data constructors -}
 type RBinds a = Reader Bindings a
+type RBindsDataConses a = Reader (Bindings, DataConses) a
 
 data LambdaForm = LambdaForm {
   fVars :: Bindings,
@@ -60,6 +71,11 @@ type Cons = String
 {- The primitive binary operations. -}
 primOps :: [String]
 primOps = ["+", "-", "*", "/"]
+
+{- Find the arity of the given data constructor -}
+getDataConsArity :: DataConses -> Cons -> Int
+getDataConsArity dataConses name =
+  fromMaybe (error "Data constructor not found") $ Map.lookup name dataConses
 
 {- Finds the free variables in an expression, atom, binding, etc. -}
 class FreeVars a where
@@ -140,38 +156,53 @@ createLForm args expr = do
 
 {- Converts a FloProgram to an STGProgram -}
 instance Convertible FloProgram STGProgram where
-  convert modules = STGProgram $ runReader (mapM convert defs) globals
+  convert modules =
+    STGProgram (runReader (mapM convert defs) (globals,dataConsMap)) dataConses
           -- Flatten the modules into a single list of declarations (for now)
-    where defs = concatMap (\d -> case d of FD def -> [def]; DC _ -> [])
-                 (concatMap fmDecls modules)
+    where defs = concatMap fmDefs modules
+          dataConses = map
+            (\dc -> STGDataCons (dcName dc) (length $ dcFields dc))
+            (concatMap fmDataConses modules)
+          dataConsMap = foldl (\map (STGDataCons name arity) ->
+            Map.insert name arity map) Map.empty dataConses
           -- The globals are the top level definitions
           globals = Set.fromList $ map fdName defs
 
 {- Each flo definition corresponds to an STG binding. -}
-instance Convertible FloDef (RBinds STGBinding) where
-  convert FloDef{..} = do expr <- convert fdExpr
-                          liftM (STGBinding fdName) (createLForm fdInputs expr)
+instance Convertible FloDef (RBindsDataConses STGBinding) where
+  convert FloDef{..} = do
+    (globs,_) <- ask
+    expr <- convert fdExpr
+    let lForm = runReader (createLForm fdInputs expr) globs
+    return $ STGBinding fdName lForm
 
-instance Convertible FloExpr (RBinds STGExpr) where
+instance Convertible FloExpr (RBindsDataConses STGExpr) where
   -- Only integer literals are supported at the moment
   convert (FloLit (LitInt i)) = return $ STGLit i
 
   convert (FloVar n)
     -- Case B1: Operator has no arguments
-    | n `elem` primOps = liftM STGLambda $
-      createLForm [a1,a2] $ STGPrim n (AtomVar a1) (AtomVar a2)
+    | n `elem` primOps = do
+        (globs,_) <- ask
+        let [a1,a2] = take 2 $ newArgs "_"
+            lForm = runReader (createLForm [a1,a2] $
+                    STGPrim n (AtomVar a1) (AtomVar a2)) globs
+        return $ STGLambda lForm
     | otherwise = return $ STGAp n []
-    where [a1,a2] = take 2 $ newArgs "_"
 
-  convert (FloCons n i)
+  convert (FloCons n) = do
+    (globs,dataConses) <- ask
+    let i = getDataConsArity dataConses n
+        args = take i $ newArgs "_"
+        expr = STGCons n (map AtomVar args)
+        lForm = runReader (createLForm args expr) globs
     -- Case C1: Constructor takes no arguments
-    | i == 0 = return $ STGCons n []
+    if i == 0 then return $ STGCons n []
     -- Case C2: Constructor takes arguments, but none have been applied
-    | i > 0 = liftM STGLambda $ createLForm args expr
-    where args = take i $ newArgs "_"
-          expr = STGCons n (map AtomVar args)
+    else return $ STGLambda lForm
 
   convert aps@(FloAp e1 e2) = do
+    (globs,dataConses) <- ask
     let e:es = flatten aps
         retLetF letb lete = return $ maybeLet False letb lete
     (AtomVar av : atoms, binds) <- argsToAtomsBinds (e:es)
@@ -179,20 +210,21 @@ instance Convertible FloExpr (RBinds STGExpr) where
     case e of
     -- Note: If e is a constructor, argsToAtomsBinds will create a binding
     -- for it, so we must ignore it.
-      FloCons n i
+      FloCons n
         -- Case C3: Constructor takes arguments, and all have been applied
         | i == length es -> retLetF (tail binds) (STGCons n atoms)
         -- Case C4: Constructor takes arguments, and some have been
         -- applied
         | otherwise -> do
-          lForm <- createLForm args lexp
+          let args = take (i - length es) $ newArgs "_"
+              lForm = runReader (createLForm args $
+                      STGCons n $ atoms ++ map AtomVar args) globs
           retLetF (tail binds) (STGLambda lForm)
-        where args = take (i - length es) $ newArgs "_"
-              lexp = STGCons n $ atoms ++ map AtomVar args
+        where i = getDataConsArity dataConses n
       FloVar n
         -- Case B2: Operator has 1 argument
         | n `elem` primOps && length es == 1 -> do
-          lForm <- createLForm [arg] lexp
+          let lForm = runReader (createLForm [arg] lexp) globs
           retLetF binds (STGLambda lForm)
         -- Case B3: Operator has 2 arguments
         | n `elem` primOps && length es == 2 ->
@@ -203,8 +235,10 @@ instance Convertible FloExpr (RBinds STGExpr) where
       otherwise -> retLetF binds (STGAp av atoms)
 
   convert (FloLambda ns e) = do
+    (globs,_) <- ask
     e' <- convert e
-    liftM STGLambda $ createLForm ns e'
+    let lForm = runReader (createLForm ns e') globs
+    return $ STGLambda lForm
 
   convert (FloLet defs e) = liftM2 (STGLet True) (mapM convert defs) (convert e)
 
@@ -223,17 +257,19 @@ newArgs prefix = map (\num -> prefix ++ show num) [1..]
 
 {- Converts a list of expressions (function arguments) to a list of atomic
    expressions and bindings -}
-argsToAtomsBinds :: [FloExpr] -> RBinds ([Atom], [STGBinding])
+argsToAtomsBinds :: [FloExpr] -> RBindsDataConses ([Atom], [STGBinding])
 argsToAtomsBinds es = do
   (atoms, maybeBinds) <- mapAndUnzipM toAtomBind (zip es [1..])
   return (atoms, catMaybes maybeBinds)
   where
-    toAtomBind :: (FloExpr, Int) -> RBinds (Atom, Maybe STGBinding)
+    toAtomBind :: (FloExpr, Int) -> RBindsDataConses (Atom, Maybe STGBinding)
     toAtomBind (e,num)
       | isAtomic e = return (toAtom e, Nothing)
       | otherwise = do
+        (globs,_) <- ask
+        e' <- convert e
         let var = "__" ++ show num
-        lForm <- join $ liftM (createLForm []) (convert e)
+            lForm = runReader (createLForm [] e') globs
         return (AtomVar var, Just $ STGBinding var lForm)
 
     {- This is slightly different from isAtomicE, since for the purposes
@@ -256,7 +292,7 @@ maybeLet rec binds = STGLet rec binds
 {- Convenient data type for the different kinds of alts -}
 data Alt = AAlt STGAAlt | PAlt STGPAlt | DAlt STGDAlt
 
-instance Convertible [(FloExpr, FloExpr)] (RBinds STGAlts) where
+instance Convertible [(FloExpr, FloExpr)] (RBindsDataConses STGAlts) where
   convert alts = do
     alts' <- mapM convert alts
 
@@ -273,10 +309,10 @@ instance Convertible [(FloExpr, FloExpr)] (RBinds STGAlts) where
           PAlt _ -> STGPAlts . map (\(PAlt palt) -> palt)) alts'' def
 
 {- Converts a patt -> expr pair into an STG alt. -}
-instance Convertible (FloExpr, FloExpr) (RBinds Alt) where
+instance Convertible (FloExpr, FloExpr) (RBindsDataConses Alt) where
   convert (patt, expr) = liftM
     (case flatten patt of
-      FloCons cons _ : exprs -> AAlt . STGAAlt cons vars
+      FloCons cons : exprs -> AAlt . STGAAlt cons vars
         where vars = map (\(FloVar var) -> var) exprs
       [FloLit (LitInt i)] -> PAlt . STGPAlt i
       [FloVar var] -> DAlt . STGDAlt (Just var)
@@ -284,7 +320,10 @@ instance Convertible (FloExpr, FloExpr) (RBinds Alt) where
 
 -- Pretty printing
 instance Pretty STGProgram where
-  pp (STGProgram binds) = pp binds
+  pp (STGProgram binds dataConses) = {-pp dataConses <$$>-} pp binds
+
+instance Pretty STGDataCons where
+  pp (STGDataCons name arity) = text name <+> int arity
 
 instance Pretty STGBinding where
   pp (STGBinding n lf) = text n <+> equals <+> nest 4 (pp lf)

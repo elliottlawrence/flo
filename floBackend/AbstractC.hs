@@ -9,7 +9,7 @@ import Text.PrettyPrint.Leijen hiding (Pretty)
 
 type ID = String
 
-data CProgram = CProgram [CInclude] [CMacro] [CVarDecl] [CFunction]
+data CProgram = CProgram [CMacro] [CVarDecl] [CFunction]
 
 type CInclude = String
 
@@ -46,19 +46,17 @@ interpreter :: CStatement
 interpreter = CSWhile (CLit $ CBool True)
   [CSExpr $ CAssign "cont" (CCall (CPointer "cont") [])]
 
-enterMacro :: CMacro
-enterMacro = "#define ENTER(c)  JUMP(**c)"
-
-jumpMacro :: CMacro
-jumpMacro = "#define JUMP(lbl)  return(lbl)"
-
 instance Convertible STGProgram CProgram where
-  convert _ = CProgram ["<stdbool.h>"] [enterMacro, jumpMacro] [] [cMain]
+  convert (STGProgram binds dataConses) = CProgram
+    [trueFalseMacro, enterMacro, jumpMacro] [] [cMain]
+    where trueFalseMacro = "#define TRUE  1\n#define FALSE 0"
+          jumpMacro = "#define JUMP(lbl)  return(lbl)"
+          enterMacro = "#define ENTER(c)  JUMP(**c)"
 
 -- Pretty printing functions
 instance Pretty CProgram where
-  pp (CProgram includes macros vars functions) =
-    vcat (map ((text "#include" <+>) . text) includes) <$$>
+  pp (CProgram macros vars functions) =
+    --vcat (map ((text "#include" <+>) . text) includes) <$$>
     vcat (map text macros) <$$> empty <$$>
     pp vars <$$> pp functions
 
@@ -100,5 +98,5 @@ instance Pretty CExpr where
   pp (CCall expr args) = parens (pp expr) <> parens (pp args)
 
 instance Pretty CLit where
-  pp (CBool bool) | bool = text "true"
-                  | otherwise = text "false"
+  pp (CBool bool) | bool = text "TRUE"
+                  | otherwise = text "FALSE"

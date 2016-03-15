@@ -36,11 +36,10 @@ data HaskellDataCons = HaskellDataCons {
   hdcFields :: [Type]
 }
 
-data HaskellDecl = HD HaskellDef | HDT HaskellDataType
-
 data HaskellModule = HaskellModule {
   hmName :: Name,
-  hmDecls :: [HaskellDecl],
+  hmDataTypes :: [HaskellDataType],
+  hmDefs :: [HaskellDef],
   hmImports :: [Name]
 }
 
@@ -48,24 +47,19 @@ type HaskellProgram = [HaskellModule]
 
 instance Convertible FloModule HaskellModule where
   convert FloModule{..}
-    = HaskellModule fmName (collectDataTypes $ convert fmDecls) imports
+    = HaskellModule fmName (collectDataTypes $ convert fmDataConses)
+    (convert fmDefs) imports
     where imports = "qualified Prelude as Hask" : others
           others | fmName /= "Prologue" = ["Prologue"]
                  | otherwise = []
 
 {- Combines data constructors with the same type into one declaration -}
-collectDataTypes :: [HaskellDecl] -> [HaskellDecl]
-collectDataTypes decls = dataTypes' ++ defs
-  where (dataTypes, defs) = span (\decl -> case decl of HDT hdt -> True
-                                                        HD _ -> False) decls
-        dataTypesMap = Map.fromListWith (++) [((dtName, dtTyVars), dtDataConses)
-          | HDT HaskellDataType{..} <- dataTypes]
+collectDataTypes :: [HaskellDataType] -> [HaskellDataType]
+collectDataTypes dataTypes = dataTypes'
+  where dataTypesMap = Map.fromListWith (++) [((dtName, dtTyVars), dtDataConses)
+          | HaskellDataType{..} <- dataTypes]
         dataTypes' = Map.elems $ Map.mapWithKey (\(name, tyVars) dataConses ->
-          HDT $ HaskellDataType name tyVars dataConses) dataTypesMap
-
-instance Convertible FloDecl HaskellDecl where
-  convert (FD def) = HD $ convert def
-  convert (DC dataCons) = HDT $ convert dataCons
+          HaskellDataType name tyVars dataConses) dataTypesMap
 
 instance Convertible FloDef HaskellDef where
   convert FloDef{..} = HaskellDef (fixName fdName) (map fixName fdInputs)
@@ -74,7 +68,7 @@ instance Convertible FloDef HaskellDef where
 instance Convertible FloExpr HaskellExpr where
   convert (FloLit lit) = HaskellLit lit
   convert (FloVar name) = HaskellVar $ fixName name
-  convert (FloCons name i) = HaskellCons name
+  convert (FloCons name) = HaskellCons name
   convert (FloAp e1 e2) = HaskellAp (convert e1) (convert e2)
   convert (FloLambda inputs expr) = HaskellLambda inputs (convert expr)
   convert (FloLet ld le) = HaskellLet (convert ld) (convert le)
@@ -120,6 +114,7 @@ instance Pretty (HaskellExpr, HaskellExpr) where
 instance Pretty HaskellDef where
   pp HaskellDef{..} = hsep [text hdName, hsep $ map pp hdInputs, equals,
     align $ pp hdExpr]
+  ppList = vcat . punctuate line . map pp
 
 instance Pretty HaskellDataType where
   pp HaskellDataType{..} = hsep [text "data", text dtName, pp dtTyVars, equals,
@@ -128,15 +123,12 @@ instance Pretty HaskellDataType where
 instance Pretty HaskellDataCons where
   pp HaskellDataCons{..} = text hdcName <> fields'
     where fields' | null hdcFields = empty
-                  | otherwise = empty <+> pp hdcFields
+                  | otherwise = space <> pp hdcFields
   ppList = hsep . punctuate (text " |") . map pp
 
-instance Pretty HaskellDecl where
-  pp (HD def) = pp def
-  pp (HDT dt) = pp dt
-  ppList = vcat . punctuate line . map pp
-
 instance Pretty HaskellModule where
-  pp HaskellModule{..} = text "module" <+> text hmName <+>
-    text "where" <$$> imports' <$$> empty <$$> pp hmDecls
+  pp HaskellModule{..} = vcat [text "module" <+> text hmName
+    <+> text "where", imports', dataTypes', pp hmDefs]
     where imports' = vcat $ map ((text "import" <+>) . text) hmImports
+          dataTypes' | null hmDataTypes = empty
+                     | otherwise = line <> pp hmDataTypes <> line
