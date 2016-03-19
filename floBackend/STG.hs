@@ -73,7 +73,7 @@ type Cons = String
 
 {- The primitive binary operations. -}
 primOps :: [String]
-primOps = ["+", "-", "*", "/"]
+primOps = ["+#", "-#", "*#", "/#"]
 
 {- Find the arity of the given data constructor -}
 getDataConsArity :: DataConses -> Cons -> Int

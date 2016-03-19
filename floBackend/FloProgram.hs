@@ -167,8 +167,12 @@ instance Convertible BoxInterface (Maybe FloExpr) where
   convert BoxInterface{..}
     | isLitString bName = justLit $ LitString (init $ tail bName)
     | isLitChar bName = justLit $ LitChar (read bName)
-    | isLitInt bName = justLit $ LitInt (read bName)
-    | isLitFloat bName = justLit $ LitFloat (read bName)
+    | isPrimInt bName = justLit $ LitInt (read $ init bName)
+    | isLitInt bName = Just $
+        FloAp (FloCons "MkInt") (FloLit $ LitInt $ read bName)
+    | isPrimFloat bName = justLit $ LitFloat (read $ init bName)
+    | isLitFloat bName = Just $
+        FloAp (FloCons "MkFloat") (FloLit $ LitFloat $ read bName)
     | otherwise = Nothing
     where justLit = Just . FloLit
 
@@ -182,8 +186,14 @@ isLitChar = (=~ "^'[^\\']'$|^'\\\\['trn]'$|^'\\\\\\\\'$")
 isLitInt :: String -> Bool
 isLitInt = (=~ "^[0-9]+$")    -- ^[0-9]+$
 
+isPrimInt :: String -> Bool
+isPrimInt = (=~ "^[0-9]+#$")    -- ^[0-9]+#$
+
 isLitFloat :: String -> Bool
 isLitFloat = (=~ "^[0-9]*\\.[0-9]+$")     -- ^[0-9]*\.[0-9]+$
+
+isPrimFloat :: String -> Bool
+isPrimFloat = (=~ "^[0-9]*\\.[0-9]+#$")     -- ^[0-9]*\.[0-9]+#$
 
 -- Pretty printing
 instance Pretty Literal where

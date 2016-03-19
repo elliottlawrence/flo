@@ -6,21 +6,25 @@
 typedef int * pointer;
 typedef pointer (* function)();
 
-pointer SpB[10000];
-pointer* SpA = SpB + 9999;
+pointer Stack[10000];
+pointer* SpB = Stack;
+pointer* SpA = Stack + 9999;
 
-int HLimit = 10000;
-pointer Hp[10000];
+pointer Heap[10000];
+pointer* Hp = Heap;
+pointer* HLimit = Heap + 9999;
+
+pointer Node;
 
 int main();
 
-pointer main_glob() {
+pointer main_entry() {
   static int i = 0;
   printf("main_glob %d\n", i);
 
   if (i < 10) {
     i++;
-    JUMP(main_glob);
+    JUMP(main_entry);
   } else {
     JUMP(main);
   }
@@ -28,7 +32,7 @@ pointer main_glob() {
 
 int main() {
   const function f_main = (function)main;
-  function cont = main_glob;
+  function cont = main_entry;
   while (cont != f_main) {
     cont = (function)(*cont)();
   }
