@@ -7,6 +7,7 @@ import FloProgram
 import Pretty
 
 import Control.Monad.Reader
+import Control.Monad.State
 import Data.List ((\\))
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes, fromMaybe)
@@ -32,9 +33,11 @@ type Bindings = Set.Set Var
 {- A map of data constructors to their arities -}
 type DataConses = Map.Map Cons Int
 
-{- A reader monad for storing the global variables and data constructors -}
+{- A reader monad for storing the global variables and data constructors, and a
+   state monad for keeping track of the current binding name -}
 type RBinds a = Reader Bindings a
-type RBindsDataConses a = Reader (Bindings, DataConses) a
+type RBindsDC a = Reader (Bindings, DataConses) a
+type StRBindsDC a = StateT Var (Reader (Bindings, DataConses)) a
 
 data LambdaForm = LambdaForm {
   fVars :: Bindings,
@@ -169,14 +172,14 @@ instance Convertible FloProgram STGProgram where
           globals = Set.fromList $ map fdName fpDefs
 
 {- Each flo definition corresponds to an STG binding. -}
-instance Convertible FloDef (RBindsDataConses STGBinding) where
+instance Convertible FloDef (RBindsDC STGBinding) where
   convert FloDef{..} = do
     (globs,_) <- ask
-    expr <- convert fdExpr
+    expr <- evalStateT (convert fdExpr) fdName
     let lForm = runReader (createLForm fdInputs expr) globs
     return $ STGBinding fdName lForm
 
-instance Convertible FloExpr (RBindsDataConses STGExpr) where
+instance Convertible FloExpr (StRBindsDC STGExpr) where
   -- Only integer literals are supported at the moment
   convert (FloLit (LitInt i)) = return $ STGLit i
 
@@ -240,7 +243,10 @@ instance Convertible FloExpr (RBindsDataConses STGExpr) where
     let lForm = runReader (createLForm ns e') globs
     return $ STGLambda lForm
 
-  convert (FloLet defs e) = liftM2 (STGLet True) (mapM convert defs) (convert e)
+  convert (FloLet defs e) = do
+    reader <- ask
+    let defs' = runReader (mapM convert defs) reader
+    liftM (STGLet True defs') (convert e)
 
   convert (FloCase e alts) = liftM2 STGCase (convert e) (convert alts)
 
@@ -257,19 +263,24 @@ newArgs prefix = map (\num -> prefix ++ show num) [1..]
 
 {- Converts a list of expressions (function arguments) to a list of atomic
    expressions and bindings -}
-argsToAtomsBinds :: [FloExpr] -> RBindsDataConses ([Atom], [STGBinding])
+argsToAtomsBinds :: [FloExpr] -> StRBindsDC ([Atom], [STGBinding])
 argsToAtomsBinds es = do
-  (atoms, maybeBinds) <- mapAndUnzipM toAtomBind (zip es [1..])
+  (atoms, maybeBinds) <- mapAndUnzipM toAtomBind (zip es [0..])
   return (atoms, catMaybes maybeBinds)
   where
-    toAtomBind :: (FloExpr, Int) -> RBindsDataConses (Atom, Maybe STGBinding)
+    toAtomBind :: (FloExpr, Int) -> StRBindsDC (Atom, Maybe STGBinding)
     toAtomBind (e,num)
       | isAtomic e = return (toAtom e, Nothing)
       | otherwise = do
         (globs,_) <- ask
+        -- Update the name of the binding and then reset it
+        name <- get
+        let var = name ++ "_" ++ show num
+        put var
         e' <- convert e
-        let var = "__" ++ show num
-            lForm = runReader (createLForm [] e') globs
+        put name
+        -- Create the binding
+        let lForm = runReader (createLForm [] e') globs
         return (AtomVar var, Just $ STGBinding var lForm)
 
     {- This is slightly different from isAtomicE, since for the purposes
@@ -292,7 +303,7 @@ maybeLet rec binds = STGLet rec binds
 {- Convenient data type for the different kinds of alts -}
 data Alt = AAlt STGAAlt | PAlt STGPAlt | DAlt STGDAlt
 
-instance Convertible [(FloExpr, FloExpr)] (RBindsDataConses STGAlts) where
+instance Convertible [(FloExpr, FloExpr)] (StRBindsDC STGAlts) where
   convert alts = do
     alts' <- mapM convert alts
 
@@ -309,7 +320,7 @@ instance Convertible [(FloExpr, FloExpr)] (RBindsDataConses STGAlts) where
           PAlt _ -> STGPAlts . map (\(PAlt palt) -> palt)) alts'' def
 
 {- Converts a patt -> expr pair into an STG alt. -}
-instance Convertible (FloExpr, FloExpr) (RBindsDataConses Alt) where
+instance Convertible (FloExpr, FloExpr) (StRBindsDC Alt) where
   convert (patt, expr) = liftM
     (case flatten patt of
       FloCons cons : exprs -> AAlt . STGAAlt cons vars
