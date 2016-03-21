@@ -6,8 +6,10 @@ import Convertible
 import Pretty
 import STG
 
-import Control.Arrow (first)
+import Control.Arrow (second, (***))
+import Control.Monad.Reader
 import Control.Monad.State
+import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 import Text.PrettyPrint.Leijen hiding (Pretty)
 
@@ -52,11 +54,13 @@ data CExpr = CID ID
            | CAssign ID (Maybe Int) CExpr
            | COp COp CExpr CExpr
            | CLit Lit
+           | CString String
            | CPointer ID
            | CCall CExpr [CExpr]
            | CCast CType CExpr
            | CArray [CExpr]
            | CArrayElement ID Int
+           | CParens CExpr
 
 data COp = CEq | CNe | CLt | CPlus | CMinus
 
@@ -85,17 +89,18 @@ cMain = CFunction CInt "main" [] [f_main, cont, interpreter, ret]
           (Just $ CID "main_entry")
         interpreter =  CSWhile (COp CNe (CID "cont") (CID "f_main"))
           [CSExpr $ CAssign "cont" Nothing $
-           CCast functionTD (CCall (CPointer "cont") [])]
+           CCast functionTD (CCall (CParens $ CPointer "cont") [])]
         ret = CSReturn $ Just $ CLit 0
 
 instance Convertible STGProgram CProgram where
   convert STGProgram{..} = CProgram
-    [stdio, enterMacro, jumpMacro, pointerTypeDef, functionTypeDef]
+    [stdio, stdlib, enterMacro, jumpMacro, pointerTypeDef, functionTypeDef]
     ([stack, spBDecl, spADecl, heap, hpDecl, hLimitDecl, nodeDecl] ++ prototypes
-      ++ infoTables ++ closures)
+      ++ infoTables ++ closures ++ varDecls)
     (stdEntries ++ [cMain])
     where -- Random declarations
           stdio = "#include <stdio.h>"
+          stdlib = "#include <stdlib.h>"
           enterMacro = "#define ENTER(c)  JUMP(**c)"
           jumpMacro = "#define JUMP(lbl)  return((pointer) lbl)"
           pointerTypeDef = "typedef int * pointer;"
@@ -118,18 +123,35 @@ instance Convertible STGProgram CProgram where
           nodeDecl = CVarDecl pointerTD node Nothing Nothing
 
           -- Static closures
-          (closures, infoTables, stdEntries) = unzip3 $ map convert stgBindings
+          (closures, infoTables, stdEntries') = unzip3 $ map convert stgBindings
+          (varDecls, stdEntries) = concat *** concat $
+            unzip $ map flattenFun stdEntries'
           prototypes = map createFunPrototype (cMain:stdEntries)
 
 createFunPrototype :: CFunction -> CVarDecl
 createFunPrototype CFunction{..} = CVarDecl funType (funName ++ "()")
   Nothing Nothing
 
+{- Flattens a function with nested declarations -}
+flattenFun :: CFunction -> ([CVarDecl],[CFunction])
+flattenFun f@CFunction{..} = (varDecls,funs ++ [f {funBody = funBody'}])
+  where (maybeFunBody,varDecls',funs') = unzip3 $ map extractNested funBody
+        varDecls = concat varDecls'
+        funs = concat funs'
+        funBody' = catMaybes maybeFunBody
+
+{- Extracts nested declarations from a statement -}
+extractNested :: CStatement -> (Maybe CStatement,[CVarDecl],[CFunction])
+extractNested (CNested (Left fun)) = (Nothing,varDecls,funs)
+  where (varDecls,funs) = flattenFun fun
+extractNested (CNested (Right varDecl)) = (Nothing,[varDecl],[])
+extractNested s = (Just s,[],[])
+
 type Closure = CVarDecl
 type InfoTable = CVarDecl
 type StdEntry = CFunction
 
-{- Converts top-level bindings with status closures -}
+{- Converts top-level bindings with static closures -}
 instance Convertible STGBinding (Closure, InfoTable, StdEntry) where
   convert b@(STGBinding name lForm) = (closure, infoTable, stdEntry)
     where closure = createClosure name infoTable
@@ -149,131 +171,183 @@ createInfoTable :: ID -> CFunction -> CVarDecl
 createInfoTable name CFunction{..} = CVarDecl pointerTD (name ++ "_info")
   (Just 0) (Just $ CArray [CCast pointerTD $ CID funName])
 
-instance Convertible (Var, LambdaForm) CFunction where
-  convert (name, LambdaForm{..}) = CFunction pointerTD (name ++ "_entry") [] $
-    case expr of STGAp name as -> compileAp fVars' args name as
-                 STGLet rec binds expr -> compileLet fVars' args binds expr
-                 _ -> [CJump "main"]
-    where fVars' = zip (Set.toList fVars) [1..]
+{- The local environment consists of locations on the stack, locations in the
+   current closure, and dynamically allocated closures. -}
+data LocalEnv = LocalEnv {
+  localStack :: [(Var,Int)],
+  localFree :: [(Var,Int)],
+  dynamicFree :: [(Var,Int)]
+}
 
 {- Lookup a variable. If it's in the local environment, apply the corresponding
    function to its index on the stack or heap. If not, return the default
    value. -}
-lookupEnv :: Var -> [(Var,Int)] -> [(Var,Int)] ->
-            (Int -> a) -> (Int -> a) -> a -> a
-lookupEnv name stack heap justS justH nothing =
+lookupEnv :: Var -> LocalEnv -> (Int -> a) -> (Int -> a) -> (Int-> a) -> a -> a
+lookupEnv name (LocalEnv stack heap letBinds) justS justH justL nothing =
   case lookup name stack of
     Just i -> justS i
-    Nothing -> case lookup name heap of Just i -> justH i
-                                        Nothing -> nothing
+    Nothing -> case lookup name heap of
+                 Just i -> justH i
+                 Nothing -> case lookup  name letBinds of
+                              Just i -> justL i
+                              Nothing -> nothing
+
+{- Adjusts all the heap offsets for dynamically allocated closures. Useful when
+   the heap pointer has changed but we still need to reference these closures.
+   -}
+adjustDynamicFree :: Int -> [(Var,Int)] -> [(Var,Int)]
+adjustDynamicFree i free = [ (var,index + i) | (var,index) <- free]
+
+instance Convertible (Var, LambdaForm) CFunction where
+  convert (name, LambdaForm{..}) = CFunction pointerTD (name ++ "_entry") [] $
+    argSatCheck ++ stackOverflowCheck ++ heapOverflowCheck ++ makeUpdateFrame ++
+    convert (expr,env)
+    where env = LocalEnv (zip args [0..])
+                         (zip (Set.toList fVars) [1..])
+                         [] -- References to dynamically-allocated closures are
+                            -- only valid within a single instruction sequence
+          -- Todo: Implement these
+          argSatCheck = []
+          stackOverflowCheck = []
+          heapOverflowCheck = []
+          makeUpdateFrame = []
+
+instance Convertible (STGExpr, LocalEnv) [CStatement] where
+  convert (e,env) = case e of
+    STGAp name args -> compileAp env name args
+    STGLet _ binds expr -> compileLet env binds expr
+    _ -> [CJump "main"]
+
+-- Convenience functions for manipulating the stacks, heap, etc.
+
+offset :: ID -> Int -> CExpr
+offset name i | i == 0 = CID name
+              | otherwise = COp op (CID name) (CLit $ abs i)
+  where op | i > 0 = CPlus
+           | otherwise = CMinus
 
 assignStackA :: Int -> CExpr -> CStatement
 assignStackA i e = CSExpr $ CAssign spA (Just i) e
 
+offsetStackA :: Int -> CExpr
+offsetStackA = offset spA
+
 assignStackB :: Int -> CExpr -> CStatement
 assignStackB i e = CSExpr $ CAssign spB (Just i) e
+
+offsetStackB :: Int -> CExpr
+offsetStackB = offset spB
 
 assignHeap :: Int -> CExpr -> CStatement
 assignHeap i e = CSExpr $ CAssign hp (Just i) e
 
+offsetHeap :: Int -> CExpr
+offsetHeap = offset hp
+
 assignNode :: CExpr -> CStatement
 assignNode e = CSExpr $ CAssign node Nothing e
 
+offsetNode :: Int -> CExpr
+offsetNode = COp CPlus (CID node) . CLit
+
 {- Compiles function applications -}
-compileAp :: [(Var, Int)] -> [Var] -> Var -> [Atom] -> [CStatement]
-compileAp fVars args name as = [updateNode] ++ grabArgs ++ pushArgs ++ adjustSp
-  ++ [enter]
-  where -- A map of the function arguments to offsets from the stack pointer
-        argsMap = zip args [0..]
+compileAp :: LocalEnv -> Var -> [Atom] -> [CStatement]
+compileAp env@(LocalEnv argsMap _ _) name as = grabArgs ++ pushArgs ++ adjustSp
+  ++ [updateNode] ++ [enter]
+  where
+  -- Update node with the address of the function to call
+  updateNode = CAnn ("Grab " ++ name ++ " into Node") $
+    assignNode $ lookupVarExpr name
+  enter = CAnn ("Enter " ++ name) $ CSEnter $ "(pointer**)" ++ node
 
-        updateNode = CAnn ("Grab " ++ name ++ " into Node") $
-          assignNode $ lookupEnv name argsMap fVars
-          (CArrayElement spA) (CArrayElement node)
-          (CCast pointerTD $ CID $ name ++ "_closure")
-        enter = CAnn ("Enter " ++ name) $ CSEnter $ "(pointer**)" ++ node
+  -- Lookup a name in the environment and convert it to an expression
+  lookupVarExpr name = lookupEnv name env
+    (CID . ("t" ++) . show) offsetNode (CCast pointerTD . offsetHeap)
+    (CCast pointerTD $ CID $ name ++ "_closure")
 
-        -- Grab all of the arguments into local variables.
-        grabArgs = map grabArg args
+  -- Grab all of the arguments into local variables.
+  grabArgs = map grabArg argsMap
 
-        grabArg :: Var -> CStatement
-        grabArg arg = CAnn ("Grab " ++ arg ++ " into a local variable") $
-          CSVarDecl $ CVarDecl pointerTD ("t" ++ show i)
-          Nothing (Just $ CArrayElement spA i)
+  grabArg :: (Var,Int) -> CStatement
+  grabArg (arg,i) = CAnn ("Grab " ++ arg ++ " into a local variable") $
+    CSVarDecl $ CVarDecl pointerTD ("t" ++ show i)
+    Nothing (Just $ CArrayElement spA i)
 
-          where Just i = lookup arg argsMap
+  -- Partition the arguments to the new function into pointers and non-
+  -- pointers
+  (aVars, aLits) = reverse *** reverse $ partArgs as ([],[])
+    where partArgs [] (vars,lits) = (vars,lits)
+          partArgs (AtomVar var:atoms) (vars,lits) =
+            partArgs atoms (var:vars,lits)
+          partArgs (AtomLit lit:atoms) (vars,lits) =
+            partArgs atoms (vars,lit:lits)
 
-        -- Partition the arguments to the new function into pointers and non-
-        -- pointers
-        (aVars, aLits) = partArgs as ([],[])
-          where partArgs [] (vars,lits) = (vars,lits)
-                partArgs (AtomVar var:atoms) (vars,lits) =
-                  partArgs atoms (var:vars,lits)
-                partArgs (AtomLit lit:atoms) (vars,lits) =
-                  partArgs atoms (vars,lit:lits)
+  -- Push the arguments to the new function call on the stacks
+  pushArgs = zipWith pushVar (reverse aVars) [1..] ++
+             zipWith pushLit aLits [1..]
 
-        -- Push the arguments to the new function call on the stacks
-        pushArgs = zipWith pushVar (reverse aVars) [1..] ++
-                   zipWith pushLit aLits [1..]
+  pushVar :: Var -> Int -> CStatement
+  pushVar var n = CAnn ("Push " ++ var ++ " onto stack") $
+    assignStackA (length argsMap - n) $ lookupVarExpr var
 
-        pushVar :: Var -> Int -> CStatement
-        pushVar var n = CAnn ("Push " ++ var ++ " onto stack") $
-          assignStackA (length args - n) expr
-          where expr = lookupEnv var argsMap fVars
-                       (CID . ("t" ++) . show) (CArrayElement node)
-                       (CCast pointerTD $ CID $ var ++ "_entry")
+  pushLit :: Lit -> Int -> CStatement
+  pushLit lit n = CAnn ("Push " ++ show lit ++ " onto stack") $
+    assignStackB n (CCast pointerTD $ CLit lit)
 
-        pushLit :: Lit -> Int -> CStatement
-        pushLit lit n = CAnn ("Push " ++ show lit ++ " onto stack") $
-          assignStackB n (CCast pointerTD $ CLit lit)
+  -- The number of arguments to be pushed onto the A and B stacks
+  numA = foldl (\n a -> case a of AtomVar _ -> n + 1
+                                  AtomLit _ -> n) 0 as
+  numB = length as - numA
 
-        -- The number of arguments to be pushed onto the A and B stacks
-        numA = foldl (\n a -> case a of AtomVar _ -> n + 1
-                                        AtomLit _ -> n) 0 as
-        numB = length as - numA
+  -- Adjust the stack pointers
+  adjustSp = adjust spA diffA ++ adjust spB diffB
+  adjust name diff
+    | diff == 0 = []
+    | otherwise = [CAnn ("Adjust " ++ name) $
+                   CSExpr $ CAssign name Nothing $
+                   offset name diff]
+  diffA = length argsMap - numA
+  diffB = numB
 
-        -- Adjust the stack pointers
-        adjustSp = adjust spA diffA ++ adjust spB diffB
-        adjust name diff
-          | diff == 0 = []
-          | otherwise = [CAnn ("Adjust " ++ name) $
-                         CSExpr $ CAssign name Nothing $
-                         COp (op diff) (CID name) (CLit $ abs diff)]
-        diffA = length args - numA
-        diffB = numB
-        op diff | diff > 0 = CPlus
-                | otherwise = CMinus
-
-compileLet :: [(Var,Int)] -> [Var] -> [STGBinding] -> STGExpr -> [CStatement]
-compileLet letFVars letArgs binds expr = allocateHeap ++ fillClosures ++
+{- Compiles let(rec) expressions -}
+compileLet :: LocalEnv -> [STGBinding] -> STGExpr -> [CStatement]
+compileLet env binds expr = allocateHeap ++ fillClosures ++
   callExpr
   where
-  -- A map of the function arguments to offsets from the stack pointer
-  argsMap = zip letArgs [0..]
-
   -- Allocate enough space in the heap for the closures
   allocateHeap = [
     CAnn "Allocate some heap" $
-    CSExpr $ CAssign hp Nothing $ COp CMinus (CID hp) (CLit spaceNeeded),
-    CSIf (COp CLt (CID hp) (CID hLimit)) [] [] ]
+    CSExpr $ CAssign hp Nothing $ offsetHeap (negate spaceNeeded),
+    CSIf (COp CLt (CID hp) (CID hLimit))
+      [CSExpr $ CCall (CID "printf") [CString "Error: Out of heap space\\n"],
+       CSExpr $ CCall (CID "exit") [CLit 0]]
+      [] ]
 
-  -- Fill in the closures
-  (fillClosures, spaceNeeded) = first concat $
-    runState (mapM fillClosure binds) 0
+  -- The updated environment, with the new bindings from the let expression
+  env' = env {dynamicFree = adjustDynamicFree spaceNeeded (dynamicFree env)
+    ++ newBinds}
+
+  -- Fill in the closures, allowing for recursive definitions
+  (bindsAssigns, spaceNeeded) =
+    runReader (runStateT (mapM fillClosure binds) 0) newBinds
+  (newBinds,fillClosures) = second concat $ unzip bindsAssigns
 
   -- Call the expression in the body of the let
-  callExpr = []
+  callExpr = CComment "Evaluate body" : convert (expr,env')
 
   -- Fill in a heap-allocated closure
-  fillClosure :: STGBinding -> State Int [CStatement]
+  fillClosure :: STGBinding ->
+    StateT Int (Reader [(Var,Int)]) ((Var,Int),[CStatement])
   fillClosure bind@(STGBinding name LambdaForm{..}) = do
     -- Get the current heap offset
     i <- get
 
     let (infoTable,stdEntry) = convert bind
-        assignInfoTable = assignHeap i (CID $ varName infoTable)
+        assignInfoTable = assignHeap i
+          (CCast pointerTD $ CID $ varName infoTable)
 
-        fVarE fVar = lookupEnv fVar argsMap letFVars
-          (CArrayElement spA) (CArrayElement node)
+        fVarE fVar = lookupEnv fVar env'
+          (CArrayElement spA) offsetNode (CCast pointerTD . offsetHeap)
           (CCast pointerTD $ CID $ name ++ "_closure")
         assigns = assignInfoTable :
           zipWith (\i' fVar -> CAnn fVar $ assignHeap i' (fVarE fVar))
@@ -284,7 +358,8 @@ compileLet letFVars letArgs binds expr = allocateHeap ++ fillClosures ++
     -- Update the heap offset
     put $ i + length assigns
 
-    return $ CNested (Left stdEntry):CNested (Right infoTable):comment:assigns
+    return ((name, i),
+      CNested (Left stdEntry):CNested (Right infoTable):comment:assigns)
 
 -- Pretty printing functions
 instance Pretty CProgram where
@@ -343,11 +418,13 @@ instance Pretty CExpr where
     where bracks' = case index of Just i -> brackets $ int i
                                   Nothing -> empty
   pp (CLit lit) = pp lit
+  pp (CString string) = dquotes $ text string
   pp (CPointer name) = char '*' <> text name
-  pp (CCall expr args) = parens (pp expr) <> parens (pp args)
+  pp (CCall expr args) = pp expr <> parens (pp args)
   pp (CCast ty e) = parens (pp ty) <> pp e
   pp (CArray exprs) = encloseSep lbrace rbrace comma (map pp exprs)
   pp (CArrayElement arr i) = text arr <> brackets (int i)
+  pp (CParens e) = parens $ pp e
 
 instance Pretty COp where
   pp CEq = text "=="
