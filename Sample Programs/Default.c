@@ -37,6 +37,7 @@ pointer f_entry();
 pointer g_entry();
 pointer h_entry();
 pointer testLetRec_entry();
+pointer ff_1_entry();
 pointer ff_entry();
 pointer id3_entry();
 pointer main_info[] = {(pointer)main_entry};
@@ -77,6 +78,7 @@ pointer c_info[] = {(pointer)c_entry};
 pointer f_info[] = {(pointer)f_entry};
 pointer g_info[] = {(pointer)g_entry};
 pointer h_info[] = {(pointer)h_entry};
+pointer ff_1_info[] = {(pointer)ff_1_entry};
 pointer ff_info[] = {(pointer)ff_entry};
 
 pointer main_1_1_entry() {
@@ -324,18 +326,41 @@ pointer testLetRec_entry() {
     ENTER((pointer**)Node);        /* Enter g */
 }
 
+pointer ff_1_entry() {
+    pointer t0 = SpA[0];           /* Grab input2 into a local variable */
+    SpA[0] = t0;                   /* Push input2 onto stack */
+    SpA[-1] = Node + 2;            /* Push x onto stack */
+    SpA = SpA - 1;                 /* Adjust SpA */
+    Node = Node + 1;               /* Grab ff into Node */
+    ENTER((pointer**)Node);        /* Enter ff */
+}
+
 pointer ff_entry() {
-    JUMP(main);
+    Hp = Hp - 3;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for ff_1 */
+    Hp[0] = (pointer)ff_1_info;
+    Hp[1] = Node + 1;              /* ff */
+    Hp[2] = SpA[0];                /* x */
+    /* Evaluate body */
+    pointer t0 = SpA[0];           /* Grab x into a local variable */
+    SpA = SpA + 1;                 /* Adjust SpA */
+    Node = (pointer)Hp;            /* Grab ff_1 into Node */
+    ENTER((pointer**)Node);        /* Enter ff_1 */
 }
 
 pointer id3_entry() {
-    Hp = Hp - 1;                   /* Allocate some heap */
+    Hp = Hp - 2;                   /* Allocate some heap */
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
     } 
     /* Fill in closure for ff */
     Hp[0] = (pointer)ff_info;
+    Hp[1] = (pointer)Hp;           /* ff */
     /* Evaluate body */
     pointer t0 = SpA[0];           /* Grab x into a local variable */
     pointer t1 = SpA[1];           /* Grab y into a local variable */

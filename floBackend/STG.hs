@@ -57,7 +57,6 @@ data STGExpr = STGLet Rec [STGBinding] STGExpr      -- Local definition
              | STGCons Cons [Atom]                  -- Constructor
              | STGPrim Var Atom Atom                -- Built-in operator
              | STGLit Lit                           -- Literals
-             | STGLambda LambdaForm                 -- Lambdas
 
 data STGAlts = STGAAlts [STGAAlt] (Maybe STGDAlt)   -- Algebraic
              | STGPAlts [STGPAlt] (Maybe STGDAlt)   -- Primitive
@@ -115,7 +114,6 @@ instance FreeVars STGExpr where
     let bound = Set.fromList $ map (\(STGBinding var _) -> var) binds
     return $ bindse' Set.\\ bound
   free (STGCase e alts) = free (e,alts)
-  free (STGLambda lf) = free lf
 
 instance FreeVars LambdaForm where
   -- We will always assume that a lambda form's list of free variables is
@@ -190,7 +188,7 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
         let [a1,a2] = take 2 $ newArgs "_"
             lForm = runReader (createLForm [a1,a2] $
                     STGPrim n (AtomVar a1) (AtomVar a2)) globs
-        return $ STGLambda lForm
+        stgLambda lForm
     | otherwise = return $ STGAp n []
 
   convert (FloCons n) = do
@@ -202,7 +200,7 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
     -- Case C1: Constructor takes no arguments
     if i == 0 then return $ STGCons n []
     -- Case C2: Constructor takes arguments, but none have been applied
-    else return $ STGLambda lForm
+    else stgLambda lForm
 
   convert aps@(FloAp e1 e2) = do
     (globs,dataConses) <- ask
@@ -222,13 +220,15 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
           let args = take (i - length es) $ newArgs "_"
               lForm = runReader (createLForm args $
                       STGCons n $ atoms ++ map AtomVar args) globs
-          retLetF (tail binds) (STGLambda lForm)
+          e <- stgLambda lForm
+          retLetF (tail binds) e
         where i = getDataConsArity dataConses n
       FloVar n
         -- Case B2: Operator has 1 argument
         | n `elem` primOps && length es == 1 -> do
           let lForm = runReader (createLForm [arg] lexp) globs
-          retLetF binds (STGLambda lForm)
+          e <- stgLambda lForm
+          retLetF binds e
         -- Case B3: Operator has 2 arguments
         | n `elem` primOps && length es == 2 ->
           retLetF binds (STGPrim n (head atoms) (atoms !! 1))
@@ -241,7 +241,7 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
     (globs,_) <- ask
     e' <- convert e
     let lForm = runReader (createLForm ns e') globs
-    return $ STGLambda lForm
+    stgLambda lForm
 
   convert (FloLet defs e) = do
     reader <- ask
@@ -251,6 +251,14 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
   convert (FloCase e alts) = liftM2 STGCase (convert e) (convert alts)
 
   convert (FloAnn _ e) = convert e
+
+{- When saturating constructors and primitives, extra lambdas need to be added.
+   Since lambda forms are not expressions, they need to be wrapped in a let. -}
+stgLambda :: LambdaForm -> StRBindsDC STGExpr
+stgLambda lForm = do
+  name <- get
+  let newBind = name ++ head (take 1 (newArgs "_"))
+  return $ STGLet False [STGBinding newBind lForm] (STGAp newBind [])
 
 {- Flatten out a bunch of binary applications. -}
 flatten :: FloExpr -> [FloExpr]
@@ -359,7 +367,6 @@ instance Pretty STGExpr where
   pp (STGCons cons atoms) = text cons <+> braces (commas' $ map pp atoms)
   pp (STGPrim var a1 a2) = text var <+> braces (commas' [pp a1, pp a2])
   pp (STGLit lit) = int lit
-  pp (STGLambda lform) = pp lform
 
 instance Pretty STGAlts where
   pp (STGAAlts aalts dalt) = pp aalts <$$> pp dalt
