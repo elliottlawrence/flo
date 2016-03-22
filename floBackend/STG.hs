@@ -160,7 +160,10 @@ createLForm args expr = do
 
 {- Converts a FloProgram to an STGProgram -}
 instance Convertible FloProgram STGProgram where
-  convert FloProgram{..} = STGProgram
+  convert FloProgram{..} =
+    -- After the conversion, add qualified names to all let-bound variables so
+    -- there are no name clashes when we lift the definitions later
+    addPrefixes $ STGProgram
     (runReader (mapM convert fpDefs) (globals,dataConsMap)) dataConses
     where dataConses = map
             (\dc -> STGDataCons (dcName dc) (length $ dcFields dc)) fpDataConses
@@ -173,11 +176,11 @@ instance Convertible FloProgram STGProgram where
 instance Convertible FloDef (RBindsDC STGBinding) where
   convert FloDef{..} = do
     (globs,_) <- ask
-    expr <- evalStateT (convert fdExpr) fdName
+    expr <- convert fdExpr
     let lForm = runReader (createLForm fdInputs expr) globs
     return $ STGBinding fdName lForm
 
-instance Convertible FloExpr (StRBindsDC STGExpr) where
+instance Convertible FloExpr (RBindsDC STGExpr) where
   -- Only integer literals are supported at the moment
   convert (FloLit (LitInt i)) = return $ STGLit i
 
@@ -185,7 +188,7 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
     -- Case B1: Operator has no arguments
     | n `elem` primOps = do
         (globs,_) <- ask
-        let [a1,a2] = take 2 $ newArgs "_"
+        let [a1,a2] = take 2 $ newArgs "t"
             lForm = runReader (createLForm [a1,a2] $
                     STGPrim n (AtomVar a1) (AtomVar a2)) globs
         stgLambda lForm
@@ -194,7 +197,7 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
   convert (FloCons n) = do
     (globs,dataConses) <- ask
     let i = getDataConsArity dataConses n
-        args = take i $ newArgs "_"
+        args = take i $ newArgs "t"
         expr = STGCons n (map AtomVar args)
         lForm = runReader (createLForm args expr) globs
     -- Case C1: Constructor takes no arguments
@@ -217,7 +220,7 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
         -- Case C4: Constructor takes arguments, and some have been
         -- applied
         | otherwise -> do
-          let args = take (i - length es) $ newArgs "_"
+          let args = take (i - length es) $ newArgs "t"
               lForm = runReader (createLForm args $
                       STGCons n $ atoms ++ map AtomVar args) globs
           e <- stgLambda lForm
@@ -232,7 +235,7 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
         -- Case B3: Operator has 2 arguments
         | n `elem` primOps && length es == 2 ->
           retLetF binds (STGPrim n (head atoms) (atoms !! 1))
-        where [arg] = take 1 $ newArgs "_"
+        where [arg] = take 1 $ newArgs "t"
               lexp = STGPrim n (head atoms) (AtomVar arg)
       -- Default case
       otherwise -> retLetF binds (STGAp av atoms)
@@ -254,10 +257,9 @@ instance Convertible FloExpr (StRBindsDC STGExpr) where
 
 {- When saturating constructors and primitives, extra lambdas need to be added.
    Since lambda forms are not expressions, they need to be wrapped in a let. -}
-stgLambda :: LambdaForm -> StRBindsDC STGExpr
+stgLambda :: LambdaForm -> RBindsDC STGExpr
 stgLambda lForm = do
-  name <- get
-  let newBind = name ++ head (take 1 (newArgs "_"))
+  let newBind = head (take 1 (newArgs "t"))
   return $ STGLet False [STGBinding newBind lForm] (STGAp newBind [])
 
 {- Flatten out a bunch of binary applications. -}
@@ -267,26 +269,21 @@ flatten e = [e]
 
 {- An infinite list of arguments with the given prefix -}
 newArgs :: String -> [String]
-newArgs prefix = map (\num -> prefix ++ show num) [1..]
+newArgs prefix = map (\num -> prefix ++ show num) [0..]
 
 {- Converts a list of expressions (function arguments) to a list of atomic
    expressions and bindings -}
-argsToAtomsBinds :: [FloExpr] -> StRBindsDC ([Atom], [STGBinding])
+argsToAtomsBinds :: [FloExpr] -> RBindsDC ([Atom], [STGBinding])
 argsToAtomsBinds es = do
-  (atoms, maybeBinds) <- mapAndUnzipM toAtomBind (zip es [0..])
+  (atoms, maybeBinds) <- mapAndUnzipM toAtomBind (zip es (newArgs "t"))
   return (atoms, catMaybes maybeBinds)
   where
-    toAtomBind :: (FloExpr, Int) -> StRBindsDC (Atom, Maybe STGBinding)
-    toAtomBind (e,num)
+    toAtomBind :: (FloExpr, String) -> RBindsDC (Atom, Maybe STGBinding)
+    toAtomBind (e,var)
       | isAtomic e = return (toAtom e, Nothing)
       | otherwise = do
         (globs,_) <- ask
-        -- Update the name of the binding and then reset it
-        name <- get
-        let var = name ++ "_" ++ show num
-        put var
         e' <- convert e
-        put name
         -- Create the binding
         let lForm = runReader (createLForm [] e') globs
         return (AtomVar var, Just $ STGBinding var lForm)
@@ -311,7 +308,7 @@ maybeLet rec binds = STGLet rec binds
 {- Convenient data type for the different kinds of alts -}
 data Alt = AAlt STGAAlt | PAlt STGPAlt | DAlt STGDAlt
 
-instance Convertible [(FloExpr, FloExpr)] (StRBindsDC STGAlts) where
+instance Convertible [(FloExpr, FloExpr)] (RBindsDC STGAlts) where
   convert alts = do
     alts' <- mapM convert alts
 
@@ -328,7 +325,7 @@ instance Convertible [(FloExpr, FloExpr)] (StRBindsDC STGAlts) where
           PAlt _ -> STGPAlts . map (\(PAlt palt) -> palt)) alts'' def
 
 {- Converts a patt -> expr pair into an STG alt. -}
-instance Convertible (FloExpr, FloExpr) (StRBindsDC Alt) where
+instance Convertible (FloExpr, FloExpr) (RBindsDC Alt) where
   convert (patt, expr) = liftM
     (case flatten patt of
       FloCons cons : exprs -> AAlt . STGAAlt cons vars
@@ -336,6 +333,103 @@ instance Convertible (FloExpr, FloExpr) (StRBindsDC Alt) where
       [FloLit (LitInt i)] -> PAlt . STGPAlt i
       [FloVar var] -> DAlt . STGDAlt (Just var)
       _ -> DAlt . STGDAlt Nothing) (convert expr)
+
+{- A map of variables and prefixes to add to them -}
+type Renames = Map.Map Var Var
+
+addPrefixes :: STGProgram -> STGProgram
+addPrefixes p@STGProgram{..} = p {stgBindings = bindings'}
+  where bindings' = evalState (mapM addPrefix stgBindings) ("",Map.empty)
+
+class AddPrefix a where
+  {- Adds a qualified prefix to let-bound variables so that when they are lifted
+     out to the top-level, there are no name clashes -}
+  addPrefix :: a -> State (Var,Renames) a
+
+instance AddPrefix a => AddPrefix (Maybe a) where
+  addPrefix (Just a) = liftM Just $ addPrefix a
+  addPrefix Nothing = return Nothing
+
+instance AddPrefix STGBinding where
+  addPrefix (STGBinding name lForm) = do
+    (pre,renames) <- get
+    let name' = pre ++ name
+    put (name' ++ "_", Map.insert name pre renames)
+    lForm' <- addPrefix lForm
+    put (pre,renames)
+    return $ STGBinding name' lForm'
+
+instance AddPrefix LambdaForm where
+  addPrefix LambdaForm{..} = do
+    (pre,renames) <- get
+    put (pre, foldr Map.delete renames args)
+    fVars' <- addPrefix fVars
+    expr' <- addPrefix expr
+    put (pre,renames)
+    return $ LambdaForm fVars' flag args expr'
+
+instance AddPrefix Bindings where
+  addPrefix bindings = do
+    (_,renames) <- get
+    bindings' <- mapM addPrefix (Set.toList bindings)
+    return $ Set.fromList bindings'
+
+instance AddPrefix STGExpr where
+  addPrefix (STGLet rec binds e) = do
+    (pre,renames) <- get
+    -- Handle recursive let definitions
+    let renames' = foldr (\(STGBinding name _) -> Map.insert name pre)
+                   renames binds
+    put (pre,renames')
+    binds' <- mapM addPrefix binds
+    e' <- addPrefix e
+    put (pre,renames)
+    return $ STGLet rec binds' e'
+
+  addPrefix (STGCase e alts) = liftM2 STGCase (addPrefix e) (addPrefix alts)
+  addPrefix (STGAp var atoms) =
+    liftM2 STGAp (addPrefix var) (mapM addPrefix atoms)
+  addPrefix (STGCons cons atoms) = liftM (STGCons cons) (mapM addPrefix atoms)
+  addPrefix (STGPrim var a1 a2) =
+    liftM2 (STGPrim var) (addPrefix a1) (addPrefix a2)
+  addPrefix l = return l
+
+instance AddPrefix Var where
+  addPrefix var = do
+    (pre,renames) <- get
+    return $ maybe var (++ var) (Map.lookup var renames)
+
+instance AddPrefix Atom where
+  addPrefix (AtomVar var) = liftM AtomVar $ addPrefix var
+  addPrefix l = return l
+
+instance AddPrefix STGAlts where
+  addPrefix (STGAAlts aalts maybeDalt) =
+    liftM2 STGAAlts (mapM addPrefix aalts) (addPrefix maybeDalt)
+  addPrefix (STGPAlts palts maybeDalt) =
+    liftM2 STGPAlts (mapM addPrefix palts) (addPrefix maybeDalt)
+
+instance AddPrefix STGAAlt where
+  addPrefix (STGAAlt cons vars e) = do
+    (pre,renames) <- get
+    put (pre, foldr Map.delete renames vars)
+    e' <- addPrefix e
+    put (pre,renames)
+    return $ STGAAlt cons vars e'
+
+instance AddPrefix STGPAlt where
+  addPrefix (STGPAlt lit e) = liftM (STGPAlt lit) (addPrefix e)
+
+instance AddPrefix STGDAlt where
+  addPrefix (STGDAlt maybeVar e) = do
+    (pre,renames) <- get
+    let renames' = case maybeVar of
+                     Just var -> Map.delete var renames
+                     Nothing -> renames
+    put (pre,renames')
+    e' <- addPrefix e
+    put (pre,renames)
+    return $ STGDAlt maybeVar e'
 
 -- Pretty printing
 instance Pretty STGProgram where
@@ -349,8 +443,8 @@ instance Pretty STGBinding where
 
 instance Pretty LambdaForm where
   pp LambdaForm{..} = braces (commas' $ map text (Set.toList fVars)) <+>
-    text "\\" <> pp flag <+> align (braces (commas' $ map text args) <+>
-    text "->" </> align (pp expr))
+    text "\\" <> pp flag <+> braces (commas' $ map text args) <+>
+    text "->" </> align (pp expr)
 
 instance Pretty UpdateFlag where
   pp U = char 'u'
