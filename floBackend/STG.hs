@@ -163,7 +163,7 @@ instance Convertible FloProgram STGProgram where
   convert FloProgram{..} =
     -- After the conversion, add qualified names to all let-bound variables so
     -- there are no name clashes when we lift the definitions later
-    addPrefixes $ STGProgram
+    STGProgram
     (runReader (mapM convert fpDefs) (globals,dataConsMap)) dataConses
     where dataConses = map
             (\dc -> STGDataCons (dcName dc) (length $ dcFields dc)) fpDataConses
