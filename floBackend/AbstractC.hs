@@ -1,17 +1,22 @@
 {-# LANGUAGE MultiParamTypeClasses, RecordWildCards, TypeSynonymInstances,
-    FlexibleInstances, FlexibleContexts #-}
+    FlexibleInstances, FlexibleContexts, GeneralizedNewtypeDeriving,
+    TemplateHaskell #-}
 module AbstractC where
 
 import Convertible
 import Pretty
 import STG
 
-import Control.Arrow (second, (***))
+import Control.Arrow (first, second, (***))
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Set as Set
+import Lens.Micro
+import Lens.Micro.TH
 import Text.PrettyPrint.Leijen hiding (Pretty)
+
+import Debug.Trace
 
 type ID = String
 
@@ -49,7 +54,6 @@ data CStatement = CSVarDecl CVarDecl
                 | CJump ID
                 | CComment String                     -- Comments
                 | CAnn String CStatement              -- Statement with comment
-                | CNested (Either CFunction CVarDecl)
 
 data CCase = CCase Int [CStatement]
 
@@ -66,6 +70,76 @@ data CExpr = CID ID
            | CParens CExpr
 
 data COp = CEq | CNe | CLt | CPlus | CMinus
+
+{- The local environment consists of locations on the stack, locations in the
+   current closure, and dynamically allocated closures. -}
+data LocalEnv = LocalEnv {
+  _localStack :: [(Var,Int)],
+  _localFree :: [(Var,Int)],
+  _dynamicFree :: [(Var,Int)]
+}
+makeLenses ''LocalEnv
+
+{- The global environment consists of the top-level bindings and data
+   constructors. -}
+data GlobalEnv = GlobalEnv {
+  _globs :: Bindings,
+  _dataConses :: [(Cons,Int)]
+}
+makeLenses ''GlobalEnv
+
+data Env = Env {
+  _lEnv :: LocalEnv,
+  _gEnv :: GlobalEnv
+}
+makeLenses ''Env
+
+type REnv a = Reader Env a
+
+{- During compilation we may need to generate new functions and variables. -}
+data ExtraDecls = ExtraDecls {
+  _extraVarDecls :: [CVarDecl],
+  _extraFuns :: [CFunction]
+}
+makeLenses ''ExtraDecls
+
+{- A reader-state monad with a read-only environment and mutable state. -}
+newtype RS r s a = RS { rs :: ReaderT r (State s) a}
+  deriving (Functor, Applicative, Monad, MonadReader r, MonadState s)
+
+data St = St {
+  _extraDecls :: ExtraDecls,
+  _altsNum :: Int
+}
+makeLenses ''St
+
+type SEnv a = RS Env St a
+
+liftREnv :: REnv a -> SEnv a
+liftREnv r = liftM (runReader r) ask
+
+runRS :: RS r s a -> r -> s -> (a, s)
+runRS RS{..} = runState . runReaderT rs
+
+evalRS :: RS r s a -> r -> s -> a
+evalRS RS{..} = evalState . runReaderT rs
+
+{- Lookup a variable. If it's in the local environment, apply the corresponding
+   function to its index on the stack or heap. If not, return the default
+   value. -}
+lookupEnv :: Var -> Env -> (Int -> a) -> (Int -> a) -> (Int-> a) -> a -> a
+lookupEnv name env justS justH justL nothing =
+  case lookup name (env^.lEnv.localStack) of
+    Just i -> justS i
+    Nothing -> case lookup name (env^.lEnv.localFree) of
+                 Just i -> justH i
+                 Nothing -> case lookup name (env^.lEnv.dynamicFree) of
+                              Just i -> justL i
+                              Nothing -> nothing
+
+lookupTag :: Cons -> Env -> Int
+lookupTag cons env = fromMaybe (error "Data constructor not found") $
+  lookup cons (env ^. gEnv . dataConses)
 
 pointerTD :: CType
 pointerTD = CTypeDef "pointer"
@@ -100,8 +174,8 @@ instance Convertible STGProgram CProgram where
   convert prog = CProgram
     [stdio, stdlib, enterMacro, jumpMacro, pointerTypeDef, functionTypeDef]
     ([stack, spBDecl, spADecl, heap, hpDecl, hLimitDecl, nodeDecl, rTagDecl] ++
-      prototypes ++ infoTables ++ closures ++ varDecls)
-    (stdEntries ++ [cMain])
+      prototypes ++ infoTables ++ closures ++ extras^.extraVarDecls)
+    (stdEntries ++ extras^.extraFuns ++ [cMain])
     where -- After the conversion, add qualified names to all let-bound
           -- variables so there are no name clashes when we lift the definitions
           -- later
@@ -137,51 +211,34 @@ instance Convertible STGProgram CProgram where
           -- Tag the data constructors with unique numbers
           dataConses = zipWith (\(STGDataCons cons _) i -> (cons,i))
                        stgDataConses [1..]
-          initialEnv = LocalEnv [] [] [] globs dataConses
-          (closures, infoTables, stdEntries') =
-            unzip3 $ runReader (mapM convert stgBindings) initialEnv
-          (varDecls, stdEntries) = concat *** concat $
-            unzip $ map flattenFun stdEntries'
-          prototypes = map createFunPrototype (cMain:stdEntries)
+          initialEnv = Env (LocalEnv [] [] []) (GlobalEnv globs dataConses)
+
+          emptyExtraDecls = ExtraDecls [] []
+          initialState = St emptyExtraDecls 1
+
+          ((closures, infoTables, stdEntries),finalState) = first unzip3 $
+            runRS (mapM convert stgBindings) initialEnv initialState
+          extras = finalState ^. extraDecls
+          prototypes = map createFunPrototype
+            (cMain:stdEntries ++ extras^.extraFuns)
 
 createFunPrototype :: CFunction -> CVarDecl
 createFunPrototype CFunction{..} = CVarDecl funType (funName ++ "()")
   Nothing Nothing
-
-{- Flattens a function with nested declarations -}
-flattenFun :: CFunction -> ([CVarDecl],[CFunction])
-flattenFun f@CFunction{..} = (varDecls,funs ++ [f {funBody = funBody'}])
-  where (funBody',varDecls,funs) = extractNesteds funBody
-
-extractNesteds :: [CStatement] -> ([CStatement],[CVarDecl],[CFunction])
-extractNesteds states = (catMaybes maybeStates, concat varDecls, concat funs)
-  where (maybeStates,varDecls,funs) = unzip3 $ map extractNested states
-
-{- Extracts nested declarations from a statement -}
-extractNested :: CStatement -> (Maybe CStatement,[CVarDecl],[CFunction])
-extractNested (CNested (Left fun)) = (Nothing,varDecls,funs)
-  where (varDecls,funs) = flattenFun fun
-extractNested (CNested (Right varDecl)) = (Nothing,[varDecl],[])
-extractNested (CSwitch e cases) =
-  (Just $ CSwitch e cases', concat varDecls, concat funs)
-  where (cases',varDecls,funs) = unzip3 $ map extractNestedCases cases
-        extractNestedCases (CCase i body) = (CCase i body', caseVars, caseFuns)
-          where (body',caseVars,caseFuns) = extractNesteds body
-extractNested s = (Just s,[],[])
 
 type Closure = CVarDecl
 type InfoTable = CVarDecl
 type StdEntry = CFunction
 
 {- Converts top-level bindings with static closures -}
-instance Convertible STGBinding (REnv (Closure, InfoTable, StdEntry)) where
+instance Convertible STGBinding (SEnv (Closure, InfoTable, StdEntry)) where
   convert b@(STGBinding name lForm) = do
     (infoTable, stdEntry) <- convert b
     let closure = createClosure name infoTable
     return (closure, infoTable, stdEntry)
 
 {- Converts local bindings which have dynamically allocated closures -}
-instance Convertible STGBinding (REnv (InfoTable, StdEntry)) where
+instance Convertible STGBinding (SEnv (InfoTable, StdEntry)) where
   convert (STGBinding name lForm) = do
     stdEntry <- convert (name, lForm)
     let infoTable = createInfoTable name stdEntry
@@ -195,66 +252,35 @@ createInfoTable :: ID -> CFunction -> CVarDecl
 createInfoTable name CFunction{..} = CVarDecl pointerTD (name ++ "_info")
   (Just 0) (Just $ CArray [CCast pointerTD $ CID funName])
 
-{- The local environment consists of locations on the stack, locations in the
-   current closure, and dynamically allocated closures. -}
-data LocalEnv = LocalEnv {
-  localStack :: [(Var,Int)],
-  localFree :: [(Var,Int)],
-  dynamicFree :: [(Var,Int)],
-  globs :: Bindings,
-  dataConses :: [(Cons,Int)]
-}
-
-type REnv a = Reader LocalEnv a
-
-{- Lookup a variable. If it's in the local environment, apply the corresponding
-   function to its index on the stack or heap. If not, return the default
-   value. -}
-lookupEnv :: Var -> LocalEnv -> (Int -> a) -> (Int -> a) -> (Int-> a) -> a -> a
-lookupEnv name LocalEnv{..} justS justH justL nothing =
-  case lookup name localStack of
-    Just i -> justS i
-    Nothing -> case lookup name localFree of
-                 Just i -> justH i
-                 Nothing -> case lookup  name dynamicFree of
-                              Just i -> justL i
-                              Nothing -> nothing
-
-lookupTag :: Cons -> LocalEnv -> Int
-lookupTag cons LocalEnv{..} =
-  fromMaybe (error "Data constructor not found") $ lookup cons dataConses
-
 {- Adjusts all the heap offsets for dynamically allocated closures. Useful when
    the heap pointer has changed but we still need to reference these closures.
    -}
 adjustDynamicFree :: Int -> [(Var,Int)] -> [(Var,Int)]
 adjustDynamicFree i free = [ (var,index + i) | (var,index) <- free]
 
-instance Convertible (Var, LambdaForm) (REnv CFunction) where
+instance Convertible (Var, LambdaForm) (SEnv CFunction) where
   convert (name, LambdaForm{..}) = do
-    LocalEnv{..} <- ask
-    let env = LocalEnv (zip args [0..])
-                         (zip (Set.toList fVars) [1..])
-                         [] -- References to dynamically-allocated closures are
-                            -- only valid within a single instruction sequence
-                         globs
-                         dataConses
-        expr' = runReader (convert expr) env
+    env <- ask
+        -- References to dynamically-allocated closures are only valid within
+        -- a single instruction sequence
+    let env' = env & lEnv .~ LocalEnv (zip args [0..])
+                                      (zip (Set.toList fVars) [1..]) []
         -- Todo: Implement these
         argSatCheck = []
         stackOverflowCheck = []
         heapOverflowCheck = []
         makeUpdateFrame = []
+    expr' <- local (const env') (convert expr)
     return $ CFunction pointerTD (name ++ "_entry") [] $
       argSatCheck ++ stackOverflowCheck ++ heapOverflowCheck ++ makeUpdateFrame
       ++ expr'
 
-instance Convertible STGExpr (REnv [CStatement]) where
+instance Convertible STGExpr (SEnv [CStatement]) where
   convert e = case e of
-    STGAp name args -> compileAp name args
+    STGAp name args -> liftREnv $ compileAp name args
     STGLet _ binds expr -> compileLet binds expr
     STGCase expr alts -> compileCase expr alts
-    STGCons cons args -> compileCons cons args
+    STGCons cons args -> liftREnv $ compileCons cons args
     _ -> return [CJump "main"]
 
 -- Convenience functions for manipulating the stacks, heap, etc.
@@ -295,8 +321,7 @@ assignRTag e = CSExpr $ CAssign rTag Nothing e
 {- Compiles function applications -}
 compileAp :: Var -> [Atom] -> REnv [CStatement]
 compileAp name as = do
-  env@LocalEnv{..} <- ask
-
+  env <- ask
   let
     -- Update node with the address of the function to call
     updateNode = CAnn ("Grab " ++ name ++ " into Node") $
@@ -309,7 +334,7 @@ compileAp name as = do
       (CCast pointerTD $ CID $ name ++ "_closure")
 
     -- Grab all of the arguments into local variables.
-    grabArgs = map grabArg localStack
+    grabArgs = map grabArg (env^.lEnv.localStack)
 
     grabArg :: (Var,Int) -> CStatement
     grabArg (arg,i) = CAnn ("Grab " ++ arg ++ " into a local variable") $
@@ -331,7 +356,7 @@ compileAp name as = do
 
     pushVar :: Var -> Int -> CStatement
     pushVar var n = CAnn ("Push " ++ var ++ " onto stack") $
-      assignStackA (length localStack - n) $ lookupVarExpr var
+      assignStackA (length (env^.lEnv.localStack) - n) $ lookupVarExpr var
 
     pushLit :: Lit -> Int -> CStatement
     pushLit lit n = CAnn ("Push " ++ show lit ++ " onto stack") $
@@ -349,7 +374,7 @@ compileAp name as = do
       | otherwise = [CAnn ("Adjust " ++ name) $
                      CSExpr $ CAssign name Nothing $
                      offset name diff]
-    diffA = length localStack - numA
+    diffA = length (env^.lEnv.localStack) - numA
     diffB = numB
 
   return $ grabArgs ++ pushArgs ++ adjustSp ++ [updateNode] ++ [enter]
@@ -364,29 +389,26 @@ allocateHeap i = [CAnn "Allocate some heap" $
     [] ]
 
 {- Compiles let(rec) expressions -}
-compileLet :: [STGBinding] -> STGExpr -> REnv [CStatement]
+compileLet :: [STGBinding] -> STGExpr -> SEnv [CStatement]
 compileLet binds expr = do
-  env <- ask
+  env@Env{..} <- ask
+  s <- get
   let
     -- Fill in the closures, allowing for recursive definitions
-    (bindsAssigns, spaceNeeded) = runState (mapM fillClosure binds) 0
+    (bindsAssigns, (spaceNeeded,s')) = runState (mapM fillClosure binds) (0,s)
     (newBinds,fillClosures) = second concat $ unzip bindsAssigns
 
     -- The updated environment, with the new bindings from the let expression
-    env' = env {dynamicFree = adjustDynamicFree spaceNeeded (dynamicFree env)
-    ++ newBinds}
-
-    expr' = runReader (convert expr) env'
-    -- Call the expression in the body of the let
-    callExpr = CComment "Evaluate body" : expr'
+    env' = env & lEnv.dynamicFree .~
+      adjustDynamicFree spaceNeeded (env^.lEnv.dynamicFree) ++ newBinds
 
     -- Fill in a heap-allocated closure
-    fillClosure :: STGBinding -> State Int ((Var,Int),[CStatement])
+    fillClosure :: STGBinding -> State (Int,St) ((Var,Int),[CStatement])
     fillClosure bind@(STGBinding name LambdaForm{..}) = do
       -- Get the current heap offset
-      i <- get
+      (i,st) <- get
 
-      let (infoTable,stdEntry) = runReader (convert bind) env
+      let (infoTable,stdEntry) = evalRS (convert bind) env s
           assignInfoTable = assignHeap i
             (CCast pointerTD $ CID $ varName infoTable)
 
@@ -399,29 +421,44 @@ compileLet binds expr = do
 
           comment = CComment $ "Fill in closure for " ++ name
 
-      -- Update the heap offset
-      put $ i + length assigns
+          extras = st^.extraDecls
+          extras' = extras & extraVarDecls .~ infoTable : extras^.extraVarDecls
+                           & extraFuns .~ stdEntry : extras^.extraFuns
+      -- Update the heap offset and extra declarations
+      put (i + length assigns, st & extraDecls .~ extras')
 
-      return ((name, i),
-        CNested (Left stdEntry):CNested (Right infoTable):comment:assigns)
+      return ((name, i), comment:assigns)
+  put s'
+  expr' <- local (const env') (convert expr)
+      -- Call the expression in the body of the let
+  let callExpr = CComment "Evaluate body" : expr'
 
   return $ allocateHeap spaceNeeded ++ fillClosures ++ callExpr
 
 {- Compiles case expressions -}
-compileCase :: STGExpr -> STGAlts -> REnv [CStatement]
+compileCase :: STGExpr -> STGAlts -> SEnv [CStatement]
 compileCase e alts = do
   env <- ask
-  saveLocalEnv <- evalStateT (saveFree alts) 0
+  num <- gets (^.altsNum)
+  -- Increase the number of alternatives
+  modify (& altsNum .~ num + 1)
+
+  -- Compile the expression and alternatives
   e' <- convert e
   alts' <- compileAlts alts
-  let pushRet = [assignStackB 1 $ CCast pointerTD $ CID "retvec",
+
+  let saveLocalEnv = evalRS (saveFree alts) env 0
+      altName = "alt" ++ show num
+      pushRet = [assignStackB 1 $ CCast pointerTD $ CID altName,
                  CSExpr $ CAssign spB Nothing $ offsetStackB 1]
       callE = CComment "Evaluate body" : e'
+      switchAlts = CFunction pointerTD altName [] [alts']
 
-      switchAlts = CNested $ Left $ CFunction pointerTD "retvec" [] [alts']
-  return $ saveLocalEnv ++ pushRet ++ callE ++ [switchAlts]
+  -- Append the alternatives to the list of functions
+  modify (& extraDecls.extraFuns %~ (switchAlts :))
+  return $ saveLocalEnv ++ pushRet ++ callE
 
-compileAlts :: STGAlts -> REnv CStatement
+compileAlts :: STGAlts -> SEnv CStatement
 compileAlts alts = do
   env <- ask
   let
@@ -479,7 +516,7 @@ compileCons cons args = do
 
   return $ alloc ++ fillClosure ++ [updateRTag, updateNode, adjustSpB, enter]
 
-type StIntEnvBinds a = StateT Int (Reader LocalEnv) a
+type StIntEnvBinds a = RS Env Int a
 
 class SaveFree a where
   saveFree :: a -> StIntEnvBinds [CStatement]
@@ -509,8 +546,8 @@ instance SaveFree STGDAlt where
 saveAlt :: RBinds Bindings -> StIntEnvBinds [CStatement]
 saveAlt free = do
     i <- get
-    LocalEnv{..} <- ask
-    let fVars = Set.toList $ runReader free globs
+    env <- ask
+    let fVars = Set.toList $ runReader free (env^.gEnv.globs)
     mapM saveVar fVars
 
 saveVar :: Var -> StIntEnvBinds CStatement
@@ -579,7 +616,6 @@ instance Pretty CStatement where
   pp (CComment comment) = enclose (text "/* ") (text " */") (pp comment)
   pp (CAnn comment statement) = fill 30 (pp statement) <+>
     enclose (text "/* ") (text " */") (pp comment)
-  pp (CNested nest) = either pp pp nest
 
 instance Pretty CCase where
   pp (CCase (-1) body) = text "default" <> colon <$$>
