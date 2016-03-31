@@ -1,7 +1,9 @@
 {-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances, FlexibleInstances #-}
 module Main where
 
-import AbstractC
+import AbstractC.AbstractC
+import AbstractC.Base
+import AbstractC.Pretty
 import Convertible
 import FloGraph
 import FloProgram
