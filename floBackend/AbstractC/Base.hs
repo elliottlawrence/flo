@@ -60,12 +60,13 @@ data CExpr = CID ID
            | CArrayElement ID Int
            | CParens CExpr
 
-data COp = CEq | CNe | CLt | CPlus | CMinus
+data COp = CEq | CNe | CLt | CPlus | CMinus | CMult | CDiv
 
-{- The local environment consists of locations on the stack, locations in the
+{- The local environment consists of locations on the stacks, locations in the
    current closure, and dynamically allocated closures. -}
 data LocalEnv = LocalEnv {
-  _localStack :: [(Var,Int)],
+  _localAStack :: [(Var,Int)],
+  _localBStack :: [(Var,Int)],
   _localFree :: [(Var,Int)],
   _dynamicFree :: [(Var,Int)]
 }
@@ -87,19 +88,25 @@ makeLenses ''Env
 
 type REnv a = Reader Env a
 
-{- During compilation we may need to generate new functions and variables. -}
-data ExtraDecls = ExtraDecls {
-  _extraVarDecls :: [CVarDecl],
-  _extraFuns :: [CFunction]
+type Closure = CVarDecl
+type InfoTable = CVarDecl
+type StdEntry = CFunction
+
+{- During compilation we generate var declarations and functions. -}
+data Decls = Decls {
+  _varDecls :: [CVarDecl],
+  _infoTables :: [InfoTable],
+  _closures :: [Closure],
+  _stdEntries :: [CFunction]
 }
-makeLenses ''ExtraDecls
+makeLenses ''Decls
 
 {- A reader-state monad with a read-only environment and mutable state. -}
 newtype RS r s a = RS { rs :: ReaderT r (State s) a}
   deriving (Functor, Applicative, Monad, MonadReader r, MonadState s)
 
 data St = St {
-  _extraDecls :: ExtraDecls,
+  _decls :: Decls,
   _altsNum :: Int
 }
 makeLenses ''St
@@ -109,18 +116,29 @@ type SEnv a = RS Env St a
 liftREnv :: REnv a -> SEnv a
 liftREnv r = liftM (runReader r) ask
 
+{- Alter the type of the state for the RS monad. -}
+alterState :: (t -> s) -> (s -> t -> t) -> RS Env s a -> RS Env t a
+alterState getState putState m = do
+  b <- get
+  (m',s') <- liftM2 (runRS m) ask (gets getState)
+  modify (putState s')
+  return m'
+
 runRS :: RS r s a -> r -> s -> (a, s)
 runRS RS{..} = runState . runReaderT rs
 
 evalRS :: RS r s a -> r -> s -> a
 evalRS RS{..} = evalState . runReaderT rs
 
+execRS :: RS r s a -> r -> s -> s
+execRS RS{..} = execState . runReaderT rs
+
 {- Lookup a variable. If it's in the local environment, apply the corresponding
    function to its index on the stack or heap. If not, return the default
    value. -}
 lookupEnv :: Var -> Env -> (Int -> a) -> (Int -> a) -> (Int-> a) -> a -> a
 lookupEnv name env justS justH justL nothing =
-  case lookup name (env^.lEnv.localStack) of
+  case lookup name (env^.lEnv.localAStack) of
     Just i -> justS i
     Nothing -> case lookup name (env^.lEnv.localFree) of
                  Just i -> justH i
@@ -148,13 +166,15 @@ createFunPrototype :: CFunction -> CVarDecl
 createFunPrototype CFunction{..} = CVarDecl funType (funName ++ "()")
   Nothing Nothing
 
-spA, spB, hp, hLimit, node, rTag :: String
+{- Registers -}
+spA, spB, hp, hLimit, node, rTag, intReg :: String
 spA = "SpA"
 spB = "SpB"
 hp = "Hp"
 hLimit = "HLimit"
 node = "Node"
 rTag = "RTag"
+intReg = "IntReg"
 
 -- Convenience functions for manipulating the stacks, heap, etc.
 
@@ -165,31 +185,34 @@ offset name i | i == 0 = CID name
            | otherwise = CMinus
 
 assignStackA :: Int -> CExpr -> CStatement
-assignStackA i e = CSExpr $ CAssign spA (Just i) e
+assignStackA i = CSExpr . CAssign spA (Just i)
 
 offsetStackA :: Int -> CExpr
 offsetStackA = offset spA
 
 assignStackB :: Int -> CExpr -> CStatement
-assignStackB i e = CSExpr $ CAssign spB (Just i) e
+assignStackB i = CSExpr . CAssign spB (Just i)
 
 offsetStackB :: Int -> CExpr
 offsetStackB = offset spB
 
 assignHeap :: Int -> CExpr -> CStatement
-assignHeap i e = CSExpr $ CAssign hp (Just i) e
+assignHeap i = CSExpr . CAssign hp (Just i)
 
 offsetHeap :: Int -> CExpr
 offsetHeap = offset hp
 
 assignNode :: CExpr -> CStatement
-assignNode e = CSExpr $ CAssign node Nothing e
+assignNode = CSExpr . CAssign node Nothing
 
 offsetNode :: Int -> CExpr
 offsetNode = COp CPlus (CID node) . CLit
 
 assignRTag :: CExpr -> CStatement
-assignRTag e = CSExpr $ CAssign rTag Nothing e
+assignRTag = CSExpr . CAssign rTag Nothing
+
+assignIntReg :: CExpr -> CStatement
+assignIntReg = CSExpr . CAssign intReg Nothing
 
 {- Allocate space in the heap -}
 allocateHeap :: Int -> [CStatement]
@@ -199,3 +222,7 @@ allocateHeap i = [CAnn "Allocate some heap" $
     [CSExpr $ CCall (CID "printf") [CString "Error: Out of heap space\\n"],
      CSExpr $ CCall (CID "exit") [CLit 0]]
     [] ]
+
+lookupOp :: Var -> COp
+lookupOp var = fromMaybe (error "Primitive operator not found") $
+  lookup var [("+#",CPlus), ("-#",CMinus), ("*#",CMult), ("/#",CDiv)]

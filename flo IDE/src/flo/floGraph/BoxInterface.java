@@ -124,6 +124,13 @@ public class BoxInterface implements Jsonable {
         final Cable cable = input.getCable();
         if (cable != null)
             cable.getParent().removeCable(cable);
+
+        // Remove cables attached to the input's startOutput
+        final List<Cable> cables = input.getStartOutput().getCables();
+        while (!cables.isEmpty()) {
+            final Cable c = cables.get(0);
+            c.getParent().removeCable(c);
+        }
     }
 
     public void removeInput(final String name) {

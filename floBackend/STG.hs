@@ -10,7 +10,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.List ((\\))
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust)
 import qualified Data.Set as Set
 import Text.PrettyPrint.Leijen hiding (Pretty)
 
@@ -38,6 +38,9 @@ type DataConses = Map.Map Cons Int
 type RBinds a = Reader Bindings a
 type RBindsDC a = Reader (Bindings, DataConses) a
 type StRBindsDC a = StateT Var (Reader (Bindings, DataConses)) a
+
+liftRBinds :: RBinds a -> RBindsDC a
+liftRBinds m = liftM (runReader m) (asks fst)
 
 data LambdaForm = LambdaForm {
   fVars :: Bindings,
@@ -175,9 +178,8 @@ instance Convertible FloProgram STGProgram where
 {- Each flo definition corresponds to an STG binding. -}
 instance Convertible FloDef (RBindsDC STGBinding) where
   convert FloDef{..} = do
-    (globs,_) <- ask
     expr <- convert fdExpr
-    let lForm = runReader (createLForm fdInputs expr) globs
+    lForm <- liftRBinds $ createLForm fdInputs expr
     return $ STGBinding fdName lForm
 
 instance Convertible FloExpr (RBindsDC STGExpr) where
@@ -187,26 +189,25 @@ instance Convertible FloExpr (RBindsDC STGExpr) where
   convert (FloVar n)
     -- Case B1: Operator has no arguments
     | n `elem` primOps = do
-        (globs,_) <- ask
         let [a1,a2] = take 2 $ newArgs "t"
-            lForm = runReader (createLForm [a1,a2] $
-                    STGPrim n (AtomVar a1) (AtomVar a2)) globs
+        lForm <- liftRBinds $ createLForm [a1,a2] $
+                 STGPrim n (AtomVar a1) (AtomVar a2)
         stgLambda lForm
     | otherwise = return $ STGAp n []
 
   convert (FloCons n) = do
-    (globs,dataConses) <- ask
+    dataConses <- asks snd
     let i = getDataConsArity dataConses n
         args = take i $ newArgs "t"
         expr = STGCons n (map AtomVar args)
-        lForm = runReader (createLForm args expr) globs
+    lForm <- liftRBinds $ createLForm args expr
     -- Case C1: Constructor takes no arguments
     if i == 0 then return $ STGCons n []
     -- Case C2: Constructor takes arguments, but none have been applied
     else stgLambda lForm
 
   convert aps@(FloAp e1 e2) = do
-    (globs,dataConses) <- ask
+    dataConses <- asks snd
     let e:es = flatten aps
         retLetF letb lete = return $ maybeLet False letb lete
     (AtomVar av : atoms, binds) <- argsToAtomsBinds (e:es)
@@ -221,15 +222,15 @@ instance Convertible FloExpr (RBindsDC STGExpr) where
         -- applied
         | otherwise -> do
           let args = take (i - length es) $ newArgs "t"
-              lForm = runReader (createLForm args $
-                      STGCons n $ atoms ++ map AtomVar args) globs
+          lForm <- liftRBinds $ createLForm args $
+                   STGCons n $ atoms ++ map AtomVar args
           e <- stgLambda lForm
           retLetF (tail binds) e
         where i = getDataConsArity dataConses n
       FloVar n
         -- Case B2: Operator has 1 argument
         | n `elem` primOps && length es == 1 -> do
-          let lForm = runReader (createLForm [arg] lexp) globs
+          lForm <- liftRBinds $ createLForm [arg] lexp
           e <- stgLambda lForm
           retLetF binds e
         -- Case B3: Operator has 2 arguments
@@ -241,17 +242,18 @@ instance Convertible FloExpr (RBindsDC STGExpr) where
       otherwise -> retLetF binds (STGAp av atoms)
 
   convert (FloLambda ns e) = do
-    (globs,_) <- ask
     e' <- convert e
-    let lForm = runReader (createLForm ns e') globs
+    lForm <- liftRBinds $ createLForm ns e'
     stgLambda lForm
 
   convert (FloLet defs e) = do
-    reader <- ask
-    let defs' = runReader (mapM convert defs) reader
+    defs' <- mapM convert defs
     liftM (STGLet True defs') (convert e)
 
-  convert (FloCase e alts) = liftM2 STGCase (convert e) (convert alts)
+  convert (FloCase e alts) = do
+    e' <- convert e
+    alts' <- convert alts
+    liftRBinds $ removeDefault $ STGCase e' alts'
 
   convert (FloAnn _ e) = convert e
 
@@ -282,10 +284,9 @@ argsToAtomsBinds es = do
     toAtomBind (e,var)
       | isAtomic e = return (toAtom e, Nothing)
       | otherwise = do
-        (globs,_) <- ask
         e' <- convert e
         -- Create the binding
-        let lForm = runReader (createLForm [] e') globs
+        lForm <- liftRBinds $ createLForm [] e'
         return (AtomVar var, Just $ STGBinding var lForm)
 
     {- This is slightly different from isAtomicE, since for the purposes
@@ -317,8 +318,15 @@ instance Convertible [(FloExpr, FloExpr)] (RBindsDC STGAlts) where
                           DAlt dalt -> (Just dalt, init alts')
                           _ -> (Nothing, alts')
 
+        isPrim :: STGDAlt -> Bool
+        isPrim (STGDAlt Nothing _) = False
+        isPrim (STGDAlt (Just var) _) = last var == '#'
+
     -- If the only alt is a default, just return that
-    if null alts'' then return $ STGAAlts [] def
+    if null alts'' then
+      return (if isPrim (fromJust def)
+              then STGPAlts [] def else STGAAlts [] def)
+
     -- Assume the alts are either all algebraic or all primitive
     else return $ (case head alts'' of
           AAlt _ -> STGAAlts . map (\(AAlt aalt) -> aalt)
@@ -333,6 +341,26 @@ instance Convertible (FloExpr, FloExpr) (RBindsDC Alt) where
       [FloLit (LitInt i)] -> PAlt . STGPAlt i
       [FloVar var] -> DAlt . STGDAlt (Just var)
       _ -> DAlt . STGDAlt Nothing) (convert expr)
+
+{- Removes default alternatives with a bound variable, since they're a pain in
+   the ass to compile. -}
+removeDefault :: STGExpr -> RBinds STGExpr
+-- Case 1: No default alternative
+removeDefault c@(STGCase _ (STGAAlts _ Nothing)) = return c
+removeDefault c@(STGCase _ (STGPAlts _ Nothing)) = return c
+-- Case 2: Default alternative with no bound variable
+removeDefault c@(STGCase _ (STGAAlts _ (Just (STGDAlt Nothing _)))) = return c
+removeDefault c@(STGCase _ (STGPAlts _ (Just (STGDAlt Nothing _)))) = return c
+-- Case 3: Default alternative with bound variable
+removeDefault c@(STGCase e (STGAAlts alts (Just (STGDAlt (Just v) b)))) = do
+  lForm <- createLForm [] e
+  return $ STGLet False [STGBinding v lForm] $
+    STGCase (STGAp v []) (STGAAlts alts (Just (STGDAlt Nothing b)))
+removeDefault c@(STGCase e (STGPAlts alts (Just (STGDAlt (Just v) b)))) =
+  return c {- do
+  lForm <- createLForm [] e
+  return $ STGLet False [STGBinding v lForm] $
+    STGCase (STGAp v []) (STGPAlts alts (Just (STGDAlt Nothing b))) -}
 
 {- A map of variables and prefixes to add to them -}
 type Renames = Map.Map Var Var
@@ -370,7 +398,7 @@ instance AddPrefix LambdaForm where
 
 instance AddPrefix Bindings where
   addPrefix bindings = do
-    (_,renames) <- get
+    renames <- gets snd
     bindings' <- mapM addPrefix (Set.toList bindings)
     return $ Set.fromList bindings'
 

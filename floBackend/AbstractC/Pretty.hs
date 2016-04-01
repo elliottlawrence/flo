@@ -57,9 +57,9 @@ instance Pretty CStatement where
 
 instance Pretty CCase where
   pp (CCase (-1) body) = text "default" <> colon <$$>
-    indent 4 (pp body <$$> text "break" <> semi)
+    cBraces (pp body <$$> text "break" <> semi)
   pp (CCase i body) = text "case" <+> int i <> colon <$$>
-    indent 4 (pp body <$$> text "break" <> semi)
+    cBraces (pp body <$$> text "break" <> semi)
 
 instance Pretty CExpr where
   pp (CID name) = text name
@@ -82,3 +82,5 @@ instance Pretty COp where
   pp CLt = char '<'
   pp CPlus = char '+'
   pp CMinus = char '-'
+  pp CMult = char '*'
+  pp CDiv = char '/'
