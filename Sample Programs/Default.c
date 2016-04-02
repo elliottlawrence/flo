@@ -60,12 +60,8 @@ pointer testLR_f_entry();
 pointer testLR_g_entry();
 pointer testLR_h_entry();
 pointer testLR_entry();
-pointer id3_f_t0_entry();
-pointer id3_f_entry();
-pointer id3_entry();
-pointer id3_info[] = {(pointer)id3_entry};
-pointer id3_f_info[] = {(pointer)id3_f_entry};
-pointer id3_f_t0_info[] = {(pointer)id3_f_t0_entry};
+pointer testBoxed_entry();
+pointer testBoxed_info[] = {(pointer)testBoxed_entry};
 pointer testLR_info[] = {(pointer)testLR_entry};
 pointer testLR_h_info[] = {(pointer)testLR_h_entry};
 pointer testLR_g_info[] = {(pointer)testLR_g_entry};
@@ -103,7 +99,7 @@ pointer False_info[] = {(pointer)False_entry};
 pointer True_info[] = {(pointer)True_entry};
 pointer Nil_info[] = {(pointer)Nil_entry};
 pointer Cons_info[] = {(pointer)Cons_entry};
-pointer id3_closure[] = {(pointer)id3_info};
+pointer testBoxed_closure[] = {(pointer)testBoxed_info};
 pointer testLR_closure[] = {(pointer)testLR_info};
 pointer compose_closure[] = {(pointer)compose_info};
 pointer plus_closure[] = {(pointer)plus_info};
@@ -170,7 +166,7 @@ pointer main_t1_t1_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for MkInt */
     Hp[0] = (pointer)MkInt_info;
     Hp[1] = (pointer)3;            /* 3 */
@@ -183,7 +179,7 @@ pointer main_t1_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for main_t1_t1 */
     Hp[0] = (pointer)main_t1_t1_info;
     /* Evaluate body */
@@ -198,7 +194,7 @@ pointer main_t2_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for MkInt */
     Hp[0] = (pointer)MkInt_info;
     Hp[1] = (pointer)2;            /* 2 */
@@ -211,7 +207,7 @@ pointer main_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for main_t1 */
     Hp[0] = (pointer)main_t1_info;
     /* Fill in closure for main_t2 */
@@ -229,23 +225,23 @@ pointer alt1() {
     switch (RTag) {
         case 2:
         {
-            pointer t0 = SpA[0];           /* Grab list into a local variable */
-            pointer t1 = SpA[1];           /* Grab f into a local variable */
-            pointer t2 = SpA[2];           /* Grab g into a local variable */
+            pointer a0 = SpA[0];           /* Grab list into a local variable */
+            pointer a1 = SpA[1];           /* Grab f into a local variable */
+            pointer a2 = SpA[2];           /* Grab g into a local variable */
             SpA = SpA + 3;                 /* Adjust SpA */
-            Node = t1;                     /* Grab f into Node */
+            Node = a1;                     /* Grab f into Node */
             ENTER((pointer**)Node);        /* Enter f */
             break;
         }
         case 1:
         {
-            pointer t0 = SpA[0];           /* Grab list into a local variable */
-            pointer t1 = SpA[1];           /* Grab f into a local variable */
-            pointer t2 = SpA[2];           /* Grab g into a local variable */
+            pointer a0 = SpA[0];           /* Grab list into a local variable */
+            pointer a1 = SpA[1];           /* Grab f into a local variable */
+            pointer a2 = SpA[2];           /* Grab g into a local variable */
             SpA[2] = (pointer)tail_closure; /* Push tail onto stack */
             SpA[1] = (pointer)head_closure; /* Push head onto stack */
             SpA = SpA + 1;                 /* Adjust SpA */
-            Node = t2;                     /* Grab g into Node */
+            Node = a2;                     /* Grab g into Node */
             ENTER((pointer**)Node);        /* Enter g */
             break;
         }
@@ -258,11 +254,11 @@ pointer caseList_entry() {
     SpB[1] = (pointer)alt1;
     SpB = SpB + 1;
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab list into a local variable */
-    pointer t1 = SpA[1];           /* Grab f into a local variable */
-    pointer t2 = SpA[2];           /* Grab g into a local variable */
+    pointer a0 = SpA[0];           /* Grab list into a local variable */
+    pointer a1 = SpA[1];           /* Grab f into a local variable */
+    pointer a2 = SpA[2];           /* Grab g into a local variable */
     SpA = SpA + 3;                 /* Adjust SpA */
-    Node = t0;                     /* Grab list into Node */
+    Node = a0;                     /* Grab list into Node */
     ENTER((pointer**)Node);        /* Enter list */
 }
 
@@ -271,7 +267,7 @@ pointer isNil_constFalse_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for False */
     Hp[0] = (pointer)False_info;
     Node = (pointer)Hp;            /* Grab False closure into Node */
@@ -283,7 +279,7 @@ pointer isNil_t2_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for True */
     Hp[0] = (pointer)True_info;
     Node = (pointer)Hp;            /* Grab True closure into Node */
@@ -295,7 +291,7 @@ pointer isNil_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for isNil_constFalse */
     Hp[0] = (pointer)isNil_constFalse_info;
     /* Evaluate body */
@@ -303,14 +299,14 @@ pointer isNil_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for isNil_t2 */
     Hp[0] = (pointer)isNil_t2_info;
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab list into a local variable */
+    pointer a0 = SpA[0];           /* Grab list into a local variable */
     SpA[0] = (pointer)Hp + 1;      /* Push isNil_constFalse onto stack */
     SpA[-1] = (pointer)Hp;         /* Push isNil_t2 onto stack */
-    SpA[-2] = t0;                  /* Push list onto stack */
+    SpA[-2] = a0;                  /* Push list onto stack */
     SpA = SpA - 2;                 /* Adjust SpA */
     Node = (pointer)caseList_closure; /* Grab caseList into Node */
     ENTER((pointer**)Node);        /* Enter caseList */
@@ -320,21 +316,21 @@ pointer alt2() {
     switch (RTag) {
         case 3:
         {
-            pointer t0 = SpA[0];           /* Grab cond into a local variable */
-            pointer t1 = SpA[1];           /* Grab then into a local variable */
-            pointer t2 = SpA[2];           /* Grab else into a local variable */
+            pointer a0 = SpA[0];           /* Grab cond into a local variable */
+            pointer a1 = SpA[1];           /* Grab then into a local variable */
+            pointer a2 = SpA[2];           /* Grab else into a local variable */
             SpA = SpA + 3;                 /* Adjust SpA */
-            Node = t1;                     /* Grab then into Node */
+            Node = a1;                     /* Grab then into Node */
             ENTER((pointer**)Node);        /* Enter then */
             break;
         }
         case 4:
         {
-            pointer t0 = SpA[0];           /* Grab cond into a local variable */
-            pointer t1 = SpA[1];           /* Grab then into a local variable */
-            pointer t2 = SpA[2];           /* Grab else into a local variable */
+            pointer a0 = SpA[0];           /* Grab cond into a local variable */
+            pointer a1 = SpA[1];           /* Grab then into a local variable */
+            pointer a2 = SpA[2];           /* Grab else into a local variable */
             SpA = SpA + 3;                 /* Adjust SpA */
-            Node = t2;                     /* Grab else into Node */
+            Node = a2;                     /* Grab else into Node */
             ENTER((pointer**)Node);        /* Enter else */
             break;
         }
@@ -347,18 +343,18 @@ pointer if_entry() {
     SpB[1] = (pointer)alt2;
     SpB = SpB + 1;
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab cond into a local variable */
-    pointer t1 = SpA[1];           /* Grab then into a local variable */
-    pointer t2 = SpA[2];           /* Grab else into a local variable */
+    pointer a0 = SpA[0];           /* Grab cond into a local variable */
+    pointer a1 = SpA[1];           /* Grab then into a local variable */
+    pointer a2 = SpA[2];           /* Grab else into a local variable */
     SpA = SpA + 3;                 /* Adjust SpA */
-    Node = t0;                     /* Grab cond into Node */
+    Node = a0;                     /* Grab cond into Node */
     ENTER((pointer**)Node);        /* Enter cond */
 }
 
 pointer id_entry() {
-    pointer t0 = SpA[0];           /* Grab x into a local variable */
+    pointer a0 = SpA[0];           /* Grab x into a local variable */
     SpA = SpA + 1;                 /* Adjust SpA */
-    Node = t0;                     /* Grab x into Node */
+    Node = a0;                     /* Grab x into Node */
     ENTER((pointer**)Node);        /* Enter x */
 }
 
@@ -385,7 +381,7 @@ pointer alt3() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
             Node = (pointer)Hp;            /* Grab Nil closure into Node */
@@ -398,7 +394,7 @@ pointer alt3() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for map_t1 */
             Hp[0] = (pointer)map_t1_info;
             Hp[1] = SpA[0];                /* f */
@@ -412,7 +408,7 @@ pointer alt3() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Cons */
             Hp[0] = (pointer)Cons_info;
             Hp[1] = (pointer)Hp;           /* map_t1 */
@@ -429,10 +425,10 @@ pointer map_entry() {
     SpB[1] = (pointer)alt3;
     SpB = SpB + 1;
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab f into a local variable */
-    pointer t1 = SpA[1];           /* Grab xs into a local variable */
+    pointer a0 = SpA[0];           /* Grab f into a local variable */
+    pointer a1 = SpA[1];           /* Grab xs into a local variable */
     SpA = SpA + 2;                 /* Adjust SpA */
-    Node = t1;                     /* Grab xs into Node */
+    Node = a1;                     /* Grab xs into Node */
     ENTER((pointer**)Node);        /* Enter xs */
 }
 
@@ -458,7 +454,7 @@ pointer alt4() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
             Node = (pointer)Hp;            /* Grab Nil closure into Node */
@@ -471,7 +467,7 @@ pointer alt4() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for map1_mf_t1 */
             Hp[0] = (pointer)map1_mf_t1_info;
             Hp[1] = Node + 1;              /* f */
@@ -485,7 +481,7 @@ pointer alt4() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Cons */
             Hp[0] = (pointer)Cons_info;
             Hp[1] = (pointer)Hp;           /* map1_mf_t1 */
@@ -503,9 +499,9 @@ pointer map1_mf_entry() {
     SpB[1] = (pointer)alt4;
     SpB = SpB + 1;
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab xs into a local variable */
+    pointer a0 = SpA[0];           /* Grab xs into a local variable */
     SpA = SpA + 1;                 /* Adjust SpA */
-    Node = t0;                     /* Grab xs into Node */
+    Node = a0;                     /* Grab xs into Node */
     ENTER((pointer**)Node);        /* Enter xs */
 }
 
@@ -514,13 +510,13 @@ pointer map1_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for map1_mf */
     Hp[0] = (pointer)map1_mf_info;
     Hp[1] = SpA[0];                /* f */
     Hp[2] = (pointer)Hp;           /* map1_mf */
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab f into a local variable */
+    pointer a0 = SpA[0];           /* Grab f into a local variable */
     SpA = SpA + 1;                 /* Adjust SpA */
     Node = (pointer)Hp;            /* Grab map1_mf into Node */
     ENTER((pointer**)Node);        /* Enter map1_mf */
@@ -539,7 +535,7 @@ pointer alt5() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
             Node = (pointer)Hp;            /* Grab Nil closure into Node */
@@ -548,9 +544,9 @@ pointer alt5() {
         }
         default:
         {
-            pointer t0 = SpA[0];           /* Grab list into a local variable */
+            pointer a0 = SpA[0];           /* Grab list into a local variable */
             SpA = SpA + 1;                 /* Adjust SpA */
-            Node = t0;                     /* Grab list into Node */
+            Node = a0;                     /* Grab list into Node */
             ENTER((pointer**)Node);        /* Enter list */
             break;
         }
@@ -562,7 +558,7 @@ pointer test_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for test_blah */
     Hp[0] = (pointer)test_blah_info;
     Hp[1] = SpA[0];                /* list */
@@ -571,20 +567,20 @@ pointer test_entry() {
     SpB[1] = (pointer)alt5;
     SpB = SpB + 1;
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab list into a local variable */
+    pointer a0 = SpA[0];           /* Grab list into a local variable */
     SpA = SpA + 1;                 /* Adjust SpA */
     Node = (pointer)Hp;            /* Grab test_blah into Node */
     ENTER((pointer**)Node);        /* Enter test_blah */
 }
 
 pointer apply3_entry() {
-    pointer t0 = SpA[0];           /* Grab f into a local variable */
-    pointer t1 = SpA[1];           /* Grab x into a local variable */
-    SpA[1] = t1;                   /* Push x onto stack */
-    SpA[0] = t1;                   /* Push x onto stack */
-    SpA[-1] = t1;                  /* Push x onto stack */
+    pointer a0 = SpA[0];           /* Grab f into a local variable */
+    pointer a1 = SpA[1];           /* Grab x into a local variable */
+    SpA[1] = a1;                   /* Push x onto stack */
+    SpA[0] = a1;                   /* Push x onto stack */
+    SpA[-1] = a1;                  /* Push x onto stack */
     SpA = SpA - 1;                 /* Adjust SpA */
-    Node = t0;                     /* Grab f into Node */
+    Node = a0;                     /* Grab f into Node */
     ENTER((pointer**)Node);        /* Enter f */
 }
 
@@ -596,7 +592,7 @@ pointer alt8() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for MkInt */
             Hp[0] = (pointer)MkInt_info;
             Hp[1] = (pointer)t#_closure;   /* t# */
@@ -614,7 +610,7 @@ pointer alt7() {
             SpB[1] = (pointer)alt8;
             SpB = SpB + 1;
             /* Evaluate body */
-            IntReg = x#_closure + y#_closure;
+            IntReg = (pointer)x#_closure + (pointer)y#_closure;
             SpB = SpB - 1;
             ENTER((pointer**)SpB[1]);      /* Enter return address */
             break;
@@ -630,10 +626,10 @@ pointer alt6() {
             SpB[1] = (pointer)alt7;
             SpB = SpB + 1;
             /* Evaluate body */
-            pointer t0 = SpA[0];           /* Grab e1 into a local variable */
-            pointer t1 = SpA[1];           /* Grab e2 into a local variable */
+            pointer a0 = SpA[0];           /* Grab e1 into a local variable */
+            pointer a1 = SpA[1];           /* Grab e2 into a local variable */
             SpA = SpA + 2;                 /* Adjust SpA */
-            Node = t1;                     /* Grab e2 into Node */
+            Node = a1;                     /* Grab e2 into Node */
             ENTER((pointer**)Node);        /* Enter e2 */
             break;
         }
@@ -645,10 +641,10 @@ pointer plus_entry() {
     SpB[1] = (pointer)alt6;
     SpB = SpB + 1;
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab e1 into a local variable */
-    pointer t1 = SpA[1];           /* Grab e2 into a local variable */
+    pointer a0 = SpA[0];           /* Grab e1 into a local variable */
+    pointer a1 = SpA[1];           /* Grab e2 into a local variable */
     SpA = SpA + 2;                 /* Adjust SpA */
-    Node = t0;                     /* Grab e1 into Node */
+    Node = a0;                     /* Grab e1 into Node */
     ENTER((pointer**)Node);        /* Enter e1 */
 }
 
@@ -664,18 +660,18 @@ pointer compose_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for compose_t1 */
     Hp[0] = (pointer)compose_t1_info;
     Hp[1] = SpA[1];                /* g */
     Hp[2] = SpA[2];                /* x */
     /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab f into a local variable */
-    pointer t1 = SpA[1];           /* Grab g into a local variable */
-    pointer t2 = SpA[2];           /* Grab x into a local variable */
+    pointer a0 = SpA[0];           /* Grab f into a local variable */
+    pointer a1 = SpA[1];           /* Grab g into a local variable */
+    pointer a2 = SpA[2];           /* Grab x into a local variable */
     SpA[2] = (pointer)Hp;          /* Push compose_t1 onto stack */
     SpA = SpA + 2;                 /* Adjust SpA */
-    Node = t0;                     /* Grab f into Node */
+    Node = a0;                     /* Grab f into Node */
     ENTER((pointer**)Node);        /* Enter f */
 }
 
@@ -691,7 +687,7 @@ pointer testLR_f_c_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for testLR_f_c_t1 */
     Hp[0] = (pointer)testLR_f_c_t1_info;
     Hp[1] = Node + 1;              /* testLR_g */
@@ -708,7 +704,7 @@ pointer testLR_f_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for testLR_f_c */
     Hp[0] = (pointer)testLR_f_c_info;
     Hp[1] = Node + 1;              /* testLR_g */
@@ -722,8 +718,8 @@ pointer testLR_f_entry() {
 }
 
 pointer testLR_g_entry() {
-    pointer t0 = SpA[0];           /* Grab x into a local variable */
-    SpA[0] = t0;                   /* Push x onto stack */
+    pointer a0 = SpA[0];           /* Grab x into a local variable */
+    SpA[0] = a0;                   /* Push x onto stack */
     Node = Node + 1;               /* Grab testLR_f into Node */
     ENTER((pointer**)Node);        /* Enter testLR_f */
 }
@@ -741,7 +737,7 @@ pointer testLR_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for testLR_f */
     Hp[0] = (pointer)testLR_f_info;
     Hp[1] = (pointer)Hp + 4;       /* testLR_g */
@@ -762,50 +758,19 @@ pointer testLR_entry() {
     ENTER((pointer**)Node);        /* Enter testLR_g */
 }
 
-pointer id3_f_t0_entry() {
-    pointer t0 = SpA[0];           /* Grab input2 into a local variable */
-    SpA[0] = t0;                   /* Push input2 onto stack */
-    SpA[-1] = Node + 2;            /* Push x onto stack */
+pointer testBoxed_entry() {
+    pointer a0 = SpA[0];           /* Grab z into a local variable */
+    pointer b0 = SpB[0];           /* Grab x# into a local variable */
+    pointer b1 = SpB[-1];          /* Grab y# into a local variable */
+    SpB[-1] = b0;                  /* Push x# onto stack */
+    SpB[0] = b1;                   /* Push y# onto stack */
+    SpA[0] = a0;                   /* Push z onto stack */
+    SpB[1] = b0;                   /* Push x# onto stack */
+    SpA[-1] = a0;                  /* Push z onto stack */
     SpA = SpA - 1;                 /* Adjust SpA */
-    Node = Node + 1;               /* Grab id3_f into Node */
-    ENTER((pointer**)Node);        /* Enter id3_f */
-}
-
-pointer id3_f_entry() {
-    Hp = Hp - 3;                   /* Allocate some heap */
-    if (Hp < HLimit) {
-        printf("Error: Out of heap space\n");
-        exit(0);
-    }
-    /* Fill in closure for id3_f_t0 */
-    Hp[0] = (pointer)id3_f_t0_info;
-    Hp[1] = Node + 1;              /* id3_f */
-    Hp[2] = SpA[0];                /* x */
-    /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab x into a local variable */
-    SpA = SpA + 1;                 /* Adjust SpA */
-    Node = (pointer)Hp;            /* Grab id3_f_t0 into Node */
-    ENTER((pointer**)Node);        /* Enter id3_f_t0 */
-}
-
-pointer id3_entry() {
-    Hp = Hp - 2;                   /* Allocate some heap */
-    if (Hp < HLimit) {
-        printf("Error: Out of heap space\n");
-        exit(0);
-    }
-    /* Fill in closure for id3_f */
-    Hp[0] = (pointer)id3_f_info;
-    Hp[1] = (pointer)Hp;           /* id3_f */
-    /* Evaluate body */
-    pointer t0 = SpA[0];           /* Grab x into a local variable */
-    pointer t1 = SpA[1];           /* Grab y into a local variable */
-    pointer t2 = SpA[2];           /* Grab z into a local variable */
-    SpA[2] = t2;                   /* Push z onto stack */
-    SpA[1] = t1;                   /* Push y onto stack */
-    SpA[0] = t0;                   /* Push x onto stack */
-    Node = Node + 1;               /* Grab testLetRec into Node */
-    ENTER((pointer**)Node);        /* Enter testLetRec */
+    SpB = SpB + 1;                 /* Adjust SpB */
+    Node = Node + 1;               /* Grab hello into Node */
+    ENTER((pointer**)Node);        /* Enter hello */
 }
 
 int main() {

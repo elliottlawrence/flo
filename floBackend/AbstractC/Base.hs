@@ -136,16 +136,34 @@ execRS RS{..} = execState . runReaderT rs
 {- Lookup a variable. If it's in the local environment, apply the corresponding
    function to its index on the stack or heap. If not, return the default
    value. -}
-lookupEnv :: Var -> Env -> (Int -> a) -> (Int -> a) -> (Int-> a) -> a -> a
-lookupEnv name env justS justH justL nothing =
-  case lookup name (env^.lEnv.localAStack) of
-    Just i -> justS i
-    Nothing -> case lookup name (env^.lEnv.localFree) of
-                 Just i -> justH i
-                 Nothing -> case lookup name (env^.lEnv.dynamicFree) of
-                              Just i -> justL i
-                              Nothing -> nothing
+lookupEnv :: Var -> Env ->
+            (Int -> a) -> (Int -> a) -> (Int -> a) -> (Int-> a) -> a -> a
+lookupEnv name env justSA justSB justH justL nothing =
+  -- Lookup the variable in the A stack
+  case lookupName localAStack of
+    Just i -> justSA i
+    Nothing -> -- Lookup the variable in the B stack
+      case lookupName localBStack of
+        Just i -> justSB i
+        Nothing -> -- Lookup the variable in the current closure
+          case lookupName localFree of
+            Just i -> justH i
+            Nothing -> -- Lookup the variable in the dynamic closures
+              case lookupName dynamicFree of
+                Just i -> justL i
+                Nothing -> nothing
+  where lookupName loc = lookup name (env^.lEnv.loc)
 
+{- Lookup a name in the environment and convert it to an expression -}
+lookupVarExpr :: Var -> Env -> CExpr
+lookupVarExpr name env = lookupEnv name env
+  (CID . ('a':) . show)            -- A stack
+  (CID . ('b':) . show . negate)   -- B stack
+  offsetNode                       -- Offset from Node
+  (CCast pointerTD . offsetHeap)   -- Offset from heap pointer
+  (CCast pointerTD $ CID $ name ++ "_closure")  -- Static closure
+
+{- Lookup the unique tag associated with a data constructor. -}
 lookupTag :: Cons -> Env -> Int
 lookupTag cons env = fromMaybe (error "Data constructor not found") $
   lookup cons (env ^. gEnv . dataConses)
@@ -213,6 +231,18 @@ assignRTag = CSExpr . CAssign rTag Nothing
 
 assignIntReg :: CExpr -> CStatement
 assignIntReg = CSExpr . CAssign intReg Nothing
+
+{- Update node and enter it -}
+updateNodeEnter :: Var -> Env -> [CStatement]
+updateNodeEnter name env = [
+  CAnn ("Grab " ++ name ++ " into Node") $ assignNode $ lookupVarExpr name env,
+  CAnn ("Enter " ++ name) $ CSEnter $ "(pointer**)" ++ node]
+
+{- Pop off the return address from the B stack and enter it -}
+popRetEnter :: [CStatement]
+popRetEnter =
+  [CSExpr $ CAssign spB Nothing $ offsetStackB (-1),
+   CAnn "Enter return address" $ CSEnter $ "(pointer**)" ++ spB ++ "[1]"]
 
 {- Allocate space in the heap -}
 allocateHeap :: Int -> [CStatement]
