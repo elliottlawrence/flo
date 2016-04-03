@@ -144,7 +144,7 @@ compileBind (STGBinding name LambdaForm{..}) = do
     -- Dynamically allocated closures are only valid for a single instruction
     -- sequence, so they need to be reset.
     [])
-    (compileE expr)
+    (compileE expr False)
       -- Todo: Implement these
   let stackOverflowCheck = []
       heapOverflowCheck = []
@@ -157,9 +157,9 @@ compileBind (STGBinding name LambdaForm{..}) = do
   createInfoTable name stdEntry
 
 {- Compiles an arbitrary STG expression -}
-compileE :: STGExpr -> SEnv [CStatement]
-compileE e = case e of
-  STGAp name args -> liftREnv $ compileAp name args
+compileE :: STGExpr -> Bool -> SEnv [CStatement]
+compileE e saveEnv = case e of
+  STGAp name args -> liftREnv $ compileAp name args saveEnv
   STGLet _ binds expr -> compileLet binds expr
   STGCase expr alts -> compileCase expr alts
   STGCons cons args -> liftREnv $ compileCons cons args
@@ -167,8 +167,8 @@ compileE e = case e of
   STGPrim op e1 e2 -> liftREnv $ compilePrim op e1 e2
 
 {- Compiles function applications -}
-compileAp :: Var -> [Atom] -> REnv [CStatement]
-compileAp name args = do
+compileAp :: Var -> [Atom] -> Bool -> REnv [CStatement]
+compileAp name args saveEnv = do
   env <- ask
   let
     -- Grab all of the arguments into local variables.
@@ -189,8 +189,10 @@ compileAp name args = do
 
     -- Push the arguments (in reverse order) to the new function call on the
     -- appropriate stacks
-    (pushArgs, (a',b')) = runState (mapM pushArg (reverse args))
-      (length $ env'^.lEnv.localAStack, negate $ length $ env'^.lEnv.localBStack)
+    pushStarts | saveEnv = (0,0)
+               | otherwise = (length $ env'^.lEnv.localAStack,
+                              negate $ length $ env'^.lEnv.localBStack)
+    (pushArgs, (a',b')) = runState (mapM pushArg (reverse args)) pushStarts
 
     -- Push an argument onto the appropriate stack
     pushArg :: Atom -> State (Int,Int) CStatement
@@ -240,7 +242,7 @@ compileLet binds expr = do
 
   put s'
   -- Compile the body of the let expression in the new environment
-  expr' <- local (const env') (compileE expr)
+  expr' <- local (const env') (compileE expr False)
   return $ alloc ++ fillClosures ++ CComment "Evaluate body" : expr'
 
 {- Fill in a heap-allocated closure -}
@@ -281,7 +283,7 @@ compileCase e alts = do
                  offsetStackB']
 
   -- Compile the expression in the (again) modified environment
-  e' <- local (const env') $ compileE e
+  e' <- local (const env') $ compileE e True
 
   return $ CComment "Save local environment" : saveLocalEnv ++
            CComment "Push return address" : pushRet ++
@@ -349,21 +351,21 @@ compileAlts alts = do
       -- Compile the alternative in a modified environment where the constructor
       -- arguments are bound to offsets from Node.
       let nodeBinds = zip vars [1..]
-      e' <- local (& lEnv.localFree .~ nodeBinds) $ compileE e
+      e' <- local (& lEnv.localFree .~ nodeBinds) $ compileE e False
       return $ CCase tag e'
 
     -- Compiles primitive alternatives
-    makeCaseP (STGPAlt lit e) = liftM (CCase lit) (compileE e)
+    makeCaseP (STGPAlt lit e) = liftM (CCase lit) (compileE e False)
 
     -- Compiles default alternatives
     makeCaseD (Just (STGDAlt (Just d) e)) = do
       -- Bind the default variable to the value returned (assume for now it's
       -- an int)
       let bindDef = CSVarDecl $ CVarDecl CInt d Nothing (Just $ CID intReg)
-      e' <- local (lEnv.localVars %~ ((d,d):)) $ compileE e
+      e' <- local (lEnv.localVars %~ ((d,d):)) $ compileE e False
       return [CCase (-1) $ bindDef : e']
     makeCaseD (Just (STGDAlt Nothing e)) = do
-      e' <- compileE e
+      e' <- compileE e False
       return [CCase (-1) e']
     makeCaseD Nothing = return []
 

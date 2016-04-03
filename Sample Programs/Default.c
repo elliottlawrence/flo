@@ -166,7 +166,7 @@ pointer main_t1_t1_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for MkInt */
     Hp[0] = (pointer)MkInt_info;
     Hp[1] = (pointer)3;            /* 3 */
@@ -179,7 +179,7 @@ pointer main_t1_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for main_t1_t1 */
     Hp[0] = (pointer)main_t1_t1_info;
     /* Evaluate body */
@@ -194,7 +194,7 @@ pointer main_t2_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for MkInt */
     Hp[0] = (pointer)MkInt_info;
     Hp[1] = (pointer)2;            /* 2 */
@@ -207,7 +207,7 @@ pointer main_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for main_t1 */
     Hp[0] = (pointer)main_t1_info;
     /* Fill in closure for main_t2 */
@@ -258,7 +258,6 @@ pointer caseList_entry() {
     pointer a0 = SpA[0];           /* Grab list into a local variable */
     pointer a1 = SpA[1];           /* Grab f into a local variable */
     pointer a2 = SpA[2];           /* Grab g into a local variable */
-    SpA = SpA + 3;                 /* Adjust SpA */
     Node = a0;                     /* Grab list into Node */
     ENTER((pointer**)Node);        /* Enter list */
 }
@@ -268,7 +267,7 @@ pointer isNil_constFalse_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for False */
     Hp[0] = (pointer)False_info;
     Node = (pointer)Hp;            /* Grab False into Node */
@@ -280,7 +279,7 @@ pointer isNil_t2_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for True */
     Hp[0] = (pointer)True_info;
     Node = (pointer)Hp;            /* Grab True into Node */
@@ -292,7 +291,7 @@ pointer isNil_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for isNil_constFalse */
     Hp[0] = (pointer)isNil_constFalse_info;
     /* Evaluate body */
@@ -300,7 +299,7 @@ pointer isNil_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for isNil_t2 */
     Hp[0] = (pointer)isNil_t2_info;
     /* Evaluate body */
@@ -348,7 +347,6 @@ pointer if_entry() {
     pointer a0 = SpA[0];           /* Grab cond into a local variable */
     pointer a1 = SpA[1];           /* Grab then into a local variable */
     pointer a2 = SpA[2];           /* Grab else into a local variable */
-    SpA = SpA + 3;                 /* Adjust SpA */
     Node = a0;                     /* Grab cond into Node */
     ENTER((pointer**)Node);        /* Enter cond */
 }
@@ -383,7 +381,7 @@ pointer alt3() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
             Node = (pointer)Hp;            /* Grab Nil into Node */
@@ -396,7 +394,7 @@ pointer alt3() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for map_t1 */
             Hp[0] = (pointer)map_t1_info;
             Hp[1] = SpA[0];                /* f */
@@ -410,7 +408,7 @@ pointer alt3() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Cons */
             Hp[0] = (pointer)Cons_info;
             Hp[1] = (pointer)Hp + 3;       /* map_t1 */
@@ -431,7 +429,6 @@ pointer map_entry() {
     /* Evaluate body */
     pointer a0 = SpA[0];           /* Grab f into a local variable */
     pointer a1 = SpA[1];           /* Grab xs into a local variable */
-    SpA = SpA + 2;                 /* Adjust SpA */
     Node = a1;                     /* Grab xs into Node */
     ENTER((pointer**)Node);        /* Enter xs */
 }
@@ -458,7 +455,7 @@ pointer alt4() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
             Node = (pointer)Hp;            /* Grab Nil into Node */
@@ -471,7 +468,7 @@ pointer alt4() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for map1_mf_t1 */
             Hp[0] = (pointer)map1_mf_t1_info;
             Hp[1] = SpA[1];                /* f */
@@ -485,7 +482,7 @@ pointer alt4() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Cons */
             Hp[0] = (pointer)Cons_info;
             Hp[1] = (pointer)Hp + 3;       /* map1_mf_t1 */
@@ -510,7 +507,6 @@ pointer map1_mf_entry() {
     pointer a2 = SpA[2];           /* Grab xs into a local variable */
     pointer a1 = SpA[1];           /* Grab f into a local variable */
     pointer a0 = SpA[0];           /* Grab map1_mf into a local variable */
-    SpA = SpA + 3;                 /* Adjust SpA */
     Node = a2;                     /* Grab xs into Node */
     ENTER((pointer**)Node);        /* Enter xs */
 }
@@ -520,7 +516,7 @@ pointer map1_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for map1_mf */
     Hp[0] = (pointer)map1_mf_info;
     Hp[1] = SpA[0];                /* f */
@@ -545,7 +541,7 @@ pointer alt5() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
             Node = (pointer)Hp;            /* Grab Nil into Node */
@@ -570,7 +566,7 @@ pointer test_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for test_blah */
     Hp[0] = (pointer)test_blah_info;
     Hp[1] = SpA[0];                /* list */
@@ -584,7 +580,6 @@ pointer test_entry() {
     /* Evaluate body */
     pointer a1 = SpA[1];           /* Grab list into a local variable */
     pointer a0 = SpA[0];           /* Grab test_blah into a local variable */
-    SpA = SpA + 2;                 /* Adjust SpA */
     Node = a0;                     /* Grab test_blah into Node */
     ENTER((pointer**)Node);        /* Enter test_blah */
 }
@@ -609,7 +604,7 @@ pointer alt8() {
             if (Hp < HLimit) {
                 printf("Error: Out of heap space\n");
                 exit(0);
-            }
+            } 
             /* Fill in closure for MkInt */
             Hp[0] = (pointer)MkInt_info;
             Hp[1] = t$;                    /* t$ */
@@ -655,8 +650,6 @@ pointer alt6() {
             pointer a0 = SpA[0];           /* Grab e1 into a local variable */
             pointer a1 = SpA[1];           /* Grab e2 into a local variable */
             pointer b1 = SpB[-1];          /* Grab x$ into a local variable */
-            SpA = SpA + 2;                 /* Adjust SpA */
-            SpB = SpB - 1;                 /* Adjust SpB */
             Node = a1;                     /* Grab e2 into Node */
             ENTER((pointer**)Node);        /* Enter e2 */
             break;
@@ -673,7 +666,6 @@ pointer plus_entry() {
     /* Evaluate body */
     pointer a0 = SpA[0];           /* Grab e1 into a local variable */
     pointer a1 = SpA[1];           /* Grab e2 into a local variable */
-    SpA = SpA + 2;                 /* Adjust SpA */
     Node = a0;                     /* Grab e1 into Node */
     ENTER((pointer**)Node);        /* Enter e1 */
 }
@@ -690,7 +682,7 @@ pointer compose_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for compose_t1 */
     Hp[0] = (pointer)compose_t1_info;
     Hp[1] = SpA[1];                /* g */
@@ -717,7 +709,7 @@ pointer testLR_f_c_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for testLR_f_c_t1 */
     Hp[0] = (pointer)testLR_f_c_t1_info;
     Hp[1] = Node + 1;              /* testLR_g */
@@ -734,7 +726,7 @@ pointer testLR_f_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for testLR_f_c */
     Hp[0] = (pointer)testLR_f_c_info;
     Hp[1] = Node + 1;              /* testLR_g */
@@ -767,7 +759,7 @@ pointer testLR_entry() {
     if (Hp < HLimit) {
         printf("Error: Out of heap space\n");
         exit(0);
-    }
+    } 
     /* Fill in closure for testLR_f */
     Hp[0] = (pointer)testLR_f_info;
     Hp[1] = (pointer)Hp + 4;       /* testLR_g */
