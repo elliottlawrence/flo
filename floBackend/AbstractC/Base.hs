@@ -62,9 +62,10 @@ data CExpr = CID ID
 
 data COp = CEq | CNe | CLt | CPlus | CMinus | CMult | CDiv
 
-{- The local environment consists of locations on the stacks, locations in the
-   current closure, and dynamically allocated closures. -}
+{- The local environment consists of local variables, locations on the stacks,
+   locations in the current closure, and dynamically allocated closures. -}
 data LocalEnv = LocalEnv {
+  _localVars :: [(Var,Var)],
   _localAStack :: [(Var,Int)],
   _localBStack :: [(Var,Int)],
   _localFree :: [(Var,Int)],
@@ -136,31 +137,35 @@ execRS RS{..} = execState . runReaderT rs
 {- Lookup a variable. If it's in the local environment, apply the corresponding
    function to its index on the stack or heap. If not, return the default
    value. -}
-lookupEnv :: Var -> Env ->
+lookupEnv :: Var -> Env -> (Var -> a) ->
             (Int -> a) -> (Int -> a) -> (Int -> a) -> (Int-> a) -> a -> a
-lookupEnv name env justSA justSB justH justL nothing =
-  -- Lookup the variable in the A stack
-  case lookupName localAStack of
-    Just i -> justSA i
-    Nothing -> -- Lookup the variable in the B stack
-      case lookupName localBStack of
-        Just i -> justSB i
-        Nothing -> -- Lookup the variable in the current closure
-          case lookupName localFree of
-            Just i -> justH i
-            Nothing -> -- Lookup the variable in the dynamic closures
-              case lookupName dynamicFree of
-                Just i -> justL i
-                Nothing -> nothing
+lookupEnv name env justLoc justSA justSB justH justL nothing =
+  -- Lookup the variable in the local variables
+  case lookupName localVars of
+    Just var -> justLoc var
+    Nothing -> -- Lookup the variable in the A stack
+      case lookupName localAStack of
+        Just i -> justSA i
+        Nothing -> -- Lookup the variable in the B stack
+          case lookupName localBStack of
+            Just i -> justSB i
+            Nothing -> -- Lookup the variable in the current closure
+              case lookupName localFree of
+                Just i -> justH i
+                Nothing -> -- Lookup the variable in the dynamic closures
+                  case lookupName dynamicFree of
+                    Just i -> justL i
+                    Nothing -> nothing
   where lookupName loc = lookup name (env^.lEnv.loc)
 
-{- Lookup a name in the environment and convert it to an expression -}
+{- Lookup a name in the environment and convert it to an expression. -}
 lookupVarExpr :: Var -> Env -> CExpr
 lookupVarExpr name env = lookupEnv name env
-  (CID . ('a':) . show)            -- A stack
-  (CID . ('b':) . show . negate)   -- B stack
-  offsetNode                       -- Offset from Node
-  (CCast pointerTD . offsetHeap)   -- Offset from heap pointer
+  CID                              -- Local variable
+  (CArrayElement spA)              -- A stack
+  (CArrayElement spB)              -- B stack
+  nodeOffset                       -- Offset from Node
+  (CCast pointerTD . heapOffset)   -- Offset from heap pointer
   (CCast pointerTD $ CID $ name ++ "_closure")  -- Static closure
 
 {- Lookup the unique tag associated with a data constructor. -}
@@ -168,11 +173,9 @@ lookupTag :: Cons -> Env -> Int
 lookupTag cons env = fromMaybe (error "Data constructor not found") $
   lookup cons (env ^. gEnv . dataConses)
 
-{- Adjusts all the heap offsets for dynamically allocated closures. Useful when
-   the heap pointer has changed but we still need to reference these closures.
-   -}
-adjustDynamicFree :: Int -> [(Var,Int)] -> [(Var,Int)]
-adjustDynamicFree i free = [ (var,index + i) | (var,index) <- free]
+{- Adjusts all the offsets in a list of variable bindings -}
+adjustVarBinds :: Int -> [(Var,Int)] -> [(Var,Int)]
+adjustVarBinds i varBinds = [ (var,index + i) | (var,index) <- varBinds]
 
 pointerTD :: CType
 pointerTD = CTypeDef "pointer"
@@ -205,26 +208,66 @@ offset name i | i == 0 = CID name
 assignStackA :: Int -> CExpr -> CStatement
 assignStackA i = CSExpr . CAssign spA (Just i)
 
-offsetStackA :: Int -> CExpr
-offsetStackA = offset spA
+offsetStackA :: Int -> State Env CStatement
+offsetStackA i = do
+  -- Modify the offsets on the A stack
+  modify (& lEnv.localAStack %~ adjustVarBinds (-i))
+  return $ CSExpr $ CAssign spA Nothing $ offset spA i
 
 assignStackB :: Int -> CExpr -> CStatement
 assignStackB i = CSExpr . CAssign spB (Just i)
 
-offsetStackB :: Int -> CExpr
-offsetStackB = offset spB
+offsetStackB :: Int -> State Env CStatement
+offsetStackB i = do
+  -- Modify the offsets on the B stack
+  modify (& lEnv.localBStack %~ adjustVarBinds (-i))
+  return $ CSExpr $ CAssign spB Nothing $ offset spB i
+
+{- Adjust the stack pointers by the given amount -}
+adjustSps :: Int -> Int -> State Env [CStatement]
+adjustSps a b = do
+  offsetA <- offsetStackA a
+  offsetB <- offsetStackB b
+  let offsetA' | a == 0 = []
+               | otherwise = [CAnn "Adjust SpA" offsetA]
+      offsetB' | b == 0 = []
+               | otherwise = [CAnn "Adjust SpB" offsetB]
+  return $ offsetA' ++ offsetB'
 
 assignHeap :: Int -> CExpr -> CStatement
 assignHeap i = CSExpr . CAssign hp (Just i)
 
-offsetHeap :: Int -> CExpr
-offsetHeap = offset hp
+offsetHeap :: Int -> State Env CStatement
+offsetHeap i = do
+  -- Adjust the heap offsets
+  modify (& lEnv.dynamicFree %~ adjustVarBinds (-i))
+  return $ CSExpr $ CAssign hp Nothing $ offset hp i
+
+heapOffset :: Int -> CExpr
+heapOffset = offset hp
+
+{- Allocate space in the heap and update the environment with new offsets from
+   the heap pointer -}
+allocateHeap :: Int -> State Env [CStatement]
+allocateHeap i = do
+  offsetHeap' <- offsetHeap (-i)
+  return [CAnn "Allocate some heap" offsetHeap',
+      CSIf (COp CLt (CID hp) (CID hLimit))
+        [CSExpr $ CCall (CID "printf") [CString "Error: Out of heap space\\n"],
+         CSExpr $ CCall (CID "exit") [CLit 0]]
+        [] ]
 
 assignNode :: CExpr -> CStatement
 assignNode = CSExpr . CAssign node Nothing
 
-offsetNode :: Int -> CExpr
-offsetNode = COp CPlus (CID node) . CLit
+nodeOffset :: Int -> CExpr
+nodeOffset = COp CPlus (CID node) . CLit
+
+{- Update node and enter it -}
+updateNodeEnter :: Var -> Env -> [CStatement]
+updateNodeEnter name env = [CAnn ("Grab " ++ name ++ " into Node") $
+  assignNode $ lookupVarExpr name env,
+  CAnn ("Enter " ++ name) $ CSEnter $ "(pointer**)" ++ node]
 
 assignRTag :: CExpr -> CStatement
 assignRTag = CSExpr . CAssign rTag Nothing
@@ -232,27 +275,22 @@ assignRTag = CSExpr . CAssign rTag Nothing
 assignIntReg :: CExpr -> CStatement
 assignIntReg = CSExpr . CAssign intReg Nothing
 
-{- Update node and enter it -}
-updateNodeEnter :: Var -> Env -> [CStatement]
-updateNodeEnter name env = [
-  CAnn ("Grab " ++ name ++ " into Node") $ assignNode $ lookupVarExpr name env,
-  CAnn ("Enter " ++ name) $ CSEnter $ "(pointer**)" ++ node]
-
 {- Pop off the return address from the B stack and enter it -}
-popRetEnter :: [CStatement]
-popRetEnter =
-  [CSExpr $ CAssign spB Nothing $ offsetStackB (-1),
-   CAnn "Enter return address" $ CSEnter $ "(pointer**)" ++ spB ++ "[1]"]
-
-{- Allocate space in the heap -}
-allocateHeap :: Int -> [CStatement]
-allocateHeap i = [CAnn "Allocate some heap" $
-  CSExpr $ CAssign hp Nothing $ offsetHeap (negate i),
-  CSIf (COp CLt (CID hp) (CID hLimit))
-    [CSExpr $ CCall (CID "printf") [CString "Error: Out of heap space\\n"],
-     CSExpr $ CCall (CID "exit") [CLit 0]]
-    [] ]
+popRetEnter :: State Env [CStatement]
+popRetEnter = do
+  offsetStackB' <- offsetStackB (-1)
+  return [offsetStackB', CAnn "Enter return address" $
+          CSEnter $ "(pointer**)" ++ spB ++ "[1]"]
 
 lookupOp :: Var -> COp
 lookupOp var = fromMaybe (error "Primitive operator not found") $
-  lookup var [("+#",CPlus), ("-#",CMinus), ("*#",CMult), ("/#",CDiv)]
+  lookup var [("+$",CPlus), ("-$",CMinus), ("*$",CMult), ("/$",CDiv)]
+
+{- A variable is unboxed iff it ends with a '$' -}
+isBoxed :: Var -> Bool
+isBoxed = ('$' /=) . last
+
+{- An atom is boxed iff it's a variable that's boxed -}
+isBoxedA :: Atom -> Bool
+isBoxedA (AtomVar var) = isBoxed var
+isBoxedA _ = False

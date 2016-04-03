@@ -10,6 +10,7 @@ import STG
 import Control.Arrow (first, second, (***))
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.Either (partitionEithers)
 import Data.List (partition)
 import Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Set as Set
@@ -64,7 +65,7 @@ instance Convertible STGProgram CProgram where
     intRegDecl = CVarDecl CInt intReg Nothing Nothing
 
     -- Set up initial environment and state for the compilation
-    initialEnv = Env (LocalEnv [] [] [] []) (GlobalEnv globs dataConses)
+    initialEnv = Env (LocalEnv [] [] [] [] []) (GlobalEnv globs dataConses)
     initialState = St (Decls [] [] [] []) 1
     globs = Set.fromList $ map (\(STGBinding name _) -> name) stgBindings
     -- Tag the data constructors with unique numbers
@@ -91,11 +92,13 @@ compileDC (STGDataCons cons _) = do
 {- Creates the standard entry code for data constructors -}
 createDCStdEntry :: Cons -> SEnv CFunction
 createDCStdEntry cons = do
-  env <- ask
-  let -- Update RTag with the tag of the constructor
-      updateRTag = assignRTag $ CLit $ lookupTag cons env
-      stdEntry = CFunction pointerTD (cons ++ "_entry") [] $
-                 updateRTag : popRetEnter
+  -- Update RTag with the tag of the constructor
+  updateRTag <- asks $ assignRTag . CLit . lookupTag cons
+  -- Pop the return address and enter it
+  popRetEnter' <- asks $ evalState popRetEnter
+
+  let stdEntry = CFunction pointerTD (cons ++ "_entry") [] $
+                 updateRTag : popRetEnter'
   -- Add the function to the state
   modify (decls.stdEntries %~ (stdEntry:))
   return stdEntry
@@ -126,10 +129,12 @@ compileTopBind b@(STGBinding name _) = do
 compileBind :: STGBinding -> SEnv InfoTable
 compileBind (STGBinding name LambdaForm{..}) = do
       -- Partition the arguments into primitive and non-primitive. By
-      -- convention, primitive values end with a '#'.
-  let (bStackArgs, aStackArgs) = partition (('#' ==) . last) args
+      -- convention, primitive values end with a '$'.
+  let (bStackArgs, aStackArgs) = partition (('$' ==) . last) args
   -- Compile the expression in the modified environment.
   expr' <- local (lEnv .~ LocalEnv
+    -- Initially there are no local variables
+    []
     -- Non-primitive arguments are located at offsets from the A stack pointer.
     (zip aStackArgs [0..])
     -- Primitive arguments are located at offsets from the B stack pointer.
@@ -167,53 +172,56 @@ compileAp name args = do
   env <- ask
   let
     -- Grab all of the arguments into local variables.
-    grabArgs = map (grabArg True) (env^.lEnv.localAStack) ++
-               map (grabArg False) (env^.lEnv.localBStack)
+    (localBinds,grabArgs) =
+      unzip $ map (grabArg True) (env^.lEnv.localAStack) ++
+              map (grabArg False) (env^.lEnv.localBStack)
 
     -- Grabs an argument from either stack into a local variable
-    grabArg :: Bool -> (Var,Int) -> CStatement
-    grabArg isA (arg,i) =
+    grabArg :: Bool -> (Var,Int) -> ((Var,Var),CStatement)
+    grabArg isA (arg,i) = ((arg,toVarName i),
       CAnn ("Grab " ++ arg ++ " into a local variable") $ CSVarDecl $
-      CVarDecl pointerTD (toVarName i) Nothing (Just $ CArrayElement stack i)
+      CVarDecl pointerTD (toVarName i) Nothing (Just $ CArrayElement stack i))
       where stack = if isA then spA else spB
             toVarName = if isA then ('a':) . show else ('b':) . show . negate
+
+    -- Update the environment to include the new local variables
+    env' = env & (lEnv.localVars %~ (++ localBinds))
 
     -- Push the arguments (in reverse order) to the new function call on the
     -- appropriate stacks
     (pushArgs, (a',b')) = runState (mapM pushArg (reverse args))
-      (length $ env^.lEnv.localAStack, negate $ length $ env^.lEnv.localBStack)
+      (length $ env'^.lEnv.localAStack, negate $ length $ env'^.lEnv.localBStack)
 
     -- Push an argument onto the appropriate stack
     pushArg :: Atom -> State (Int,Int) CStatement
     pushArg arg
       -- Boxed arguments get pushed onto the A stack, which grows downwards
-      | isBoxed arg = do
+      | isBoxedA arg = do
           (a,b) <- get
           let AtomVar var = arg
               a' = a - 1
           put (a',b)
-          return $ annotation $ assignStackA a' $ lookupVarExpr var env
+          return $ annotation $ assignStackA a' $ lookupVarExpr var env'
       -- Unboxed arguments get pushed onto the B stack, which grows upwards
       | otherwise = do
           (a,b) <- get
-          let expr = case arg of AtomVar var -> lookupVarExpr var env
+          let expr = case arg of AtomVar var -> lookupVarExpr var env'
                                  AtomLit lit -> CCast pointerTD $ CLit lit
               b' = b + 1
           put (a,b')
           return $ annotation $ assignStackB b' expr
       where annotation = CAnn $ "Push " ++ showP arg ++ " onto stack"
-            -- An atom is boxed iff it's a variable that doesn't end with '#'
-            isBoxed (AtomVar var) = last var /= '#'
-            isBoxed _ = False
 
-    -- Adjust the stack pointers
-    adjustSp = adjust spA a' ++ adjust spB b'
-    adjust name diff
-      | diff == 0 = []
-      | otherwise = [CAnn ("Adjust " ++ name) $
-                     CSExpr $ CAssign name Nothing $ offset name diff]
+    -- Adjust stack pointers
+    adjustStacks = evalState (adjustSps a' b') env'
 
-  return $ grabArgs ++ pushArgs ++ adjustSp ++ updateNodeEnter name env
+    -- If the variable to call is boxed, load it into node and enter it. If it's
+    -- primitive, load it into the appropriate register and jump to the return
+    -- address on the B stack.
+    enter | isBoxed name = updateNodeEnter name env'
+          | otherwise = assignIntReg (CID name) : evalState popRetEnter env'
+
+  return $ grabArgs ++ pushArgs ++ adjustStacks ++ enter
 
 {- Compiles let(rec) expressions -}
 compileLet :: [STGBinding] -> STGExpr -> SEnv [CStatement]
@@ -221,20 +229,19 @@ compileLet binds expr = do
   env <- ask
   s <- get
   let
-    -- Fill in the closures, allowing for recursive definitions
+    -- Allocate space in the heap for the new closures and update the
+    -- environment with the new let bindings
+    (alloc,env') = second (& lEnv.dynamicFree %~ (++ newBinds)) $
+      runState (allocateHeap spaceNeeded) env
+
+    -- Fill in the closures
     (bindsAssigns, (spaceNeeded,s')) = runRS (mapM fillClosure binds) env' (0,s)
     (newBinds,fillClosures) = second concat $ unzip bindsAssigns
 
-    -- The updated environment, with the new bindings from the let expression
-    env' = env & lEnv.dynamicFree .~
-      adjustDynamicFree spaceNeeded (env^.lEnv.dynamicFree) ++ newBinds
-
   put s'
+  -- Compile the body of the let expression in the new environment
   expr' <- local (const env') (compileE expr)
-      -- Call the expression in the body of the let
-  let callExpr = CComment "Evaluate body" : expr'
-
-  return $ allocateHeap spaceNeeded ++ fillClosures ++ callExpr
+  return $ alloc ++ fillClosures ++ CComment "Evaluate body" : expr'
 
 {- Fill in a heap-allocated closure -}
 fillClosure :: STGBinding -> RS Env (Int,St) ((Var,Int),[CStatement])
@@ -242,174 +249,182 @@ fillClosure bind@(STGBinding name LambdaForm{..}) = do
   -- Get the current heap offset
   i <- gets fst
   env <- ask
+  -- Compile the binding into an info table and standard entry code
   infoTable <- alterState snd (set _2) $ compileBind bind
 
-  let assignInfoTable = assignHeap i
-        (CCast pointerTD $ CID $ varName infoTable)
+  let -- Assign the info table to the first spot in the closure
+      assignInfoTable = assignHeap i (CCast pointerTD $ CID $ varName infoTable)
 
-      fVarE fVar = lookupEnv fVar env
-        (CArrayElement spA) undefined offsetNode (CCast pointerTD . offsetHeap)
-        (CCast pointerTD $ CID $ fVar ++ "_closure")
-      assigns = assignInfoTable :
-        zipWith (\i' fVar -> CAnn fVar $ assignHeap i' (fVarE fVar))
+      -- Fill in the rest of the closure with the free variables
+      assignFreeVars = zipWith (\i' fVar -> CAnn fVar $
+        assignHeap i' (lookupVarExpr fVar env))
         [i+1..] (Set.toList fVars)
 
-      comment = CComment $ "Fill in closure for " ++ name
+      assigns = assignInfoTable : assignFreeVars
 
   -- Update the heap offset
   modify $ first (+ length assigns)
-  return ((name, i), comment:assigns)
+  return ((name, i), CComment ("Fill in closure for " ++ name) : assigns)
 
 {- Compiles case expressions -}
 compileCase :: STGExpr -> STGAlts -> SEnv [CStatement]
 compileCase e alts = do
+  -- Save the local environment
+  (saveLocalEnv,env) <- asks $ runState saveEnv
+
+  -- Compile the alternatives in the modified environment
+  alts' <- local (const env) $ compileAlts alts
+
+  -- Push the return address to the B stack
+  let (offsetStackB',env') = runState (offsetStackB 1) env
+      pushRet = [assignStackB 1 $ CCast pointerTD $ CID (funName alts'),
+                 offsetStackB']
+
+  -- Compile the expression in the (again) modified environment
+  e' <- local (const env') $ compileE e
+
+  return $ CComment "Save local environment" : saveLocalEnv ++
+           CComment "Push return address" : pushRet ++
+           CComment "Evaluate body" : e'
+
+{- Saves a local environment on the stack and returns the updated environment -}
+saveEnv :: State Env [CStatement]
+saveEnv = do
+  env <- get
+  let
+    saveEnv' :: State (Int,Int) ([(Var,Int)],[(Var,Int)],[CStatement])
+    saveEnv' = do
+      (saveNodeStack, saveNodeStates) <- mapAndUnzipM
+        (\(var,i) -> saveVar var (nodeOffset i))
+        (env^.lEnv.localFree)
+      (saveDynamicStack, saveDynamicStates) <- mapAndUnzipM
+        (\(var,i) -> saveVar var (CCast pointerTD $ heapOffset i))
+        (env^.lEnv.dynamicFree)
+      let (saveA, saveB) = partitionEithers $ saveNodeStack ++ saveDynamicStack
+      return (saveA, saveB, saveNodeStates ++ saveDynamicStates)
+
+    -- Generate the new bindings and stack offsets
+    ((saveA, saveB, saves), (a',b')) = runState saveEnv' (0,0)
+
+  -- Update the environment to include the new stack items
+  put (env & lEnv.localAStack %~ (++ saveA)
+           & lEnv.localBStack %~ (++ saveB)
+           & lEnv.localFree .~ []
+           & lEnv.dynamicFree .~ [])
+
+  -- Adjust the stack pointers
+  adjustStacks <- adjustSps a' b'
+
+  return $ saves ++ adjustStacks
+
+{- Save a variable on the appropriate stack and return its new binding -}
+saveVar :: Var -> CExpr -> State (Int,Int)
+                           (Either (Var,Int) (Var,Int), CStatement)
+saveVar var expr
+  | isBoxed var = do
+      (a,b) <- get
+      let a' = a - 1
+      put (a',b)
+      return (Left (var,a'), ann $ assignStackA a' expr)
+  | otherwise = do
+      (a,b) <- get
+      let b' = b + 1
+      put (a,b')
+      return (Right (var,b'), ann $ assignStackB b' expr)
+  where ann = CAnn $ "Save " ++ var
+
+{- Compile the alternatives of a case expression -}
+compileAlts :: STGAlts -> SEnv CFunction
+compileAlts alts = do
   num <- gets (^.altsNum)
   -- Increase the number of alternatives
   modify (& altsNum .~ num + 1)
 
-  -- Compile the expression and alternatives
-  e' <- compileE e
-  alts' <- compileAlts alts
-
-  saveLocalEnv <- alterState (const 0) (const id) $ saveFree alts
-  let altName = "alt" ++ show num
-      pushRet = [assignStackB 1 $ CCast pointerTD $ CID altName,
-                 CSExpr $ CAssign spB Nothing $ offsetStackB 1]
-      callE = CComment "Evaluate body" : e'
-      switchAlts = CFunction pointerTD altName [] [alts']
-
-  -- Append the alternatives to the list of functions
-  modify (& decls.stdEntries %~ (++ [switchAlts]))
-  return $ saveLocalEnv ++ pushRet ++ callE
-
-compileAlts :: STGAlts -> SEnv CStatement
-compileAlts alts = do
-  env <- ask
   let
-    -- We can only compile default alternatives that don't have a bound
-    -- variable, unless they're primitive.
-    maybeCase (Just (STGDAlt _ e)) = do
-      e' <- compileE e
-      return [CCase (-1) e']
-    maybeCase Nothing = return []
+    altName = "alt" ++ show num
 
-    makeCaseA (STGAAlt cons vars e) =
-      liftM (CCase (lookupTag cons env)) (compileE e)
+    -- Compiles algebraic alternatives
+    makeCaseA (STGAAlt cons vars e) = do
+      tag <- asks $ lookupTag cons
+      -- Compile the alternative in a modified environment where the constructor
+      -- arguments are bound to offsets from Node.
+      let nodeBinds = zip vars [1..]
+      e' <- local (& lEnv.localFree .~ nodeBinds) $ compileE e
+      return $ CCase tag e'
+
+    -- Compiles primitive alternatives
     makeCaseP (STGPAlt lit e) = liftM (CCase lit) (compileE e)
 
-  case alts of
+    -- Compiles default alternatives
+    makeCaseD (Just (STGDAlt (Just d) e)) = do
+      -- Bind the default variable to the value returned (assume for now it's
+      -- an int)
+      let bindDef = CSVarDecl $ CVarDecl CInt d Nothing (Just $ CID intReg)
+      e' <- local (lEnv.localVars %~ ((d,d):)) $ compileE e
+      return [CCase (-1) $ bindDef : e']
+    makeCaseD (Just (STGDAlt Nothing e)) = do
+      e' <- compileE e
+      return [CCase (-1) e']
+    makeCaseD Nothing = return []
+
+  (tag,body) <- case alts of
     STGAAlts aalts maybeDalt -> do
       aalts' <- mapM makeCaseA aalts
-      dalt' <- maybeCase maybeDalt
-      return $ CSwitch (CID rTag) $ aalts' ++ dalt'
+      dalt' <- makeCaseD maybeDalt
+      return (rTag, aalts' ++ dalt')
     STGPAlts palts maybeDalt -> do
       palts' <- mapM makeCaseP palts
-      dalt' <- maybeCase maybeDalt
-      return $ CSwitch (CID intReg) $ palts' ++ dalt'
+      dalt' <- makeCaseD maybeDalt
+      return (intReg, palts' ++ dalt')
+
+  -- Create the function that performs case analysis. The jump to main at the
+  -- end will hopefully never be executed but is provided to get rid of a
+  -- compiler warning about control reaching the end of a non-void function.
+  let fun = CFunction pointerTD altName []
+            [CSwitch (CID tag) body, CJump "main"]
+  -- Append the alternatives to the list of functions
+  modify (& decls.stdEntries %~ (++ [fun]))
+  return fun
 
 {- Compiles data constructors -}
 compileCons :: Cons -> [Atom] -> REnv [CStatement]
 compileCons cons args = do
-  env <- ask
-  let -- Allocate a closure in the heap for the constructor
-      alloc = allocateHeap $ 1 + length args
+  -- Allocate space in the heap for the new closure and update the environment
+  -- to include it
+  (alloc,env) <- asks $ second (& lEnv.dynamicFree %~ ((cons,0):)) .
+                        runState (allocateHeap $ 1 + length args)
 
+  let comment = CComment $ "Fill in closure for " ++ cons
+      -- Assign the info table
       assignInfoTable = assignHeap 0 (CCast pointerTD $ CID $ cons ++ "_info")
-      fVarE fVar = lookupEnv fVar env
-        (CArrayElement spA) undefined offsetNode (CCast pointerTD . offsetHeap)
-        (CCast pointerTD $ CID $ fVar ++ "_closure")
-      assigns = assignInfoTable :
-        zipWith (\i' arg -> case arg of
-          AtomVar var -> CAnn var $ assignHeap i' (fVarE var)
-          AtomLit lit -> CAnn (show lit) $
-                         assignHeap i' (CCast pointerTD $ CLit lit))
+      -- Assign the rest of the data constructor fields
+      assigns = zipWith (\i arg -> case arg of
+        AtomVar var -> CAnn var $ assignHeap i (lookupVarExpr var env)
+        AtomLit lit -> CAnn (show lit) $
+                       assignHeap i (CCast pointerTD $ CLit lit))
         [1..] args
-      comment = CComment $ "Fill in closure for " ++ cons
 
-      -- Fill in the closure
-      fillClosure = comment:assigns
-
-      -- Make node point to the current closure and enter it
-      updateNode = CAnn ("Grab " ++ cons ++ " closure into Node") $
-        assignNode $ CCast pointerTD $ CID hp
-      enter = CAnn ("Enter " ++ cons) $ CSEnter $ "(pointer**)" ++ node
-
-  return $ alloc ++ fillClosure ++ [updateNode, enter]
+  return $ alloc ++ comment:assignInfoTable:assigns ++ updateNodeEnter cons env
 
 {- Compiles literals -}
 compileLit :: Lit -> REnv [CStatement]
 compileLit lit = do
-  let -- Save lit in register
-      updateIntReg = assignIntReg (CLit lit)
-      -- Pop off the return vector and enter it
-      adjustSpB = CSExpr $ CAssign spB Nothing $ offsetStackB (-1)
-      enter = CAnn "Enter return address" $
-              CSEnter $ "(pointer**)" ++ spB ++ "[1]"
-  return [adjustSpB, enter]
+      -- Save lit in register
+  let updateIntReg = assignIntReg (CLit lit)
+  -- Pop off the return vector and enter it
+  popRetEnter' <- asks $ evalState popRetEnter
+  return $ updateIntReg:popRetEnter'
 
 {- Compiles primitive operations -}
 compilePrim :: Var -> Atom -> Atom -> REnv [CStatement]
 compilePrim op e1 e2 = do
   env <- ask
-  let convertAtom atom = case atom of AtomVar var -> lookupVarExpr var env
-                                      AtomLit lit -> CLit lit
-
-      result = COp (lookupOp op) (convertAtom e1) (convertAtom e2)
+  let convertAtom atom = case atom of
+        AtomVar var -> CCast CInt $ lookupVarExpr var env
+        AtomLit lit -> CLit lit
       -- Save lit in register
-      updateIntReg = assignIntReg result
-      -- Pop off the return vector and enter it
-      adjustSpB = CSExpr $ CAssign spB Nothing $ offsetStackB (-1)
-      enter = CAnn "Enter return address" $
-              CSEnter $ "(pointer**)" ++ spB ++ "[1]"
-  return [updateIntReg, adjustSpB, enter]
-
-type StIntEnvBinds a = RS Env Int a
-
-class SaveFree a where
-  saveFree :: a -> StIntEnvBinds [CStatement]
-
-instance SaveFree a => SaveFree (Maybe a) where
-  saveFree (Just a) = saveFree a
-  saveFree Nothing = return []
-
-instance SaveFree STGAlts where
-  saveFree (STGAAlts aalts maybeDalt) = saveFree' aalts maybeDalt
-  saveFree (STGPAlts palts maybeDalt) = saveFree' palts maybeDalt
-
-saveFree' alts maybeDalt = do
-  statements <- liftM concat $ mapM saveFree alts
-  saveDalt <- saveFree maybeDalt
-  return $ statements ++ saveDalt
-
-instance SaveFree STGAAlt where
-  saveFree alt = saveAlt $ free alt
-
-instance SaveFree STGPAlt where
-  saveFree palt = saveAlt $ free palt
-
-instance SaveFree STGDAlt where
-  saveFree dalt = saveAlt $ free dalt
-
-saveAlt :: RBinds Bindings -> StIntEnvBinds [CStatement]
-saveAlt free = do
-    i <- get
-    env <- ask
-    let fVars = Set.toList $ runReader free (env^.gEnv.globs)
-    mapM saveVar fVars
-
-saveVar :: Var -> StIntEnvBinds CStatement
-saveVar var = do
-  i <- get
-  env <- ask
-  lookupEnv var env
-    (const $ return $ CComment $ var ++ " is on the stack")
-    undefined
-    (\n -> do
-      put (i-1)
-      let assign = assignStackA i $ offsetNode n
-      return $ CAnn (var ++ " is in the current closure") assign)
-    (\n -> do
-      put (i-1)
-      let assign = assignStackA i $ offsetHeap n
-      return $ CAnn (var ++ " is in the heap") assign)
-    (return $ CComment $ var ++ " is a global")
+      updateIntReg = assignIntReg $
+        COp (lookupOp op) (convertAtom e1) (convertAtom e2)
+  -- Pop off the return vector and enter it
+  popRetEnter' <- asks $ evalState popRetEnter
+  return $ updateIntReg : popRetEnter'

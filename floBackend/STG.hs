@@ -78,7 +78,7 @@ type Cons = String
 
 {- The primitive binary operations. -}
 primOps :: [String]
-primOps = ["+#", "-#", "*#", "/#"]
+primOps = ["+$", "-$", "*$", "/$"]
 
 {- Find the arity of the given data constructor -}
 getDataConsArity :: DataConses -> Cons -> Int
@@ -320,7 +320,7 @@ instance Convertible [(FloExpr, FloExpr)] (RBindsDC STGAlts) where
 
         isPrim :: STGDAlt -> Bool
         isPrim (STGDAlt Nothing _) = False
-        isPrim (STGDAlt (Just var) _) = last var == '#'
+        isPrim (STGDAlt (Just var) _) = last var == '$'
 
     -- If the only alt is a default, just return that
     if null alts'' then
