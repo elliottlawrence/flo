@@ -234,6 +234,15 @@ adjustSps a b = do
                | otherwise = [CAnn "Adjust SpB" offsetB]
   return $ offsetA' ++ offsetB'
 
+{- Adjusts the stack pointers to clear the local environment if the flag is set
+   to false -}
+clearEnv :: Bool -> State Env [CStatement]
+clearEnv saveEnv | saveEnv = return []
+                 | otherwise = do
+  localEnv <- gets (^.lEnv)
+  adjustSps (length $ localEnv^.localAStack)
+            (negate $ length $ localEnv^.localBStack)
+
 assignHeap :: Int -> CExpr -> CStatement
 assignHeap i = CSExpr . CAssign hp (Just i)
 

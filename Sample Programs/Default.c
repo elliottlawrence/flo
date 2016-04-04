@@ -270,6 +270,7 @@ pointer isNil_constFalse_entry() {
     } 
     /* Fill in closure for False */
     Hp[0] = (pointer)False_info;
+    SpA = SpA + 2;                 /* Adjust SpA */
     Node = (pointer)Hp;            /* Grab False into Node */
     ENTER((pointer**)Node);        /* Enter False */
 }
@@ -384,6 +385,7 @@ pointer alt3() {
             } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
+            SpA = SpA + 2;                 /* Adjust SpA */
             Node = (pointer)Hp;            /* Grab Nil into Node */
             ENTER((pointer**)Node);        /* Enter Nil */
             break;
@@ -413,6 +415,7 @@ pointer alt3() {
             Hp[0] = (pointer)Cons_info;
             Hp[1] = (pointer)Hp + 3;       /* map_t1 */
             Hp[2] = (pointer)Hp + 6;       /* map_t2 */
+            SpA = SpA + 2;                 /* Adjust SpA */
             Node = (pointer)Hp;            /* Grab Cons into Node */
             ENTER((pointer**)Node);        /* Enter Cons */
             break;
@@ -458,6 +461,7 @@ pointer alt4() {
             } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
+            SpA = SpA + 3;                 /* Adjust SpA */
             Node = (pointer)Hp;            /* Grab Nil into Node */
             ENTER((pointer**)Node);        /* Enter Nil */
             break;
@@ -487,6 +491,7 @@ pointer alt4() {
             Hp[0] = (pointer)Cons_info;
             Hp[1] = (pointer)Hp + 3;       /* map1_mf_t1 */
             Hp[2] = (pointer)Hp + 6;       /* map1_mf_t2 */
+            SpA = SpA + 3;                 /* Adjust SpA */
             Node = (pointer)Hp;            /* Grab Cons into Node */
             ENTER((pointer**)Node);        /* Enter Cons */
             break;
@@ -544,6 +549,7 @@ pointer alt5() {
             } 
             /* Fill in closure for Nil */
             Hp[0] = (pointer)Nil_info;
+            SpA = SpA + 2;                 /* Adjust SpA */
             Node = (pointer)Hp;            /* Grab Nil into Node */
             ENTER((pointer**)Node);        /* Enter Nil */
             break;
@@ -608,6 +614,8 @@ pointer alt8() {
             /* Fill in closure for MkInt */
             Hp[0] = (pointer)MkInt_info;
             Hp[1] = t$;                    /* t$ */
+            SpA = SpA + 2;                 /* Adjust SpA */
+            SpB = SpB - 2;                 /* Adjust SpB */
             Node = (pointer)Hp;            /* Grab MkInt into Node */
             ENTER((pointer**)Node);        /* Enter MkInt */
             break;

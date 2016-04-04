@@ -160,11 +160,11 @@ compileBind (STGBinding name LambdaForm{..}) = do
 compileE :: STGExpr -> Bool -> SEnv [CStatement]
 compileE e saveEnv = case e of
   STGAp name args -> liftREnv $ compileAp name args saveEnv
-  STGLet _ binds expr -> compileLet binds expr
-  STGCase expr alts -> compileCase expr alts
-  STGCons cons args -> liftREnv $ compileCons cons args
-  STGLit lit -> liftREnv $ compileLit lit
-  STGPrim op e1 e2 -> liftREnv $ compilePrim op e1 e2
+  STGLet _ binds expr -> compileLet binds expr saveEnv
+  STGCase expr alts -> compileCase expr alts saveEnv
+  STGCons cons args -> liftREnv $ compileCons cons args saveEnv
+  STGLit lit -> liftREnv $ compileLit lit saveEnv
+  STGPrim op e1 e2 -> liftREnv $ compilePrim op e1 e2 saveEnv
 
 {- Compiles function applications -}
 compileAp :: Var -> [Atom] -> Bool -> REnv [CStatement]
@@ -226,8 +226,8 @@ compileAp name args saveEnv = do
   return $ grabArgs ++ pushArgs ++ adjustStacks ++ enter
 
 {- Compiles let(rec) expressions -}
-compileLet :: [STGBinding] -> STGExpr -> SEnv [CStatement]
-compileLet binds expr = do
+compileLet :: [STGBinding] -> STGExpr -> Bool -> SEnv [CStatement]
+compileLet binds expr saveEnv = do
   env <- ask
   s <- get
   let
@@ -242,7 +242,7 @@ compileLet binds expr = do
 
   put s'
   -- Compile the body of the let expression in the new environment
-  expr' <- local (const env') (compileE expr False)
+  expr' <- local (const env') (compileE expr saveEnv)
   return $ alloc ++ fillClosures ++ CComment "Evaluate body" : expr'
 
 {- Fill in a heap-allocated closure -}
@@ -269,13 +269,13 @@ fillClosure bind@(STGBinding name LambdaForm{..}) = do
   return ((name, i), CComment ("Fill in closure for " ++ name) : assigns)
 
 {- Compiles case expressions -}
-compileCase :: STGExpr -> STGAlts -> SEnv [CStatement]
-compileCase e alts = do
+compileCase :: STGExpr -> STGAlts -> Bool -> SEnv [CStatement]
+compileCase e alts saveEnv = do
   -- Save the local environment
-  (saveLocalEnv,env) <- asks $ runState saveEnv
+  (saveLocalEnv,env) <- asks $ runState saveLocEnv
 
   -- Compile the alternatives in the modified environment
-  alts' <- local (const env) $ compileAlts alts
+  alts' <- local (const env) $ compileAlts alts saveEnv
 
   -- Push the return address to the B stack
   let (offsetStackB',env') = runState (offsetStackB 1) env
@@ -290,12 +290,12 @@ compileCase e alts = do
            CComment "Evaluate body" : e'
 
 {- Saves a local environment on the stack and returns the updated environment -}
-saveEnv :: State Env [CStatement]
-saveEnv = do
+saveLocEnv :: State Env [CStatement]
+saveLocEnv = do
   env <- get
   let
-    saveEnv' :: State (Int,Int) ([(Var,Int)],[(Var,Int)],[CStatement])
-    saveEnv' = do
+    saveLocEnv' :: State (Int,Int) ([(Var,Int)],[(Var,Int)],[CStatement])
+    saveLocEnv' = do
       (saveNodeStack, saveNodeStates) <- mapAndUnzipM
         (\(var,i) -> saveVar var (nodeOffset i))
         (env^.lEnv.localFree)
@@ -306,7 +306,7 @@ saveEnv = do
       return (saveA, saveB, saveNodeStates ++ saveDynamicStates)
 
     -- Generate the new bindings and stack offsets
-    ((saveA, saveB, saves), (a',b')) = runState saveEnv' (0,0)
+    ((saveA, saveB, saves), (a',b')) = runState saveLocEnv' (0,0)
 
   -- Update the environment to include the new stack items
   put (env & lEnv.localAStack %~ (++ saveA)
@@ -336,8 +336,8 @@ saveVar var expr
   where ann = CAnn $ "Save " ++ var
 
 {- Compile the alternatives of a case expression -}
-compileAlts :: STGAlts -> SEnv CFunction
-compileAlts alts = do
+compileAlts :: STGAlts -> Bool -> SEnv CFunction
+compileAlts alts saveEnv = do
   num <- gets (^.altsNum)
   -- Increase the number of alternatives
   modify (& altsNum .~ num + 1)
@@ -351,21 +351,21 @@ compileAlts alts = do
       -- Compile the alternative in a modified environment where the constructor
       -- arguments are bound to offsets from Node.
       let nodeBinds = zip vars [1..]
-      e' <- local (& lEnv.localFree .~ nodeBinds) $ compileE e False
+      e' <- local (& lEnv.localFree .~ nodeBinds) $ compileE e saveEnv
       return $ CCase tag e'
 
     -- Compiles primitive alternatives
-    makeCaseP (STGPAlt lit e) = liftM (CCase lit) (compileE e False)
+    makeCaseP (STGPAlt lit e) = liftM (CCase lit) (compileE e saveEnv)
 
     -- Compiles default alternatives
     makeCaseD (Just (STGDAlt (Just d) e)) = do
       -- Bind the default variable to the value returned (assume for now it's
       -- an int)
       let bindDef = CSVarDecl $ CVarDecl CInt d Nothing (Just $ CID intReg)
-      e' <- local (lEnv.localVars %~ ((d,d):)) $ compileE e False
+      e' <- local (lEnv.localVars %~ ((d,d):)) $ compileE e saveEnv
       return [CCase (-1) $ bindDef : e']
     makeCaseD (Just (STGDAlt Nothing e)) = do
-      e' <- compileE e False
+      e' <- compileE e saveEnv
       return [CCase (-1) e']
     makeCaseD Nothing = return []
 
@@ -389,8 +389,8 @@ compileAlts alts = do
   return fun
 
 {- Compiles data constructors -}
-compileCons :: Cons -> [Atom] -> REnv [CStatement]
-compileCons cons args = do
+compileCons :: Cons -> [Atom] -> Bool -> REnv [CStatement]
+compileCons cons args saveEnv = do
   -- Allocate space in the heap for the new closure and update the environment
   -- to include it
   (alloc,env) <- asks $ second (& lEnv.dynamicFree %~ ((cons,0):)) .
@@ -406,20 +406,27 @@ compileCons cons args = do
                        assignHeap i (CCast pointerTD $ CLit lit))
         [1..] args
 
-  return $ alloc ++ comment:assignInfoTable:assigns ++ updateNodeEnter cons env
+      -- Clear the local environment if necessary
+      clearEnv' = evalState (clearEnv saveEnv) env
+
+  return $ alloc ++ comment:assignInfoTable:assigns ++ clearEnv' ++
+           updateNodeEnter cons env
 
 {- Compiles literals -}
-compileLit :: Lit -> REnv [CStatement]
-compileLit lit = do
+compileLit :: Lit -> Bool -> REnv [CStatement]
+compileLit lit saveEnv = do
+  env <- ask
       -- Save lit in register
   let updateIntReg = assignIntReg (CLit lit)
+      -- Clear the local environment if necessary
+      clearEnv' = evalState (clearEnv saveEnv) env
   -- Pop off the return vector and enter it
   popRetEnter' <- asks $ evalState popRetEnter
-  return $ updateIntReg:popRetEnter'
+  return $ updateIntReg : clearEnv' ++ popRetEnter'
 
 {- Compiles primitive operations -}
-compilePrim :: Var -> Atom -> Atom -> REnv [CStatement]
-compilePrim op e1 e2 = do
+compilePrim :: Var -> Atom -> Atom -> Bool -> REnv [CStatement]
+compilePrim op e1 e2 saveEnv = do
   env <- ask
   let convertAtom atom = case atom of
         AtomVar var -> CCast CInt $ lookupVarExpr var env
@@ -427,6 +434,8 @@ compilePrim op e1 e2 = do
       -- Save lit in register
       updateIntReg = assignIntReg $
         COp (lookupOp op) (convertAtom e1) (convertAtom e2)
+      -- Clear the local environment if necessary
+      clearEnv' = evalState (clearEnv saveEnv) env
   -- Pop off the return vector and enter it
   popRetEnter' <- asks $ evalState popRetEnter
-  return $ updateIntReg : popRetEnter'
+  return $ updateIntReg : clearEnv' ++ popRetEnter'
