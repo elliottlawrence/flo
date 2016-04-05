@@ -87,7 +87,8 @@ data Env = Env {
 }
 makeLenses ''Env
 
-type REnv a = Reader Env a
+initialEnv :: Bindings -> [(Cons,Int)] -> Env
+initialEnv globs dcs = Env (LocalEnv [] [] [] [] []) (GlobalEnv globs dcs)
 
 type Closure = CVarDecl
 type InfoTable = CVarDecl
@@ -102,28 +103,18 @@ data Decls = Decls {
 }
 makeLenses ''Decls
 
-{- A reader-state monad with a read-only environment and mutable state. -}
-newtype RS r s a = RS { rs :: ReaderT r (State s) a}
-  deriving (Functor, Applicative, Monad, MonadReader r, MonadState s)
-
 data St = St {
   _decls :: Decls,
   _altsNum :: Int
 }
 makeLenses ''St
 
-type SEnv a = RS Env St a
+initialState :: St
+initialState = St (Decls [] [] [] []) 1
 
-liftREnv :: REnv a -> SEnv a
-liftREnv r = liftM (runReader r) ask
-
-{- Alter the type of the state for the RS monad. -}
-alterState :: (t -> s) -> (s -> t -> t) -> RS Env s a -> RS Env t a
-alterState getState putState m = do
-  b <- get
-  (m',s') <- liftM2 (runRS m) ask (gets getState)
-  modify (putState s')
-  return m'
+{- A reader-state monad with a read-only environment and mutable state. -}
+newtype RS r s a = RS { rs :: ReaderT r (State s) a}
+  deriving (Functor, Applicative, Monad, MonadReader r, MonadState s)
 
 runRS :: RS r s a -> r -> s -> (a, s)
 runRS RS{..} = runState . runReaderT rs
@@ -133,6 +124,42 @@ evalRS RS{..} = evalState . runReaderT rs
 
 execRS :: RS r s a -> r -> s -> s
 execRS RS{..} = execState . runReaderT rs
+
+{- Alters the type of the state for the state monad -}
+alterState :: (t -> s) -> (s -> t -> t) -> State s a -> State t a
+alterState getState putState m = do
+  (m',s') <- gets $ runState m . getState
+  modify (putState s')
+  return m'
+
+{- Alters the type of the state for the RS monad -}
+alterRS :: (t -> s) -> (s -> t -> t) -> RS e s a -> RS e t a
+alterRS getState putState m = do
+  e <- ask
+  (m',s') <- gets $ runRS m e . getState
+  modify (putState s')
+  return m'
+
+{- Runs a computation that can modify the global state and environment but
+   discards changes to the environment -}
+stateToRS :: State (Env,St) a -> RS Env St a
+stateToRS m = do
+  env <- ask
+  st <- get
+  let (m',(_,st')) = runState m (env,st)
+  put st'
+  return m'
+
+{- Runs a computation that can modify the global state -}
+rsToState :: RS Env St a -> State (Env,St) a
+rsToState m = do
+  (env,st) <- get
+  let (m',st') = runRS m env st
+  put (env,st')
+  return m'
+
+envToEnvSt :: State Env a -> State (Env,St) a
+envToEnvSt = alterState fst (set _1)
 
 {- Lookup a variable. If it's in the local environment, apply the corresponding
    function to its index on the stack or heap. If not, return the default
@@ -165,7 +192,7 @@ lookupVarExpr name env = lookupEnv name env
   (CArrayElement spA)              -- A stack
   (CArrayElement spB)              -- B stack
   nodeOffset                       -- Offset from Node
-  (CCast pointerTD . heapOffset)   -- Offset from heap pointer
+  (CCast pointerTD . CParens . heapOffset)      -- Offset from heap pointer
   (CCast pointerTD $ CID $ name ++ "_closure")  -- Static closure
 
 {- Lookup the unique tag associated with a data constructor. -}
@@ -284,12 +311,11 @@ assignRTag = CSExpr . CAssign rTag Nothing
 assignIntReg :: CExpr -> CStatement
 assignIntReg = CSExpr . CAssign intReg Nothing
 
-{- Pop off the return address from the B stack and enter it -}
-popRetEnter :: State Env [CStatement]
-popRetEnter = do
+{- Pop off the return address from the B stack and jump to it -}
+popRetJump :: State Env [CStatement]
+popRetJump = do
   offsetStackB' <- offsetStackB (-1)
-  return [offsetStackB', CAnn "Enter return address" $
-          CSEnter $ "(pointer**)" ++ spB ++ "[1]"]
+  return [offsetStackB', CAnn "Enter return address" $ CJump $ spB ++ "[1]"]
 
 lookupOp :: Var -> COp
 lookupOp var = fromMaybe (error "Primitive operator not found") $
@@ -303,3 +329,6 @@ isBoxed = ('$' /=) . last
 isBoxedA :: Atom -> Bool
 isBoxedA (AtomVar var) = isBoxed var
 isBoxedA _ = False
+
+printFunName :: String -> CStatement
+printFunName name =  CSExpr $ CCall (CID "printf") [CString $ name ++ "\\n"]
