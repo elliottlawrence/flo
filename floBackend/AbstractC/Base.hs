@@ -336,5 +336,5 @@ isBoxedA _ = False
 
 printFunName :: String -> CStatement
 printFunName "MkInt" = CSExpr $ CCall (CID "printf")
-  [CString "MkInt %d\\n", CArrayElement node 1]
+  [CString "MkInt %d\\n", CCast CInt $ CArrayElement node 1]
 printFunName name =  CSExpr $ CCall (CID "printf") [CString $ name ++ "\\n"]
