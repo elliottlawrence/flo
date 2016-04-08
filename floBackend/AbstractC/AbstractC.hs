@@ -7,7 +7,7 @@ import Convertible
 import Pretty
 import STG
 
-import Control.Arrow (first, second, (***))
+import Control.Arrow (first, second)
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Either (partitionEithers)
@@ -26,7 +26,7 @@ cMain = CFunction CInt "main" [] [f_main, cont, pushRet, interpreter, ret]
           CCast pointerTD $ CID "f_main"
         interpreter =  CSWhile (COp CNe (CID "cont") (CID "f_main"))
           [CSExpr $ CAssign "cont" Nothing $
-           CCast functionTD (CCall (CParens $ CPointer "cont") [])]
+           CCast functionTD (CCall (CParens $ CPointer $ CID "cont") [])]
         ret = CSReturn $ Just $ CLit 0
 
 instance Convertible STGProgram CProgram where
@@ -62,7 +62,7 @@ instance Convertible STGProgram CProgram where
     hLimitDecl = CVarDecl (CPointerType pointerTD) hLimit Nothing
       (Just $ CID "Heap")
     -- Registers
-    nodeDecl = CVarDecl pointerTD node Nothing Nothing
+    nodeDecl = CVarDecl (CPointerType pointerTD) node Nothing Nothing
     rTagDecl = CVarDecl CInt rTag Nothing Nothing
     intRegDecl = CVarDecl CInt intReg Nothing Nothing
 
@@ -215,7 +215,7 @@ compileAp name args saveEnv = do
       | otherwise = do
           (a,b) <- get
           let expr = case arg of AtomVar var -> lookupVarExpr var env
-                                 AtomLit lit -> CCast pointerTD $ CLit lit
+                                 AtomLit lit -> CLit lit
               b' = b + 1
           put (a,b')
           return $ annotation $ assignStackB b' expr
@@ -264,7 +264,7 @@ fillClosure bind@(STGBinding name LambdaForm{..}) = do
   infoTable <- alterRS snd (set _2) $ compileBind bind
 
   let -- Assign the info table to the first spot in the closure
-      assignInfoTable = assignHeap i (CCast pointerTD $ CID $ varName infoTable)
+      assignInfoTable = assignHeap i $ CID $ varName infoTable
 
       -- Fill in the rest of the closure with the free variables
       assignFreeVars = zipWith (\i' fVar -> CAnn fVar $
@@ -287,7 +287,7 @@ compileCase e alts saveEnv = do
 
   -- Push the return address to the B stack
   offsetStackB' <- envToEnvSt $ offsetStackB 1
-  let pushRet = [assignStackB 1 $ CCast pointerTD $ CID (funName alts'),
+  let pushRet = [assignStackB 1 $ CID (funName alts'),
                  offsetStackB']
 
   -- Compile the expression in the (again) modified environment
@@ -308,7 +308,7 @@ saveLocEnv = do
         (\(var,i) -> saveVar var (nodeOffset i))
         (env^.lEnv.localFree)
       (saveDynamicStack, saveDynamicStates) <- mapAndUnzipM
-        (\(var,i) -> saveVar var (CCast pointerTD $ heapOffset i))
+        (\(var,i) -> saveVar var (heapOffset i))
         (env^.lEnv.dynamicFree)
       let (saveA, saveB) = partitionEithers $ saveNodeStack ++ saveDynamicStack
       return (saveA, saveB, saveNodeStates ++ saveDynamicStates)
@@ -340,7 +340,7 @@ saveVar var expr
       (a,b) <- get
       let b' = b + 1
       put (a,b')
-      return (Right (var,b'), ann $ assignStackB b' expr)
+      return (Right (var,b'), ann $ assignStackB b' $ CPointer $ CParens expr)
   where ann = CAnn $ "Save " ++ var
 
 {- Compile the alternatives of a case expression -}
@@ -407,12 +407,11 @@ compileCons cons args saveEnv = do
   env <- get
   let comment = CComment $ "Fill in closure for " ++ cons
       -- Assign the info table
-      assignInfoTable = assignHeap 0 (CCast pointerTD $ CID $ cons ++ "_info")
+      assignInfoTable = assignHeap 0 $ CID $ cons ++ "_info"
       -- Assign the rest of the data constructor fields
       assigns = zipWith (\i arg -> case arg of
         AtomVar var -> CAnn var $ assignHeap i (lookupVarExpr var env)
-        AtomLit lit -> CAnn (show lit) $
-                       assignHeap i (CCast pointerTD $ CLit lit))
+        AtomLit lit -> CAnn (show lit) $ assignHeap i $ CLit lit)
         [1..] args
 
   -- Clear the local environment if necessary

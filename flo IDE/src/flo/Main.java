@@ -275,8 +275,9 @@ public class Main {
                 }
 
                 try {
-                    final ProcessBuilder pb = new ProcessBuilder(
-                        "../floBackend/dist/build/flo/./flo", savePath);
+                    final ProcessBuilder pb =
+                        new ProcessBuilder("../floBackend/dist/build/flo/./flo",
+                            savePath /* , "-hask" */);
                     pb.inheritIO();
                     pb.start();
                 } catch (final IOException e1) {

@@ -73,7 +73,6 @@ useHaskellCompiler fp filePath = do
       -- Convert a FloProgram to a HaskellProgram
       hp = convert fp :: HaskellProgram
 
-
   -- Create the dump directory and copy all the modules into it
   createDirectoryIfMissing False dump
   writeFile inputFilePath (showP hp)

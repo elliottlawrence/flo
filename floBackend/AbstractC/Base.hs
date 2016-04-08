@@ -53,7 +53,7 @@ data CExpr = CID ID
            | COp COp CExpr CExpr
            | CLit Lit
            | CString String
-           | CPointer ID
+           | CPointer CExpr
            | CCall CExpr [CExpr]
            | CCast CType CExpr
            | CArray [CExpr]
@@ -192,8 +192,8 @@ lookupVarExpr name env = lookupEnv name env
   (CArrayElement spA)              -- A stack
   (CArrayElement spB)              -- B stack
   nodeOffset                       -- Offset from Node
-  (CCast pointerTD . CParens . heapOffset)      -- Offset from heap pointer
-  (CCast pointerTD $ CID $ name ++ "_closure")  -- Static closure
+  heapOffset                       -- Offset from heap pointer
+  (CID $ name ++ "_closure")       -- Static closure
 
 {- Lookup the unique tag associated with a data constructor. -}
 lookupTag :: Cons -> Env -> Int
@@ -224,6 +224,9 @@ node = "Node"
 rTag = "RTag"
 intReg = "IntReg"
 
+castToPointer :: CExpr -> CExpr
+castToPointer = CCast pointerTD . CParens
+
 -- Convenience functions for manipulating the stacks, heap, etc.
 
 offset :: ID -> Int -> CExpr
@@ -233,7 +236,7 @@ offset name i | i == 0 = CID name
            | otherwise = CMinus
 
 assignStackA :: Int -> CExpr -> CStatement
-assignStackA i = CSExpr . CAssign spA (Just i)
+assignStackA i = CSExpr . CAssign spA (Just i) . castToPointer
 
 offsetStackA :: Int -> State Env CStatement
 offsetStackA i = do
@@ -242,7 +245,7 @@ offsetStackA i = do
   return $ CSExpr $ CAssign spA Nothing $ offset spA i
 
 assignStackB :: Int -> CExpr -> CStatement
-assignStackB i = CSExpr . CAssign spB (Just i)
+assignStackB i = CSExpr . CAssign spB (Just i) . castToPointer
 
 offsetStackB :: Int -> State Env CStatement
 offsetStackB i = do
@@ -271,7 +274,7 @@ clearEnv saveEnv | saveEnv = return []
             (negate $ length $ localEnv^.localBStack)
 
 assignHeap :: Int -> CExpr -> CStatement
-assignHeap i = CSExpr . CAssign hp (Just i)
+assignHeap i = CSExpr . CAssign hp (Just i) . castToPointer
 
 offsetHeap :: Int -> State Env CStatement
 offsetHeap i = do
@@ -294,7 +297,8 @@ allocateHeap i = do
         [] ]
 
 assignNode :: CExpr -> CStatement
-assignNode = CSExpr . CAssign node Nothing
+assignNode = CSExpr . CAssign node Nothing .
+  CCast (CPointerType pointerTD) . CParens
 
 nodeOffset :: Int -> CExpr
 nodeOffset = COp CPlus (CID node) . CLit
@@ -331,4 +335,6 @@ isBoxedA (AtomVar var) = isBoxed var
 isBoxedA _ = False
 
 printFunName :: String -> CStatement
+printFunName "MkInt" = CSExpr $ CCall (CID "printf")
+  [CString "MkInt %d\\n", CArrayElement node 1]
 printFunName name =  CSExpr $ CCall (CID "printf") [CString $ name ++ "\\n"]

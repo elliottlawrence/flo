@@ -69,8 +69,8 @@ instance Pretty CExpr where
                                   Nothing -> empty
   pp (CLit lit) = pp lit
   pp (CString string) = dquotes $ text string
-  pp (CPointer name) = char '*' <> text name
-  pp (CCall expr args) = pp expr <> parens (pp args)
+  pp (CPointer expr) = char '*' <> pp expr
+  pp (CCall expr args) = pp expr <> parens (commas $ map pp args)
   pp (CCast ty e) = parens (pp ty) <> pp e
   pp (CArray exprs) = encloseSep lbrace rbrace comma (map pp exprs)
   pp (CArrayElement arr i) = text arr <> brackets (int i)
