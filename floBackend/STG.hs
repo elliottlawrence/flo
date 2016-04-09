@@ -78,7 +78,7 @@ type Cons = String
 
 {- The primitive binary operations. -}
 primOps :: [String]
-primOps = ["+$", "-$", "*$", "/$"]
+primOps = ["+$", "-$", "*$", "/$", "==$"]
 
 {- Find the arity of the given data constructor -}
 getDataConsArity :: DataConses -> Cons -> Int
@@ -111,6 +111,9 @@ instance FreeVars STGExpr where
   free (STGLit _) = return Set.empty
   free (STGPrim _ a1 a2) = free [a1,a2]
   free (STGCons _ as) = free as
+  -- ccall$ proc ... is a primitive, so only the tail of the arguments can be
+  -- free variables
+  free (STGAp "ccall$" (_:as)) = free as
   free (STGAp v as) = free (AtomVar v, as)
   free (STGLet _ binds e) = do
     bindse' <- free (binds,e)
@@ -150,12 +153,7 @@ createLForm args expr = do
   globs <- ask
   expr' <- free expr
   let fVars = (expr' Set.\\ Set.fromList args) Set.\\ globs
-  -- Add redundant free variables to ensure that constructors are standard
-  fVars' <- case expr of
-              STGCons _ atoms -> do atoms' <- free atoms
-                                    return $ fVars `Set.union` atoms'
-              _ -> return fVars
-  return $ LambdaForm fVars' (getFlag args expr) args expr
+  return $ LambdaForm fVars (getFlag args expr) args expr
 
   where getFlag (a:as) _ = N  -- Manifest functions
         getFlag [] (STGCons _ _) = N  -- Constructors

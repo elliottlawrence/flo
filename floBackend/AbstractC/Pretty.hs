@@ -30,9 +30,8 @@ instance Pretty CFunction where
   ppList = vcat . punctuate line . map pp
 
 instance Pretty CType where
-  -- Since we have to cast ints to pointers and vice versa, our int type is
-  -- always intptr_t so gcc won't complain.
-  pp CInt = text "intptr_t"
+  pp CInt = text "int"
+  pp CIntP = text "intptr_t"
   pp (CTypeDef name) = text name
   pp (CPointerType ty) = pp ty <> char '*'
 
@@ -53,7 +52,9 @@ instance Pretty CStatement where
   pp (CSReturn maybeExpr) = text "return" <+> pp maybeExpr <> semi
   pp (CSEnter name) = text "ENTER" <> parens (text name) <> semi
   pp (CJump name) = text "JUMP" <> parens (text name) <> semi
-  pp (CComment comment) = enclose (text "/* ") (text " */") (pp comment)
+  pp (CComment comment)
+    | null comment = empty
+    | otherwise = enclose (text "/* ") (text " */") (pp comment)
   pp (CAnn comment statement) = fill 30 (pp statement) <+>
     enclose (text "/* ") (text " */") (pp comment)
 

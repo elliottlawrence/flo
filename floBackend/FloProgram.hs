@@ -7,7 +7,7 @@ import FloGraph
 import Pretty
 
 import Control.Monad.Reader
-import Data.Char (isUpper)
+import Data.Char (isUpper, ord)
 import Data.Either (partitionEithers)
 import qualified Data.IntMap as IntMap
 import Data.List (elemIndex, find)
@@ -15,8 +15,7 @@ import Data.Maybe (fromMaybe, isJust)
 import Text.PrettyPrint.Leijen as L hiding (Pretty)
 import Text.Regex.Posix
 
-data Literal = LitInt Int | LitFloat Double | LitChar Char | LitString String
-               deriving Eq
+data Literal = LitInt Int | LitFloat Double deriving Eq
 
 data Type = TypeCons Name [Type]
 
@@ -165,9 +164,16 @@ instance Convertible Input (RBoxDefDataConses Type) where
 {- A literal is simply the box's name. -}
 instance Convertible BoxInterface (Maybe FloExpr) where
   convert BoxInterface{..}
-    | isLitString bName = justLit $ LitString (init $ tail bName)
-    | isLitChar bName = justLit $ LitChar (read bName)
+      -- Strings are converted to a list of characters
+    | isLitString bName = Just $
+      foldr (\c l -> FloAp (FloAp (FloCons "Cons") (charToMkInt c)) l)
+            (FloCons "Nil") (init $ tail bName)
+      -- Characters are converted into an application of MkChar with them
+      -- corresponding integer character code
+    | isLitChar bName = Just $ charToMkInt $ bName !! 1
+      -- An Int$ is converted into a regular integer literal
     | isPrimInt bName = justLit $ LitInt (read $ init bName)
+      -- Ints are converted into an application of MkInt
     | isLitInt bName = Just $
         FloAp (FloCons "MkInt") (FloLit $ LitInt $ read bName)
     | isPrimFloat bName = justLit $ LitFloat (read $ init bName)
@@ -175,13 +181,13 @@ instance Convertible BoxInterface (Maybe FloExpr) where
         FloAp (FloCons "MkFloat") (FloLit $ LitFloat $ read bName)
     | otherwise = Nothing
     where justLit = Just . FloLit
+          charToMkInt = FloAp (FloCons "MkChar") . FloLit . LitInt . ord
 
 isLitString :: String -> Bool
 isLitString = (=~ "^\".*\"$")   -- ^".*"$
 
 isLitChar :: String -> Bool
-isLitChar = (=~ "^'[^\\']'$|^'\\\\['trn]'$|^'\\\\\\\\'$")
-              -- ^'[^\']'$|^'\\['trn]'$|^'\\\\'$
+isLitChar = (=~ "^'.'$")   -- ^'.'$
 
 isLitInt :: String -> Bool
 isLitInt = (=~ "^-?[0-9]+$")    -- ^-?[0-9]+$
@@ -199,8 +205,6 @@ isPrimFloat = (=~ "^-?[0-9]*\\.[0-9]+\\$$")     -- ^-?[0-9]*\.[0-9]+\$$
 instance Pretty Literal where
   pp (LitInt i) = pp i
   pp (LitFloat d) = pp d
-  pp (LitChar c) = squotes $ char c
-  pp (LitString s) = dquotes $ text s
 
 instance Pretty FloExpr where
   pp (FloLit lit) = pp lit

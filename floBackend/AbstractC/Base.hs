@@ -31,7 +31,7 @@ data CFunction = CFunction {
   funBody :: [CStatement]
 }
 
-data CType = CInt | CTypeDef String | CPointerType CType
+data CType = CInt | CIntP | CTypeDef String | CPointerType CType
 
 data CParam = CParam CType ID
 
@@ -323,7 +323,8 @@ popRetJump = do
 
 lookupOp :: Var -> COp
 lookupOp var = fromMaybe (error "Primitive operator not found") $
-  lookup var [("+$",CPlus), ("-$",CMinus), ("*$",CMult), ("/$",CDiv)]
+  lookup var [("+$",CPlus), ("-$",CMinus), ("*$",CMult), ("/$",CDiv),
+              ("==$",CEq)]
 
 {- A variable is unboxed iff it ends with a '$' -}
 isBoxed :: Var -> Bool
@@ -335,6 +336,9 @@ isBoxedA (AtomVar var) = isBoxed var
 isBoxedA _ = False
 
 printFunName :: String -> CStatement
-printFunName "MkInt" = CSExpr $ CCall (CID "printf")
-  [CString "MkInt %ld\\n", CCast CInt $ CArrayElement node 1]
-printFunName name =  CSExpr $ CCall (CID "printf") [CString $ name ++ "\\n"]
+printFunName name
+  | debugMode = CSExpr $ CCall (CID "printf") [CString $ name ++ "\\n"]
+  | otherwise = CComment ""
+
+debugMode :: Bool
+debugMode = False

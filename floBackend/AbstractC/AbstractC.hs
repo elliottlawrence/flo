@@ -18,13 +18,13 @@ import Lens.Micro
 
 cMain :: CFunction
 cMain = CFunction (CTypeDef "int") "main" []
-        [f_main, cont, pushRet, interpreter, ret]
+        [f_main, cont, pushRet, pushWorld, interpreter, ret]
   where f_main = CSVarDecl $ CVarDecl functionTD "f_main" Nothing
           (Just $ CCast functionTD (CID "main"))
         cont = CSVarDecl $ CVarDecl functionTD "cont" Nothing
           (Just $ CID "main_entry")
-        pushRet = CAnn "Push return address" $ assignStackB 0 $
-          CCast pointerTD $ CID "f_main"
+        pushRet = CAnn "Push return address" $ assignStackB 0 $ CID "f_main"
+        pushWorld = CAnn "Push initial world" $ assignStackA 0 $ CLit 0
         interpreter =  CSWhile (COp CNe (CID "cont") (CID "f_main"))
           [CSExpr $ CAssign "cont" Nothing $
            CCast functionTD (CCall (CParens $ CPointer $ CID "cont") [])]
@@ -59,13 +59,13 @@ instance Convertible STGProgram CProgram where
     heapLimit = 10000
     heap = CVarDecl pointerTD "Heap" (Just heapLimit) Nothing
     hpDecl = CVarDecl (CPointerType pointerTD) hp Nothing
-      (Just $ COp CPlus (CID "Heap") (CLit $ heapLimit - 1))
+      (Just $ COp CPlus (CID "Heap") (CLit heapLimit))
     hLimitDecl = CVarDecl (CPointerType pointerTD) hLimit Nothing
       (Just $ CID "Heap")
     -- Registers
     nodeDecl = CVarDecl (CPointerType pointerTD) node Nothing Nothing
-    rTagDecl = CVarDecl CInt rTag Nothing Nothing
-    intRegDecl = CVarDecl CInt intReg Nothing Nothing
+    rTagDecl = CVarDecl CIntP rTag Nothing Nothing
+    intRegDecl = CVarDecl CIntP intReg Nothing Nothing
 
     -- Set up initial environment and state for the compilation
     initEnv = initialEnv globs dataConses
@@ -169,7 +169,7 @@ compileE e saveEnv = case e of
   STGLet _ binds expr -> compileLet binds expr saveEnv
   STGCase (STGAp "ccall$" (proc:args))
           (STGAAlts [STGAAlt "MkIORes$" [n,w] alt] Nothing) ->
-           compileCCall n proc args alt saveEnv
+           compileCCall n w proc args alt saveEnv
   STGCase expr alts -> compileCase expr alts saveEnv
   STGCons cons args -> envToEnvSt $ compileCons cons args saveEnv
   STGLit lit -> envToEnvSt $ compileLit lit saveEnv
@@ -233,7 +233,7 @@ compileAp name args saveEnv = do
   -- address on the B stack.
   enter <- if isBoxed name
             then gets $ updateNodeEnter name
-            else updateIntRegRet True $ CCast CInt $ lookupVarExpr name env
+            else updateIntRegRet True $ CCast CIntP $ lookupVarExpr name env
 
   return $ grabArgs ++ pushArgs ++ adjustStacks ++ enter
 
@@ -373,7 +373,7 @@ compileAlts alts saveEnv = do
     makeCaseD (Just (STGDAlt (Just d) e)) = do
       -- Bind the default variable to the value returned (assume for now it's
       -- an int)
-      let bindDef = CSVarDecl $ CVarDecl CInt d Nothing (Just $ CID intReg)
+      let bindDef = CSVarDecl $ CVarDecl CIntP d Nothing (Just $ CID intReg)
       e' <- local (lEnv.localVars %~ ((d,d):)) $ stateToRS $ compileE e saveEnv
       return [CCase (-1) $ bindDef : e']
     makeCaseD (Just (STGDAlt Nothing e)) = do
@@ -435,7 +435,7 @@ compilePrim :: Var -> Atom -> Atom -> Bool -> State Env [CStatement]
 compilePrim op e1 e2 saveEnv = do
   env <- get
   let convertAtom atom = case atom of
-        AtomVar var -> CCast CInt $ lookupVarExpr var env
+        AtomVar var -> CCast CIntP $ lookupVarExpr var env
         AtomLit lit -> CLit lit
   updateIntRegRet saveEnv $ COp (lookupOp op) (convertAtom e1) (convertAtom e2)
 
@@ -451,17 +451,19 @@ updateIntRegRet saveEnv e = do
   return $ updateIntReg : clearEnv' ++ popRetJump'
 
 {- Compile primitive calls to C -}
-compileCCall :: Var -> Atom -> [Atom] -> STGExpr -> Bool ->
+compileCCall :: Var -> Var -> Atom -> [Atom] -> STGExpr -> Bool ->
                 State (Env,St) [CStatement]
-compileCCall n (AtomVar proc) args alt saveEnv = do
+compileCCall n w (AtomVar proc) args alt saveEnv = do
   env <- gets fst
   -- Compile the call to C
-  let args' = map (\arg -> case arg of AtomVar var -> lookupVarExpr var env
-                                       AtomLit lit -> CLit lit) (init args)
-      ccall = CSVarDecl $ CVarDecl CInt n Nothing $
+  let args' = map (\arg -> case arg of
+                            AtomVar var -> CCast CInt $ lookupVarExpr var env
+                            AtomLit lit -> CLit lit) (init args)
+      ccall = CSVarDecl $ CVarDecl CIntP n Nothing $
               Just $ CCall (CID proc) args'
-  -- Add n to the environment
-  modify $ first $ lEnv.localVars %~ ((n,n):)
+      newWorld = CSVarDecl $ CVarDecl CIntP w Nothing $ Just $ CLit 0
+  -- Add n and w to the environment
+  modify $ first $ lEnv.localVars %~ ([(n,n),(w,w)] ++)
   -- Compile the alternatives
   alt' <- compileE alt saveEnv
-  return $ ccall : alt'
+  return $ ccall : newWorld : alt'
