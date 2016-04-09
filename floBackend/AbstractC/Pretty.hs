@@ -30,7 +30,9 @@ instance Pretty CFunction where
   ppList = vcat . punctuate line . map pp
 
 instance Pretty CType where
-  pp CInt = text "int"
+  -- Since we have to cast ints to pointers and vice versa, our int type is
+  -- always intptr_t so gcc won't complain.
+  pp CInt = text "intptr_t"
   pp (CTypeDef name) = text name
   pp (CPointerType ty) = pp ty <> char '*'
 

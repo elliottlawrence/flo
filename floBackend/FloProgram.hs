@@ -184,16 +184,16 @@ isLitChar = (=~ "^'[^\\']'$|^'\\\\['trn]'$|^'\\\\\\\\'$")
               -- ^'[^\']'$|^'\\['trn]'$|^'\\\\'$
 
 isLitInt :: String -> Bool
-isLitInt = (=~ "^[0-9]+$")    -- ^[0-9]+$
+isLitInt = (=~ "^-?[0-9]+$")    -- ^-?[0-9]+$
 
 isPrimInt :: String -> Bool
-isPrimInt = (=~ "^[0-9]+\\$$")    -- ^[0-9]+\$$
+isPrimInt = (=~ "^-?[0-9]+\\$$")    -- ^-?[0-9]+\$$
 
 isLitFloat :: String -> Bool
-isLitFloat = (=~ "^[0-9]*\\.[0-9]+$")     -- ^[0-9]*\.[0-9]+$
+isLitFloat = (=~ "^-?[0-9]*\\.[0-9]+$")     -- ^-?[0-9]*\.[0-9]+$
 
 isPrimFloat :: String -> Bool
-isPrimFloat = (=~ "^[0-9]*\\.[0-9]+\\$$")     -- ^[0-9]*\.[0-9]+\$$
+isPrimFloat = (=~ "^-?[0-9]*\\.[0-9]+\\$$")     -- ^-?[0-9]*\.[0-9]+\$$
 
 -- Pretty printing
 instance Pretty Literal where

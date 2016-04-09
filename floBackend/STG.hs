@@ -172,8 +172,8 @@ instance Convertible FloProgram STGProgram where
             (\dc -> STGDataCons (dcName dc) (length $ dcFields dc)) fpDataConses
           dataConsMap = foldl (\map (STGDataCons name arity) ->
             Map.insert name arity map) Map.empty dataConses
-          -- The globals are the top level definitions
-          globals = Set.fromList $ map fdName fpDefs
+          -- The globals are the top level definitions and primitive operations
+          globals = Set.fromList $ map fdName fpDefs ++ primOps
 
 {- Each flo definition corresponds to an STG binding. -}
 instance Convertible FloDef (RBindsDC STGBinding) where

@@ -301,7 +301,7 @@ assignNode = CSExpr . CAssign node Nothing .
   CCast (CPointerType pointerTD) . CParens
 
 nodeOffset :: Int -> CExpr
-nodeOffset = COp CPlus (CID node) . CLit
+nodeOffset = CArrayElement node
 
 {- Update node and enter it -}
 updateNodeEnter :: Var -> Env -> [CStatement]
@@ -336,5 +336,5 @@ isBoxedA _ = False
 
 printFunName :: String -> CStatement
 printFunName "MkInt" = CSExpr $ CCall (CID "printf")
-  [CString "MkInt %d\\n", CCast CInt $ CArrayElement node 1]
+  [CString "MkInt %ld\\n", CCast CInt $ CArrayElement node 1]
 printFunName name =  CSExpr $ CCall (CID "printf") [CString $ name ++ "\\n"]

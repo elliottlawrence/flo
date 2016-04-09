@@ -17,7 +17,8 @@ import qualified Data.Set as Set
 import Lens.Micro
 
 cMain :: CFunction
-cMain = CFunction CInt "main" [] [f_main, cont, pushRet, interpreter, ret]
+cMain = CFunction (CTypeDef "int") "main" []
+        [f_main, cont, pushRet, interpreter, ret]
   where f_main = CSVarDecl $ CVarDecl functionTD "f_main" Nothing
           (Just $ CCast functionTD (CID "main"))
         cont = CSVarDecl $ CVarDecl functionTD "cont" Nothing
@@ -166,6 +167,9 @@ compileE :: STGExpr -> Bool -> State (Env,St) [CStatement]
 compileE e saveEnv = case e of
   STGAp name args -> envToEnvSt $ compileAp name args saveEnv
   STGLet _ binds expr -> compileLet binds expr saveEnv
+  STGCase (STGAp "ccall$" (proc:args))
+          (STGAAlts [STGAAlt "MkIORes$" [n,w] alt] Nothing) ->
+           compileCCall n proc args alt saveEnv
   STGCase expr alts -> compileCase expr alts saveEnv
   STGCons cons args -> envToEnvSt $ compileCons cons args saveEnv
   STGLit lit -> envToEnvSt $ compileLit lit saveEnv
@@ -229,7 +233,7 @@ compileAp name args saveEnv = do
   -- address on the B stack.
   enter <- if isBoxed name
             then gets $ updateNodeEnter name
-            else updateIntRegRet True (CID name)
+            else updateIntRegRet True $ CCast CInt $ lookupVarExpr name env
 
   return $ grabArgs ++ pushArgs ++ adjustStacks ++ enter
 
@@ -340,7 +344,7 @@ saveVar var expr
       (a,b) <- get
       let b' = b + 1
       put (a,b')
-      return (Right (var,b'), ann $ assignStackB b' $ CPointer $ CParens expr)
+      return (Right (var,b'), ann $ assignStackB b' expr)
   where ann = CAnn $ "Save " ++ var
 
 {- Compile the alternatives of a case expression -}
@@ -445,3 +449,19 @@ updateIntRegRet saveEnv e = do
   -- Pop off the return vector and jump to it
   popRetJump' <- popRetJump
   return $ updateIntReg : clearEnv' ++ popRetJump'
+
+{- Compile primitive calls to C -}
+compileCCall :: Var -> Atom -> [Atom] -> STGExpr -> Bool ->
+                State (Env,St) [CStatement]
+compileCCall n (AtomVar proc) args alt saveEnv = do
+  env <- gets fst
+  -- Compile the call to C
+  let args' = map (\arg -> case arg of AtomVar var -> lookupVarExpr var env
+                                       AtomLit lit -> CLit lit) (init args)
+      ccall = CSVarDecl $ CVarDecl CInt n Nothing $
+              Just $ CCall (CID proc) args'
+  -- Add n to the environment
+  modify $ first $ lEnv.localVars %~ ((n,n):)
+  -- Compile the alternatives
+  alt' <- compileE alt saveEnv
+  return $ ccall : alt'
