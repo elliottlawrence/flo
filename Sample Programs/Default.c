@@ -80,6 +80,18 @@ pointer primes_t1_t1_t1_entry();
 pointer primes_t1_t1_entry();
 pointer primes_t1_entry();
 pointer primes_entry();
+pointer printFactorial_factorial_t1_t2_entry();
+pointer printFactorial_factorial_t1_entry();
+pointer printFactorial_factorial_t2_entry();
+pointer printFactorial_factorial_t3_t2_t1_t2_entry();
+pointer printFactorial_factorial_t3_t2_t1_entry();
+pointer printFactorial_factorial_t3_t2_entry();
+pointer printFactorial_factorial_t3_entry();
+pointer printFactorial_factorial_entry();
+pointer printFactorial_t1_t1_t1_entry();
+pointer printFactorial_t1_t1_entry();
+pointer printFactorial_t1_entry();
+pointer printFactorial_entry();
 pointer id_entry();
 pointer map_t1_entry();
 pointer map_t2_entry();
@@ -276,6 +288,18 @@ pointer map_info[] = {(pointer)map_entry};
 pointer map_t2_info[] = {(pointer)map_t2_entry};
 pointer map_t1_info[] = {(pointer)map_t1_entry};
 pointer id_info[] = {(pointer)id_entry};
+pointer printFactorial_info[] = {(pointer)printFactorial_entry};
+pointer printFactorial_t1_info[] = {(pointer)printFactorial_t1_entry};
+pointer printFactorial_t1_t1_info[] = {(pointer)printFactorial_t1_t1_entry};
+pointer printFactorial_t1_t1_t1_info[] = {(pointer)printFactorial_t1_t1_t1_entry};
+pointer printFactorial_factorial_info[] = {(pointer)printFactorial_factorial_entry};
+pointer printFactorial_factorial_t3_info[] = {(pointer)printFactorial_factorial_t3_entry};
+pointer printFactorial_factorial_t3_t2_info[] = {(pointer)printFactorial_factorial_t3_t2_entry};
+pointer printFactorial_factorial_t3_t2_t1_info[] = {(pointer)printFactorial_factorial_t3_t2_t1_entry};
+pointer printFactorial_factorial_t3_t2_t1_t2_info[] = {(pointer)printFactorial_factorial_t3_t2_t1_t2_entry};
+pointer printFactorial_factorial_t2_info[] = {(pointer)printFactorial_factorial_t2_entry};
+pointer printFactorial_factorial_t1_info[] = {(pointer)printFactorial_factorial_t1_entry};
+pointer printFactorial_factorial_t1_t2_info[] = {(pointer)printFactorial_factorial_t1_t2_entry};
 pointer primes_info[] = {(pointer)primes_entry};
 pointer primes_t1_info[] = {(pointer)primes_t1_entry};
 pointer primes_t1_t1_info[] = {(pointer)primes_t1_t1_entry};
@@ -381,6 +405,7 @@ pointer const_closure[] = {(pointer)const_info};
 pointer compose_closure[] = {(pointer)compose_info};
 pointer map_closure[] = {(pointer)map_info};
 pointer id_closure[] = {(pointer)id_info};
+pointer printFactorial_closure[] = {(pointer)printFactorial_info};
 pointer primes_closure[] = {(pointer)primes_info};
 pointer helloWorld_closure[] = {(pointer)helloWorld_info};
 pointer echo_closure[] = {(pointer)echo_info};
@@ -472,8 +497,8 @@ pointer True_entry() {
 
 pointer main_entry() {
     
-    Node = (pointer*)(primes_closure); /* Grab primes into Node */
-    ENTER((pointer**)Node);        /* Enter primes */
+    Node = (pointer*)(printFactorial_closure); /* Grab printFactorial into Node */
+    ENTER((pointer**)Node);        /* Enter printFactorial */
 }
 
 pointer echo_echo1_t1_t2_entry() {
@@ -1434,6 +1459,218 @@ pointer primes_entry() {
     SpA = SpA - 1;                 /* Adjust SpA */
     Node = (pointer*)(Hp + 7);     /* Grab primes_printPrimes into Node */
     ENTER((pointer**)Node);        /* Enter primes_printPrimes */
+}
+
+pointer printFactorial_factorial_t1_t2_entry() {
+    
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for MkInt */
+    Hp[0] = (pointer)(MkInt_info);
+    Hp[1] = (pointer)(0);          /* 0 */
+    Node = (pointer*)(Hp);         /* Grab MkInt into Node */
+    ENTER((pointer**)Node);        /* Enter MkInt */
+}
+
+pointer printFactorial_factorial_t1_entry() {
+    
+    Hp = Hp - 1;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_factorial_t1_t2 */
+    Hp[0] = (pointer)(printFactorial_factorial_t1_t2_info);
+    /* Evaluate body */
+    SpA[-1] = (pointer)(Hp);       /* Push printFactorial_factorial_t1_t2 onto stack */
+    SpA[-2] = (pointer)(Node[1]);  /* Push n onto stack */
+    SpA = SpA - 2;                 /* Adjust SpA */
+    Node = (pointer*)(eqInt_closure); /* Grab eqInt into Node */
+    ENTER((pointer**)Node);        /* Enter eqInt */
+}
+
+pointer printFactorial_factorial_t2_entry() {
+    
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for MkInt */
+    Hp[0] = (pointer)(MkInt_info);
+    Hp[1] = (pointer)(1);          /* 1 */
+    Node = (pointer*)(Hp);         /* Grab MkInt into Node */
+    ENTER((pointer**)Node);        /* Enter MkInt */
+}
+
+pointer printFactorial_factorial_t3_t2_t1_t2_entry() {
+    
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for MkInt */
+    Hp[0] = (pointer)(MkInt_info);
+    Hp[1] = (pointer)(1);          /* 1 */
+    Node = (pointer*)(Hp);         /* Grab MkInt into Node */
+    ENTER((pointer**)Node);        /* Enter MkInt */
+}
+
+pointer printFactorial_factorial_t3_t2_t1_entry() {
+    
+    Hp = Hp - 1;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_factorial_t3_t2_t1_t2 */
+    Hp[0] = (pointer)(printFactorial_factorial_t3_t2_t1_t2_info);
+    /* Evaluate body */
+    SpA[-1] = (pointer)(Hp);       /* Push printFactorial_factorial_t3_t2_t1_t2 onto stack */
+    SpA[-2] = (pointer)(Node[1]);  /* Push n onto stack */
+    SpA = SpA - 2;                 /* Adjust SpA */
+    Node = (pointer*)(minus_closure); /* Grab minus into Node */
+    ENTER((pointer**)Node);        /* Enter minus */
+}
+
+pointer printFactorial_factorial_t3_t2_entry() {
+    
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_factorial_t3_t2_t1 */
+    Hp[0] = (pointer)(printFactorial_factorial_t3_t2_t1_info);
+    Hp[1] = (pointer)(Node[1]);    /* n */
+    /* Evaluate body */
+    SpA[-1] = (pointer)(Hp);       /* Push printFactorial_factorial_t3_t2_t1 onto stack */
+    SpA = SpA - 1;                 /* Adjust SpA */
+    Node = (pointer*)(Node[2]);    /* Grab printFactorial_factorial into Node */
+    ENTER((pointer**)Node);        /* Enter printFactorial_factorial */
+}
+
+pointer printFactorial_factorial_t3_entry() {
+    
+    Hp = Hp - 3;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_factorial_t3_t2 */
+    Hp[0] = (pointer)(printFactorial_factorial_t3_t2_info);
+    Hp[1] = (pointer)(Node[1]);    /* n */
+    Hp[2] = (pointer)(Node[2]);    /* printFactorial_factorial */
+    /* Evaluate body */
+    SpA[-1] = (pointer)(Hp);       /* Push printFactorial_factorial_t3_t2 onto stack */
+    SpA[-2] = (pointer)(Node[1]);  /* Push n onto stack */
+    SpA = SpA - 2;                 /* Adjust SpA */
+    Node = (pointer*)(multiply_closure); /* Grab multiply into Node */
+    ENTER((pointer**)Node);        /* Enter multiply */
+}
+
+pointer printFactorial_factorial_entry() {
+    
+    Hp = Hp - 6;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_factorial_t1 */
+    Hp[0] = (pointer)(printFactorial_factorial_t1_info);
+    Hp[1] = (pointer)(SpA[0]);     /* n */
+    /* Fill in closure for printFactorial_factorial_t2 */
+    Hp[2] = (pointer)(printFactorial_factorial_t2_info);
+    /* Fill in closure for printFactorial_factorial_t3 */
+    Hp[3] = (pointer)(printFactorial_factorial_t3_info);
+    Hp[4] = (pointer)(SpA[0]);     /* n */
+    Hp[5] = (pointer)(Node[1]);    /* printFactorial_factorial */
+    /* Evaluate body */
+    pointer a0 = SpA[0];           /* Grab n into a local variable */
+    SpA[0] = (pointer)(Hp + 3);    /* Push printFactorial_factorial_t3 onto stack */
+    SpA[-1] = (pointer)(Hp + 2);   /* Push printFactorial_factorial_t2 onto stack */
+    SpA[-2] = (pointer)(Hp);       /* Push printFactorial_factorial_t1 onto stack */
+    SpA = SpA - 2;                 /* Adjust SpA */
+    Node = (pointer*)(if_closure); /* Grab if into Node */
+    ENTER((pointer**)Node);        /* Enter if */
+}
+
+pointer printFactorial_t1_t1_t1_entry() {
+    
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for MkInt */
+    Hp[0] = (pointer)(MkInt_info);
+    Hp[1] = (pointer)(10);         /* 10 */
+    Node = (pointer*)(Hp);         /* Grab MkInt into Node */
+    ENTER((pointer**)Node);        /* Enter MkInt */
+}
+
+pointer printFactorial_t1_t1_entry() {
+    
+    Hp = Hp - 1;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_t1_t1_t1 */
+    Hp[0] = (pointer)(printFactorial_t1_t1_t1_info);
+    /* Evaluate body */
+    SpA[-1] = (pointer)(Hp);       /* Push printFactorial_t1_t1_t1 onto stack */
+    SpA = SpA - 1;                 /* Adjust SpA */
+    Node = (pointer*)(Node[1]);    /* Grab printFactorial_factorial into Node */
+    ENTER((pointer**)Node);        /* Enter printFactorial_factorial */
+}
+
+pointer printFactorial_t1_entry() {
+    
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_t1_t1 */
+    Hp[0] = (pointer)(printFactorial_t1_t1_info);
+    Hp[1] = (pointer)(Node[1]);    /* printFactorial_factorial */
+    /* Evaluate body */
+    SpA[-1] = (pointer)(Hp);       /* Push printFactorial_t1_t1 onto stack */
+    SpA = SpA - 1;                 /* Adjust SpA */
+    Node = (pointer*)(putInt_closure); /* Grab putInt into Node */
+    ENTER((pointer**)Node);        /* Enter putInt */
+}
+
+pointer printFactorial_entry() {
+    
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_factorial */
+    Hp[0] = (pointer)(printFactorial_factorial_info);
+    Hp[1] = (pointer)(Hp);         /* printFactorial_factorial */
+    /* Evaluate body */
+    Hp = Hp - 2;                   /* Allocate some heap */
+    if (Hp < HLimit) {
+        printf("Error: Out of heap space\n");
+        exit(0);
+    } 
+    /* Fill in closure for printFactorial_t1 */
+    Hp[0] = (pointer)(printFactorial_t1_info);
+    Hp[1] = (pointer)(Hp + 2);     /* printFactorial_factorial */
+    /* Evaluate body */
+    SpA[-1] = (pointer)(getLine_closure); /* Push getLine onto stack */
+    SpA[-2] = (pointer)(Hp);       /* Push printFactorial_t1 onto stack */
+    SpA = SpA - 2;                 /* Adjust SpA */
+    Node = (pointer*)(seq_closure); /* Grab seq into Node */
+    ENTER((pointer**)Node);        /* Enter seq */
 }
 
 pointer id_entry() {
