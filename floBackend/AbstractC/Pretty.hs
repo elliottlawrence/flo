@@ -87,3 +87,4 @@ instance Pretty COp where
   pp CMinus = char '-'
   pp CMult = char '*'
   pp CDiv = char '/'
+  pp CMod = char '%'

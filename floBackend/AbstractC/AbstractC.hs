@@ -458,7 +458,8 @@ compileCCall n w (AtomVar proc) args alt saveEnv = do
   -- Compile the call to C
   let args' = map (\arg -> case arg of
                             AtomVar var -> CCast CInt $ lookupVarExpr var env
-                            AtomLit lit -> CLit lit) (init args)
+                            AtomLit lit -> CLit lit
+                            AtomString s -> CString s) (init args)
       ccall = CSVarDecl $ CVarDecl CIntP n Nothing $
               Just $ CCall (CID proc) args'
       newWorld = CSVarDecl $ CVarDecl CIntP w Nothing $ Just $ CLit 0

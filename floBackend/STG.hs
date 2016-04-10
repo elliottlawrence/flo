@@ -71,14 +71,14 @@ data STGDAlt = STGDAlt (Maybe Var) STGExpr          -- Default alt
 {- So far, only integer literals are supported. -}
 type Lit = Int
 
-data Atom = AtomVar Var | AtomLit Lit
+data Atom = AtomVar Var | AtomLit Lit | AtomString String
 
 type Var = String
 type Cons = String
 
 {- The primitive binary operations. -}
 primOps :: [String]
-primOps = ["+$", "-$", "*$", "/$", "==$"]
+primOps = ["+$", "-$", "*$", "/$", "==$", "<$", "%$"]
 
 {- Find the arity of the given data constructor -}
 getDataConsArity :: DataConses -> Cons -> Int
@@ -106,6 +106,7 @@ instance FreeVars Atom where
     contains <- asks (v `elem`)
     return $ if contains then Set.empty else Set.singleton v
   free (AtomLit _) = return Set.empty
+  free (AtomString _) = return Set.empty
 
 instance FreeVars STGExpr where
   free (STGLit _) = return Set.empty
@@ -298,6 +299,7 @@ argsToAtomsBinds es = do
     toAtom :: FloExpr -> Atom
     toAtom (FloVar n) = AtomVar n
     toAtom (FloLit (LitInt i)) = AtomLit i
+    toAtom (FloLit (LitString s)) = AtomString s
 
 {- Creates a let expression if the list of bindings is not empty. -}
 maybeLet :: Bool -> [STGBinding] -> STGExpr -> STGExpr
@@ -506,3 +508,4 @@ instance Pretty STGDAlt where
 instance Pretty Atom where
   pp (AtomVar var) = text var
   pp (AtomLit lit) = int lit
+  pp (AtomString s) = dquotes $ text s

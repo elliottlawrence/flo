@@ -108,7 +108,7 @@ public class Main {
         shell = new Shell();
         shell.setImage(
             SWTResourceManager.getImage(Main.class, "/Icons/flo.png"));
-        shell.setSize(1000, 600);
+        shell.setSize(1100, 700);
         shell.setMinimumSize(300, 200);
         shell.setLocation(50, 50);
         shell.setLayout(new FormLayout());

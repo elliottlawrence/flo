@@ -60,7 +60,7 @@ data CExpr = CID ID
            | CArrayElement ID Int
            | CParens CExpr
 
-data COp = CEq | CNe | CLt | CPlus | CMinus | CMult | CDiv
+data COp = CEq | CNe | CLt | CPlus | CMinus | CMult | CDiv | CMod
 
 {- The local environment consists of local variables, locations on the stacks,
    locations in the current closure, and dynamically allocated closures. -}
@@ -324,7 +324,7 @@ popRetJump = do
 lookupOp :: Var -> COp
 lookupOp var = fromMaybe (error "Primitive operator not found") $
   lookup var [("+$",CPlus), ("-$",CMinus), ("*$",CMult), ("/$",CDiv),
-              ("==$",CEq)]
+              ("==$",CEq), ("<$",CLt), ("%$",CMod)]
 
 {- A variable is unboxed iff it ends with a '$' -}
 isBoxed :: Var -> Bool

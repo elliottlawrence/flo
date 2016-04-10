@@ -57,7 +57,7 @@ useSTGCompiler fp filePath = do
   writeFile outputPath (showP cProg)
 
   -- Run gcc
-  --callProcess "/usr/bin/gcc" [outputPath, "-o", dropExtension outputPath]
+  callProcess "/usr/bin/gcc" [outputPath, "-o", dropExtension outputPath]
 
   -- Remove the C file
   --removeFile outputPath

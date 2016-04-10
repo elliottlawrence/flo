@@ -15,7 +15,7 @@ import Data.Maybe (fromMaybe, isJust)
 import Text.PrettyPrint.Leijen as L hiding (Pretty)
 import Text.Regex.Posix
 
-data Literal = LitInt Int | LitFloat Double deriving Eq
+data Literal = LitInt Int | LitFloat Double | LitString String deriving Eq
 
 data Type = TypeCons Name [Type]
 
@@ -164,6 +164,8 @@ instance Convertible Input (RBoxDefDataConses Type) where
 {- A literal is simply the box's name. -}
 instance Convertible BoxInterface (Maybe FloExpr) where
   convert BoxInterface{..}
+      -- A string$ is converted to a regular string literal
+    | isPrimString bName = Just $ FloLit $ LitString (init $ init $ tail bName)
       -- Strings are converted to a list of characters
     | isLitString bName = Just $
       foldr (\c l -> FloAp (FloAp (FloCons "Cons") (charToMkInt c)) l)
@@ -182,6 +184,9 @@ instance Convertible BoxInterface (Maybe FloExpr) where
     | otherwise = Nothing
     where justLit = Just . FloLit
           charToMkInt = FloAp (FloCons "MkChar") . FloLit . LitInt . ord
+
+isPrimString :: String -> Bool
+isPrimString = (=~ "^\".*\"\\$$")   -- ^".*"\$$
 
 isLitString :: String -> Bool
 isLitString = (=~ "^\".*\"$")   -- ^".*"$
@@ -205,6 +210,7 @@ isPrimFloat = (=~ "^-?[0-9]*\\.[0-9]+\\$$")     -- ^-?[0-9]*\.[0-9]+\$$
 instance Pretty Literal where
   pp (LitInt i) = pp i
   pp (LitFloat d) = pp d
+  pp (LitString s) = dquotes $ text s
 
 instance Pretty FloExpr where
   pp (FloLit lit) = pp lit
