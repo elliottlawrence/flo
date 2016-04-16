@@ -1,0 +1,222 @@
+main = {} \u {} -> primes
+echo = {} \u {} -> letrec echo1 = {} \n {a} ->
+                              let t1 = {a} \u {} -> let t2 = {} \n {} ->
+                                                            MkChar {-1}
+                                                    in eqChar {a,t2}
+                                  t3 = {a} \u {} -> let t1 = {a} \u {} ->
+                                                            putChar {a}
+                                                    in seq {t1,echo}
+                              in if {t1,done,t3}
+                   in bind {getChar,echo1}
+primes = {} \u {} -> letrec from = {from} \n {n} ->
+                                let t2 = {from,n} \u {} -> let t1 = {n} \u {} ->
+                                                                   let t2 = {} \n {} ->
+                                                                           MkInt {1}
+                                                                   in plus {n,t2}
+                                                           in from {t1}
+                                in Cons {n,t2}
+                            sieve = {sieve} \n {list} ->
+                                letrec sieve1 = {sieve} \n {p,ps} ->
+                                           letrec nonMultiple = {} \n {p,n} ->
+                                                      let t1 = {n,p} \u {} ->
+                                                              mod {n,p}
+                                                          t2 = {} \n {} ->
+                                                              MkInt {0}
+                                                      in neqInt {t1,t2}
+                                           in let t2 = {nonMultiple,p,ps,sieve} \u {} ->
+                                                      let t1 = {nonMultiple,p,ps} \u {} ->
+                                                              let t1 = {nonMultiple,p} \u {} ->
+                                                                      nonMultiple {p}
+                                                              in filter {t1,ps}
+                                                      in sieve {t1}
+                                              in Cons {p,t2}
+                                in let t2 = {} \n {} -> Nil {}
+                                   in caseList {list,t2,sieve1}
+                            printPrimes = {} \n {list} ->
+                                letrec printPrime = {} \n {p} ->
+                                           let t1 = {p} \u {} -> putInt {p}
+                                           in seq {t1,getLine}
+                                in mapM {printPrime,list}
+                     in let t1 = {from,sieve} \u {} -> let t1 = {from} \u {} ->
+                                                               let t1 = {} \n {} ->
+                                                                       MkInt {2}
+                                                               in from {t1}
+                                                       in sieve {t1}
+                        in printPrimes {t1}
+printFactorial = {} \u {} ->
+    letrec factorial = {factorial} \n {n} -> let t1 = {n} \u {} ->
+                                                     let t2 = {} \n {} ->
+                                                             MkInt {0}
+                                                     in eqInt {n,t2}
+                                                 t2 = {} \n {} -> MkInt {1}
+                                                 t3 = {factorial,n} \u {} ->
+                                                     let t2 = {factorial,n} \u {} ->
+                                                             let t1 = {n} \u {} ->
+                                                                     let t2 = {} \n {} ->
+                                                                             MkInt {1}
+                                                                     in minus {n,t2}
+                                                             in factorial {t1}
+                                                     in multiply {n,t2}
+                                             in if {t1,t2,t3}
+    in let t1 = {factorial} \u {} -> let t1 = {factorial} \u {} ->
+                                             let t1 = {} \n {} -> MkInt {10}
+                                             in factorial {t1}
+                                     in putInt {t1}
+       in seq {t1,getLine}
+id = {} \n {x} -> x
+map = {} \n {f,xs} -> case xs of
+                        Nil {} -> Nil {}
+                        Cons {y,ys} -> let t1 = {f,y} \u {} -> f {y}
+                                           t2 = {f,ys} \u {} -> map {f,ys}
+                                       in Cons {t1,t2}
+                        
+compose = {} \n {f,g,x} -> let t1 = {g,x} \u {} -> g {x}
+                           in f {t1}
+const = {} \n {a,b} -> a
+foldr = {} \n {f,b,as} -> letrec foldrHelp = {b,f} \n {x,xs} ->
+                                     let t2 = {b,f,xs} \u {} -> foldr {f,b,xs}
+                                     in f {x,t2}
+                          in caseList {as,b,foldrHelp}
+filter = {} \n {pred,xs} -> case xs of
+                              Nil {} -> Nil {}
+                              Cons {p,ps} -> let t1 = {p,pred} \u {} -> pred {p}
+                                                 t2 = {p,pred,ps} \u {} ->
+                                                     let t2 = {pred,ps} \u {} ->
+                                                             filter {pred,ps}
+                                                     in Cons {p,t2}
+                                                 t3 = {pred,ps} \u {} ->
+                                                     filter {pred,ps}
+                                             in if {t1,t2,t3}
+                              
+if = {} \n {cond,then,else} -> case cond of
+                                 True {} -> then
+                                 False {} -> else
+                                 
+primBool = {} \n {op,a,b} -> case a of
+                               MkInt {a$} -> case b of
+                                               MkInt {b$} -> case op {a$,b$} of
+                                                               0 -> False {}
+                                                               1 -> True {}
+                                                               
+                                               
+                               
+eqInt = {} \u {} -> let t1 = {} \u {} ->
+                            let t0 = {} \n {a$,b$} -> ==$ {a$,b$}
+                            in t0
+                    in primBool {t1}
+lessThan = {} \u {} -> let t1 = {} \u {} ->
+                               let t0 = {} \n {a$,b$} -> <$ {a$,b$}
+                               in t0
+                       in primBool {t1}
+not = {} \n {b} -> let t2 = {} \n {} -> False {}
+                       t3 = {} \n {} -> True {}
+                   in if {b,t2,t3}
+and = {} \n {a,b} -> let t3 = {} \n {} -> False {}
+                     in if {a,b,t3}
+or = {} \n {a,b} -> let t2 = {} \n {} -> True {}
+                    in if {a,t2,b}
+lessThanEqualTo = {} \n {a,b} -> let t1 = {a,b} \u {} ->
+                                         lessThan {a,b}
+                                     t2 = {a,b} \u {} -> eqInt {a,b}
+                                 in or {t1,t2}
+greaterThan = {} \n {a,b} -> let t1 = {a,b} \u {} ->
+                                     lessThanEqualTo {a,b}
+                             in not {t1}
+greaterThanEqualTo = {} \n {a,b} -> let t1 = {a,b} \u {} ->
+                                            lessThan {a,b}
+                                    in not {t1}
+neqInt = {} \n {a,b} -> let t1 = {a,b} \u {} -> eqInt {a,b}
+                        in not {t1}
+caseList = {} \n {list,f,g} -> case list of
+                                 Nil {} -> f
+                                 Cons {head,tail} -> g {head,tail}
+                                 
+isNil = {} \n {list} ->
+    letrec constFalse = {} \n {input1,input2} -> False {}
+    in let t2 = {} \n {} -> True {}
+       in caseList {list,t2,constFalse}
+eqChar = {} \n {a,b} -> case a of
+                          MkChar {a$} -> case b of
+                                           MkChar {b$} -> case ==$ {a$,b$} of
+                                                            0 -> False {}
+                                                            1 -> True {}
+                                                            
+                                           
+                          
+newLine = {} \n {} -> MkChar {10}
+primArith = {} \n {op,e1,e2} -> case e1 of
+                                  MkInt {x$} -> case e2 of
+                                                  MkInt {y$} -> case op {x$,y$} of
+                                                                  
+                                                                  t$ -> MkInt {t$}
+                                                  
+                                  
+plus = {} \u {} -> let t1 = {} \u {} ->
+                           let t0 = {} \n {x$,y$} -> +$ {x$,y$}
+                           in t0
+                   in primArith {t1}
+minus = {} \u {} -> let t1 = {} \u {} ->
+                            let t0 = {} \n {x$,y$} -> -$ {x$,y$}
+                            in t0
+                    in primArith {t1}
+multiply = {} \u {} -> let t1 = {} \u {} ->
+                               let t0 = {} \n {x$,y$} -> *$ {x$,y$}
+                               in t0
+                       in primArith {t1}
+divide = {} \u {} -> let t1 = {} \u {} ->
+                             let t0 = {} \n {x$,y$} -> /$ {x$,y$}
+                             in t0
+                     in primArith {t1}
+mod = {} \u {} -> let t1 = {} \u {} -> let t0 = {} \n {x$,y$} ->
+                                               %$ {x$,y$}
+                                       in t0
+                  in primArith {t1}
+done = {} \u {} -> let t1 = {} \n {} -> Empty {}
+                   in return {t1}
+seq = {} \n {m,n} -> let t2 = {n} \u {} -> const {n}
+                     in bind {m,t2}
+return = {} \n {a,w} -> MkIORes {a,w}
+bind = {} \n {m,k,w} -> case m {w} of
+                          MkIORes {a,ww} -> k {a,ww}
+                          
+sequence = {} \u {} -> foldr {seq,done}
+getChar = {} \n {w} -> case ccall$ {getchar,w} of
+                         MkIORes$ {n$,ww} -> let t1 = {n$} \n {} -> MkChar {n$}
+                                             in MkIORes {t1,ww}
+                         
+putChar = {} \n {c,w} -> case c of
+                           MkChar {c$} -> case ccall$ {putchar,c$,w} of
+                                            MkIORes$ {n$,ww} -> let t1 = {} \n {} ->
+                                                                        Empty {}
+                                                                in MkIORes {t1,ww}
+                                            
+                           
+print = {} \n {string} -> mapM {putChar,string}
+printLn = {} \n {string} -> let t1 = {string} \u {} ->
+                                    print {string}
+                                t2 = {} \u {} -> putChar {newLine}
+                            in seq {t1,t2}
+getLine = {} \u {} -> letrec getLine1 = {} \n {c} ->
+                                 letrec getLine2 = {c} \n {line} ->
+                                            let t1 = {c,line} \n {} ->
+                                                    Cons {c,line}
+                                            in return {t1}
+                                 in let t1 = {c} \u {} -> eqChar {c,newLine}
+                                        t2 = {} \u {} -> let t1 = {} \n {} ->
+                                                                 Nil {}
+                                                         in return {t1}
+                                        t3 = {getLine2} \u {} ->
+                                            bind {getLine,getLine2}
+                                    in if {t1,t2,t3}
+                      in bind {getChar,getLine1}
+forever = {} \n {a} -> letrec a1 = {a,a1} \u {} -> seq {a,a1}
+                       in a1
+mapM = {} \n {m,list} -> let t1 = {list,m} \u {} -> map {m,list}
+                         in sequence {t1}
+putInt = {} \n {i,w} -> case i of
+                          MkInt {i$} -> case ccall$ {printf,"%d",i$,w} of
+                                          MkIORes$ {n$,ww} -> let t1 = {} \n {} ->
+                                                                      Empty {}
+                                                              in MkIORes {t1,ww}
+                                          
+                          

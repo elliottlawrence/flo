@@ -56,7 +56,7 @@ instance Convertible STGProgram CProgram where
     spADecl = CVarDecl (CPointerType pointerTD) spA Nothing
       (Just $ COp CPlus (CID "Stack") (CLit $ stackLimit - 1))
     -- Heap
-    heapLimit = 10000
+    heapLimit = 1000000
     heap = CVarDecl pointerTD "Heap" (Just heapLimit) Nothing
     hpDecl = CVarDecl (CPointerType pointerTD) hp Nothing
       (Just $ COp CPlus (CID "Heap") (CLit heapLimit))

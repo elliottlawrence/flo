@@ -45,12 +45,11 @@ main = do
 {- Actually compile flo code using the STG machine. -}
 useSTGCompiler :: FloProgram -> FilePath -> IO ()
 useSTGCompiler fp filePath = do
-  let directory = takeDirectory filePath
-      outputPath = dropExtension filePath <.> ".c"
+  let outputPath = dropExtension filePath <.> "c"
 
       -- Convert a FloProgram to STG
       stg = convert fp :: STGProgram
-  putStrLn (showP stg)
+  writeFile (dropExtension filePath <.> "stg") (showP stg)
 
       -- Convert to C and write it to a file
   let cProg = convert stg :: CProgram
@@ -62,13 +61,15 @@ useSTGCompiler fp filePath = do
   -- Remove the C file
   --removeFile outputPath
 
+  putStrLn $ "Successfully compiled " ++ filePath
+
 {- Convert flo code to Haskell and use GHC to compile it. -}
 useHaskellCompiler :: FloProgram -> FilePath -> IO ()
 useHaskellCompiler fp filePath = do
   let directory = takeDirectory filePath
       dump = directory </> "dump_"
       outputPath = dropExtension filePath
-      inputFilePath = dump </> "Main" <.> ".hs"
+      inputFilePath = dump </> "Main" <.> "hs"
 
       -- Convert a FloProgram to a HaskellProgram
       hp = convert fp :: HaskellProgram
