@@ -49,6 +49,9 @@ data FloGraph = FloGraph [Module]
 endInput :: Input
 endInput = Input "endInput" (-1)
 
+typeAnn :: Int -> Input
+typeAnn = Input "typeAnn"
+
 {- Get the output of the box that is connected to a given input. -}
 getConnectedOutput :: BoxDef -> Input -> Maybe Output
 getConnectedOutput BoxDef{..} i = maybe Nothing (\(o :-: _) -> Just o) $
@@ -88,11 +91,11 @@ instance Pretty BoxInterface where
 
 instance Pretty BoxInterfaceMap where
   pp (BoxInterfaceMap boxes) = vcat $
-    map (\(key,a) -> int key <> colon <+> pp a) (IntMap.toList boxes)
+    map (\(key,a) -> int key <> colon <+> align (pp a)) (IntMap.toList boxes)
 
 instance Pretty BoxDef where
   pp BoxDef{..} = pp boxInterface <$$>
-    indent 4 (text "Boxes:" <+> pp boxes <$$>
+    indent 4 (text "Boxes:" <+> align (pp boxes) <$$>
               text "Cables:" <+> align (pp cables) <$$>
               text "Definitions:" <+> align (pp localDefs))
 

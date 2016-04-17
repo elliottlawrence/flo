@@ -321,6 +321,12 @@ public class FloCanvas extends Canvas {
         else
             drawOutput(gc, bi.getOutput(), p.plus(outputLoc));
 
+        // Draw type input
+        if (!isMainBox) {
+            final Pnt typeLoc = new Pnt(scale(CIRCLE_PADDING), topHeight / 2);
+            drawInput(gc, bi.getTypeInput(), p.plus(typeLoc));
+        }
+
         // Draw inputs
         if (numInputs == 0)
             return;

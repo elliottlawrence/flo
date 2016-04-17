@@ -39,6 +39,11 @@ public class BoxInterface implements Jsonable {
     private final Output output;
 
     /**
+     * The box's type annotation
+     */
+    private final Input typeInput;
+
+    /**
      * The ID of this box interface with respect to the box definition it is
      * defined in. In the box interface's own definition, this ID will remain
      * -1.
@@ -62,6 +67,7 @@ public class BoxInterface implements Jsonable {
         this.name = name;
         inputs = new ArrayList<Input>();
         output = new Input("endInput", this).getStartOutput();
+        typeInput = new Input("typeAnn", this);
     }
 
     /**
@@ -79,6 +85,8 @@ public class BoxInterface implements Jsonable {
             .forEach(i -> inputs.add(new Input(i.getString("name"), this)));
 
         output = new Input("endInput", this).getStartOutput();
+
+        typeInput = new Input("typeAnn", this);
     }
 
     // Methods related to name
@@ -103,6 +111,9 @@ public class BoxInterface implements Jsonable {
     }
 
     public Input getInput(final String name) {
+        if (name.equals("typeAnn"))
+            return typeInput;
+
         for (final Input i : inputs)
             if (i.getName().equals(name))
                 return i;
@@ -141,6 +152,12 @@ public class BoxInterface implements Jsonable {
 
     public Output getOutput() {
         return output;
+    }
+
+    // Methods related to type input
+
+    public Input getTypeInput() {
+        return typeInput;
     }
 
     // Methods related to ID

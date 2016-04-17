@@ -1,0 +1,1283 @@
+Module: Main
+    Box: main
+    Inputs: 
+        Boxes: 1: Box: primes
+                  Inputs: 
+               2: Box: printFactorial
+                  Inputs: 
+               3: Box: echo
+                  Inputs: 
+        Cables: Output: 1 :-: Input: endInput, -1
+        Definitions: 
+    Box: echo
+    Inputs: 
+        Boxes: 0: Box: getChar
+                  Inputs: 
+               1: Box: bind
+                  Inputs: Input: m, 1
+                          Input: k, 1
+               2: Box: echo1
+                  Inputs: 
+        Cables: Output: 0 :-: Input: m, 1
+                Output: 1 :-: Input: endInput, -1
+                Output: 2 :-: Input: k, 1
+        Definitions: Box: echo1
+                     Inputs: Input: a, -1
+                         Boxes: 0: Box: if
+                                   Inputs: Input: cond, 0
+                                           Input: then, 0
+                                           Input: else, 0
+                                1: Box: eqChar
+                                   Inputs: Input: a, 1
+                                           Input: b, 1
+                                2: Box: MkChar
+                                   Inputs: Input: i, 2
+                                3: Box: -1$
+                                   Inputs: 
+                                4: Box: done
+                                   Inputs: 
+                                5: Box: seq
+                                   Inputs: Input: m1, 5
+                                           Input: m2, 5
+                                6: Box: putChar
+                                   Inputs: Input: c, 6
+                                7: Box: echo
+                                   Inputs: 
+                         Cables: Output: -1 :-: Input: a, 1
+                                 Output: 2 :-: Input: b, 1
+                                 Output: 3 :-: Input: i, 2
+                                 Output: 1 :-: Input: cond, 0
+                                 Output: 4 :-: Input: then, 0
+                                 Output: 5 :-: Input: else, 0
+                                 Output: 0 :-: Input: endInput, -1
+                                 Output: -1 :-: Input: c, 6
+                                 Output: 6 :-: Input: m1, 5
+                                 Output: 7 :-: Input: m2, 5
+                         Definitions: 
+    Box: primes
+    Inputs: 
+        Boxes: 0: Box: sieve
+                  Inputs: Input: list, 0
+               1: Box: from
+                  Inputs: Input: n, 1
+               2: Box: 2
+                  Inputs: 
+               3: Box: printPrimes
+                  Inputs: Input: list, 3
+        Cables: Output: 1 :-: Input: list, 0
+                Output: 2 :-: Input: n, 1
+                Output: 0 :-: Input: list, 3
+                Output: 3 :-: Input: endInput, -1
+        Definitions: Box: from
+                     Inputs: Input: n, -1
+                         Boxes: 0: Box: Cons
+                                   Inputs: Input: head, 0
+                                           Input: tail, 0
+                                1: Box: from
+                                   Inputs: Input: n, 1
+                                2: Box: plus
+                                   Inputs: Input: a, 2
+                                           Input: b, 2
+                                3: Box: 1
+                                   Inputs: 
+                         Cables: Output: -1 :-: Input: head, 0
+                                 Output: 0 :-: Input: endInput, -1
+                                 Output: 1 :-: Input: tail, 0
+                                 Output: -1 :-: Input: a, 2
+                                 Output: 2 :-: Input: n, 1
+                                 Output: 3 :-: Input: b, 2
+                         Definitions: 
+                     Box: sieve
+                     Inputs: Input: list, -1
+                         Boxes: 0: Box: caseList
+                                   Inputs: Input: list, 0
+                                           Input: f, 0
+                                           Input: g, 0
+                                1: Box: Nil
+                                   Inputs: 
+                                2: Box: sieve1
+                                   Inputs: 
+                         Cables: Output: -1 :-: Input: list, 0
+                                 Output: 1 :-: Input: f, 0
+                                 Output: 2 :-: Input: g, 0
+                                 Output: 0 :-: Input: endInput, -1
+                         Definitions: Box: sieve1
+                                      Inputs: Input: p, -1
+                                              Input: ps, -1
+                                          Boxes: 0: Box: Cons
+                                                    Inputs: Input: head, 0
+                                                            Input: tail, 0
+                                                 1: Box: sieve
+                                                    Inputs: Input: list, 1
+                                                 2: Box: filter
+                                                    Inputs: Input: pred, 2
+                                                            Input: list, 2
+                                                 3: Box: nonMultiple
+                                                    Inputs: Input: a, 3
+                                          Cables: Output: 0 :-: Input: endInput, -1
+                                                  Output: -1 :-: Input: head, 0
+                                                  Output: 1 :-: Input: tail, 0
+                                                  Output: 2 :-: Input: list, 1
+                                                  Output: -1 :-: Input: a, 3
+                                                  Output: 3 :-: Input: pred, 2
+                                                  Output: -1 :-: Input: list, 2
+                                          Definitions: Box: nonMultiple
+                                                       Inputs: Input: p, -1
+                                                               Input: n, -1
+                                                           Boxes: 0: Box: mod
+                                                                     Inputs: Input: a, 0
+                                                                             Input: b, 0
+                                                                  1: Box: neqInt
+                                                                     Inputs: Input: a, 1
+                                                                             Input: b, 1
+                                                                  2: Box: 0
+                                                                     Inputs: 
+                                                           Cables: Output: -1 :-: Input: a, 0
+                                                                   Output: -1 :-: Input: b, 0
+                                                                   Output: 0 :-: Input: a, 1
+                                                                   Output: 2 :-: Input: b, 1
+                                                                   Output: 1 :-: Input: endInput, -1
+                                                           Definitions: 
+                     Box: printPrimes
+                     Inputs: Input: list, -1
+                         Boxes: 0: Box: mapM
+                                   Inputs: Input: m, 0
+                                           Input: xs, 0
+                                1: Box: printPrime
+                                   Inputs: 
+                         Cables: Output: -1 :-: Input: xs, 0
+                                 Output: 0 :-: Input: endInput, -1
+                                 Output: 1 :-: Input: m, 0
+                         Definitions: Box: printPrime
+                                      Inputs: Input: p, -1
+                                          Boxes: 0: Box: putInt
+                                                    Inputs: Input: i, 0
+                                                 1: Box: seq
+                                                    Inputs: Input: m1, 1
+                                                            Input: m2, 1
+                                                 2: Box: getLine
+                                                    Inputs: 
+                                          Cables: Output: 0 :-: Input: m1, 1
+                                                  Output: 1 :-: Input: endInput, -1
+                                                  Output: 2 :-: Input: m2, 1
+                                                  Output: -1 :-: Input: i, 0
+                                          Definitions: 
+    Box: printFactorial
+    Inputs: 
+        Boxes: 0: Box: 10
+                  Inputs: 
+               1: Box: factorial
+                  Inputs: Input: n, 1
+               2: Box: putInt
+                  Inputs: Input: i, 2
+               3: Box: seq
+                  Inputs: Input: m1, 3
+                          Input: m2, 3
+               4: Box: getLine
+                  Inputs: 
+        Cables: Output: 0 :-: Input: n, 1
+                Output: 1 :-: Input: i, 2
+                Output: 2 :-: Input: m1, 3
+                Output: 3 :-: Input: endInput, -1
+                Output: 4 :-: Input: m2, 3
+        Definitions: Box: factorial
+                     Inputs: Input: n, -1
+                         Boxes: 0: Box: if
+                                   Inputs: Input: cond, 0
+                                           Input: then, 0
+                                           Input: else, 0
+                                1: Box: eqInt
+                                   Inputs: Input: a, 1
+                                           Input: b, 1
+                                2: Box: 0
+                                   Inputs: 
+                                3: Box: 1
+                                   Inputs: 
+                                4: Box: multiply
+                                   Inputs: Input: a, 4
+                                           Input: b, 4
+                                5: Box: factorial
+                                   Inputs: Input: n, 5
+                                6: Box: minus
+                                   Inputs: Input: a, 6
+                                           Input: b, 6
+                                7: Box: 1
+                                   Inputs: 
+                         Cables: Output: 0 :-: Input: endInput, -1
+                                 Output: -1 :-: Input: a, 1
+                                 Output: 2 :-: Input: b, 1
+                                 Output: 1 :-: Input: cond, 0
+                                 Output: 3 :-: Input: then, 0
+                                 Output: 4 :-: Input: else, 0
+                                 Output: -1 :-: Input: a, 4
+                                 Output: 5 :-: Input: b, 4
+                                 Output: -1 :-: Input: a, 6
+                                 Output: 6 :-: Input: n, 5
+                                 Output: 7 :-: Input: b, 6
+                         Definitions: 
+Module: Prologue
+    Box: id
+    Inputs: Input: x, -1
+        Boxes: 
+        Cables: Output: -1 :-: Input: endInput, -1
+        Definitions: 
+    Box: map
+    Inputs: Input: f, -1
+            Input: xs, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+                          Input: patt2, 0
+                          Input: alt2, 0
+               1: Box: Nil
+                  Inputs: 
+               2: Box: Cons
+                  Inputs: Input: head, 2
+                          Input: tail, 2
+               3: Box: y
+                  Inputs: 
+               4: Box: ys
+                  Inputs: 
+               5: Box: Cons
+                  Inputs: Input: head, 5
+                          Input: tail, 5
+               6: Box: f
+                  Inputs: Input: y, 6
+               7: Box: map
+                  Inputs: Input: f, 7
+                          Input: xs, 7
+        Cables: Output: -1 :-: Input: expr, 0
+                Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: patt1, 0
+                Output: 1 :-: Input: alt1, 0
+                Output: 3 :-: Input: head, 2
+                Output: 2 :-: Input: patt2, 0
+                Output: 4 :-: Input: tail, 2
+                Output: 5 :-: Input: alt2, 0
+                Output: 3 :-: Input: y, 6
+                Output: 6 :-: Input: head, 5
+                Output: 7 :-: Input: tail, 5
+                Output: -1 :-: Input: f, 7
+                Output: 4 :-: Input: xs, 7
+        Definitions: 
+    Box: compose
+    Inputs: Input: f, -1
+            Input: g, -1
+            Input: x, -1
+        Boxes: 0: Box: g
+                  Inputs: Input: x, 0
+               1: Box: f
+                  Inputs: Input: gx, 1
+        Cables: Output: -1 :-: Input: x, 0
+                Output: 0 :-: Input: gx, 1
+                Output: 1 :-: Input: endInput, -1
+        Definitions: 
+    Box: const
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 
+        Cables: Output: -1 :-: Input: endInput, -1
+        Definitions: 
+    Box: foldr
+    Inputs: Input: f, -1
+            Input: b, -1
+            Input: as, -1
+        Boxes: 0: Box: caseList
+                  Inputs: Input: list, 0
+                          Input: f, 0
+                          Input: g, 0
+               1: Box: foldrHelp
+                  Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: -1 :-: Input: list, 0
+                Output: -1 :-: Input: f, 0
+                Output: 1 :-: Input: g, 0
+        Definitions: Box: foldrHelp
+                     Inputs: Input: x, -1
+                             Input: xs, -1
+                         Boxes: 0: Box: f
+                                   Inputs: Input: a, 0
+                                           Input: b, 0
+                                1: Box: foldr
+                                   Inputs: Input: f, 1
+                                           Input: b, 1
+                                           Input: as, 1
+                                2: Box: b
+                                   Inputs: 
+                                3: Box: f
+                                   Inputs: 
+                         Cables: Output: -1 :-: Input: a, 0
+                                 Output: -1 :-: Input: as, 1
+                                 Output: 2 :-: Input: b, 1
+                                 Output: 3 :-: Input: f, 1
+                                 Output: 1 :-: Input: b, 0
+                                 Output: 0 :-: Input: endInput, -1
+                         Definitions: 
+    Box: filter
+    Inputs: Input: pred, -1
+            Input: xs, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+                          Input: patt2, 0
+                          Input: alt2, 0
+               1: Box: Nil
+                  Inputs: 
+               2: Box: Cons
+                  Inputs: Input: head, 2
+                          Input: tail, 2
+               3: Box: p
+                  Inputs: 
+               4: Box: ps
+                  Inputs: 
+               5: Box: Cons
+                  Inputs: Input: head, 5
+                          Input: tail, 5
+               6: Box: if
+                  Inputs: Input: cond, 6
+                          Input: then, 6
+                          Input: else, 6
+               7: Box: pred
+                  Inputs: Input: p, 7
+               8: Box: filter
+                  Inputs: Input: pred, 8
+                          Input: xs, 8
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: -1 :-: Input: expr, 0
+                Output: 1 :-: Input: patt1, 0
+                Output: 1 :-: Input: alt1, 0
+                Output: 2 :-: Input: patt2, 0
+                Output: 3 :-: Input: head, 2
+                Output: 4 :-: Input: tail, 2
+                Output: 6 :-: Input: alt2, 0
+                Output: 3 :-: Input: p, 7
+                Output: 7 :-: Input: cond, 6
+                Output: 5 :-: Input: then, 6
+                Output: 3 :-: Input: head, 5
+                Output: -1 :-: Input: pred, 8
+                Output: 4 :-: Input: xs, 8
+                Output: 8 :-: Input: tail, 5
+                Output: 8 :-: Input: else, 6
+        Definitions: 
+Module: Boolean
+    Box: True
+    Inputs: 
+        Boxes: 1: Box: Bool
+                  Inputs: 
+               2: Box: DataCons
+                  Inputs: 
+        Cables: Output: 1 :-: Input: typeAnn, 2
+                Output: 2 :-: Input: endInput, -1
+        Definitions: 
+    Box: False
+    Inputs: 
+        Boxes: 1: Box: Bool
+                  Inputs: 
+               2: Box: DataCons
+                  Inputs: 
+        Cables: Output: 1 :-: Input: typeAnn, 2
+                Output: 2 :-: Input: endInput, -1
+        Definitions: 
+    Box: if
+    Inputs: Input: cond, -1
+            Input: then, -1
+            Input: else, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+                          Input: patt2, 0
+                          Input: alt2, 0
+               1: Box: True
+                  Inputs: 
+               2: Box: False
+                  Inputs: 
+        Cables: Output: -1 :-: Input: expr, 0
+                Output: -1 :-: Input: alt1, 0
+                Output: -1 :-: Input: alt2, 0
+                Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: patt1, 0
+                Output: 2 :-: Input: patt2, 0
+        Definitions: 
+    Box: primBool
+    Inputs: Input: op, -1
+            Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+               1: Box: MkInt
+                  Inputs: Input: i, 1
+               2: Box: a$
+                  Inputs: 
+               3: Box: case
+                  Inputs: Input: expr, 3
+                          Input: patt1, 3
+                          Input: alt1, 3
+               4: Box: MkInt
+                  Inputs: Input: input1, 4
+               5: Box: b$
+                  Inputs: 
+               6: Box: case
+                  Inputs: Input: expr, 6
+                          Input: patt1, 6
+                          Input: alt1, 6
+                          Input: patt2, 6
+                          Input: alt2, 6
+               7: Box: op
+                  Inputs: Input: a, 7
+                          Input: b, 7
+               8: Box: 0$
+                  Inputs: 
+               9: Box: False
+                  Inputs: 
+               10: Box: 1$
+                   Inputs: 
+               11: Box: True
+                   Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: patt1, 0
+                Output: 2 :-: Input: i, 1
+                Output: 3 :-: Input: alt1, 0
+                Output: 4 :-: Input: patt1, 3
+                Output: 5 :-: Input: input1, 4
+                Output: 6 :-: Input: alt1, 3
+                Output: 7 :-: Input: expr, 6
+                Output: 8 :-: Input: patt1, 6
+                Output: 9 :-: Input: alt1, 6
+                Output: 10 :-: Input: patt2, 6
+                Output: 11 :-: Input: alt2, 6
+                Output: -1 :-: Input: expr, 0
+                Output: -1 :-: Input: expr, 3
+                Output: 2 :-: Input: a, 7
+                Output: 5 :-: Input: b, 7
+        Definitions: 
+    Box: eqInt
+    Inputs: 
+        Boxes: 0: Box: primBool
+                  Inputs: Input: op, 0
+               1: Box: ==$
+                  Inputs: Input: a$, 1
+                          Input: b$, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: op, 0
+        Definitions: 
+    Box: lessThan
+    Inputs: 
+        Boxes: 0: Box: primBool
+                  Inputs: Input: op, 0
+               1: Box: <$
+                  Inputs: Input: a$, 1
+                          Input: b$, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: op, 0
+        Definitions: 
+    Box: not
+    Inputs: Input: b, -1
+        Boxes: 0: Box: if
+                  Inputs: Input: cond, 0
+                          Input: then, 0
+                          Input: else, 0
+               1: Box: False
+                  Inputs: 
+               2: Box: True
+                  Inputs: 
+        Cables: Output: -1 :-: Input: cond, 0
+                Output: 1 :-: Input: then, 0
+                Output: 2 :-: Input: else, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: and
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: if
+                  Inputs: Input: cond, 0
+                          Input: then, 0
+                          Input: else, 0
+               1: Box: False
+                  Inputs: 
+        Cables: Output: -1 :-: Input: cond, 0
+                Output: -1 :-: Input: then, 0
+                Output: 1 :-: Input: else, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: or
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: if
+                  Inputs: Input: cond, 0
+                          Input: then, 0
+                          Input: else, 0
+               1: Box: True
+                  Inputs: 
+        Cables: Output: -1 :-: Input: cond, 0
+                Output: 1 :-: Input: then, 0
+                Output: -1 :-: Input: else, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: lessThanEqualTo
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: lessThan
+                  Inputs: Input: a, 0
+                          Input: b, 0
+               1: Box: or
+                  Inputs: Input: a, 1
+                          Input: b, 1
+               2: Box: eqInt
+                  Inputs: Input: a, 2
+                          Input: b, 2
+        Cables: Output: -1 :-: Input: a, 0
+                Output: -1 :-: Input: b, 0
+                Output: 0 :-: Input: a, 1
+                Output: -1 :-: Input: a, 2
+                Output: -1 :-: Input: b, 2
+                Output: 2 :-: Input: b, 1
+                Output: 1 :-: Input: endInput, -1
+        Definitions: 
+    Box: greaterThan
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: not
+                  Inputs: Input: a, 0
+               1: Box: lessThanEqualTo
+                  Inputs: Input: a, 1
+                          Input: b, 1
+        Cables: Output: -1 :-: Input: a, 1
+                Output: -1 :-: Input: b, 1
+                Output: 1 :-: Input: a, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: greaterThanEqualTo
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: not
+                  Inputs: Input: a, 0
+               1: Box: lessThan
+                  Inputs: Input: a, 1
+                          Input: b, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: a, 0
+                Output: -1 :-: Input: a, 1
+                Output: -1 :-: Input: b, 1
+        Definitions: 
+    Box: neqInt
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: eqInt
+                  Inputs: Input: a, 0
+                          Input: b, 0
+               1: Box: not
+                  Inputs: Input: a, 1
+        Cables: Output: -1 :-: Input: a, 0
+                Output: -1 :-: Input: b, 0
+                Output: 0 :-: Input: a, 1
+                Output: 1 :-: Input: endInput, -1
+        Definitions: 
+Module: Data Types
+    Box: Cons
+    Inputs: Input: head, -1
+            Input: tail, -1
+        Boxes: 0: Box: DataCons
+                  Inputs: Input: a, 0
+                          Input: b, 0
+               1: Box: List
+                  Inputs: Input: a, 1
+               2: Box: a
+                  Inputs: 
+               3: Box: tail
+                  Inputs: 
+               5: Box: head
+                  Inputs: 
+        Cables: Output: 2 :-: Input: a, 1
+                Output: 3 :-: Input: b, 0
+                Output: 5 :-: Input: a, 0
+                Output: 2 :-: Input: typeAnn, 5
+                Output: 1 :-: Input: typeAnn, 3
+                Output: 1 :-: Input: typeAnn, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: Nil
+    Inputs: 
+        Boxes: 1: Box: List
+                  Inputs: Input: a, 1
+               2: Box: a
+                  Inputs: 
+               3: Box: DataCons
+                  Inputs: 
+        Cables: Output: 2 :-: Input: a, 1
+                Output: 1 :-: Input: typeAnn, 3
+                Output: 3 :-: Input: endInput, -1
+        Definitions: 
+    Box: Nothing
+    Inputs: 
+        Boxes: 0: Box: DataCons
+                  Inputs: 
+               2: Box: Maybe
+                  Inputs: Input: a, 2
+               3: Box: a
+                  Inputs: 
+        Cables: Output: 3 :-: Input: a, 2
+                Output: 2 :-: Input: typeAnn, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: Just
+    Inputs: Input: a, -1
+        Boxes: 0: Box: a
+                  Inputs: 
+               1: Box: Maybe
+                  Inputs: Input: a, 1
+               2: Box: a
+                  Inputs: 
+               4: Box: DataCons
+                  Inputs: Input: a, 4
+        Cables: Output: 4 :-: Input: endInput, -1
+                Output: 1 :-: Input: typeAnn, 4
+                Output: 0 :-: Input: a, 1
+                Output: 2 :-: Input: a, 4
+                Output: 0 :-: Input: typeAnn, 2
+        Definitions: 
+    Box: caseList
+    Inputs: Input: list, -1
+            Input: f, -1
+            Input: g, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+                          Input: patt2, 0
+                          Input: alt2, 0
+               1: Box: Nil
+                  Inputs: 
+               2: Box: Cons
+                  Inputs: Input: head, 2
+                          Input: tail, 2
+               3: Box: head
+                  Inputs: 
+               4: Box: tail
+                  Inputs: 
+               5: Box: g
+                  Inputs: Input: head, 5
+                          Input: tail, 5
+        Cables: Output: -1 :-: Input: expr, 0
+                Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: patt1, 0
+                Output: -1 :-: Input: alt1, 0
+                Output: 2 :-: Input: patt2, 0
+                Output: 3 :-: Input: head, 2
+                Output: 4 :-: Input: tail, 2
+                Output: 3 :-: Input: head, 5
+                Output: 4 :-: Input: tail, 5
+                Output: 5 :-: Input: alt2, 0
+        Definitions: 
+    Box: isNil
+    Inputs: Input: list, -1
+        Boxes: 0: Box: caseList
+                  Inputs: Input: input1, 0
+                          Input: input2, 0
+                          Input: input3, 0
+               1: Box: True
+                  Inputs: 
+               2: Box: constFalse
+                  Inputs: 
+        Cables: Output: -1 :-: Input: input1, 0
+                Output: 1 :-: Input: input2, 0
+                Output: 0 :-: Input: endInput, -1
+                Output: 2 :-: Input: input3, 0
+        Definitions: Box: constFalse
+                     Inputs: Input: input1, -1
+                             Input: input2, -1
+                         Boxes: 0: Box: False
+                                   Inputs: 
+                         Cables: Output: 0 :-: Input: endInput, -1
+                         Definitions: 
+    Box: Empty
+    Inputs: 
+        Boxes: 0: Box: DataCons
+                  Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: MkChar
+    Inputs: Input: c, -1
+        Boxes: 0: Box: DataCons
+                  Inputs: Input: a, 0
+               2: Box: Char
+                  Inputs: 
+               3: Box: Int$
+                  Inputs: 
+               4: Box: c
+                  Inputs: 
+        Cables: Output: 4 :-: Input: a, 0
+                Output: 3 :-: Input: typeAnn, 4
+                Output: 2 :-: Input: typeAnn, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: MkIORes
+    Inputs: Input: a, -1
+            Input: World, -1
+        Boxes: 0: Box: DataCons
+                  Inputs: Input: a, 0
+                          Input: b, 0
+               1: Box: IORes
+                  Inputs: Input: a, 1
+               2: Box: a
+                  Inputs: 
+               3: Box: world
+                  Inputs: 
+               4: Box: a
+                  Inputs: 
+               5: Box: World
+                  Inputs: 
+        Cables: Output: 2 :-: Input: a, 1
+                Output: 4 :-: Input: a, 0
+                Output: 2 :-: Input: typeAnn, 4
+                Output: 1 :-: Input: typeAnn, 0
+                Output: 0 :-: Input: endInput, -1
+                Output: 3 :-: Input: b, 0
+                Output: 5 :-: Input: typeAnn, 3
+        Definitions: 
+    Box: MkIORes$
+    Inputs: Input: i, -1
+            Input: world, -1
+        Boxes: 0: Box: DataCons
+                  Inputs: Input: a, 0
+                          Input: b, 0
+               2: Box: IORes$
+                  Inputs: 
+               3: Box: Int$
+                  Inputs: 
+               4: Box: World
+                  Inputs: 
+               5: Box: i
+                  Inputs: 
+               6: Box: world
+                  Inputs: 
+        Cables: Output: 5 :-: Input: a, 0
+                Output: 6 :-: Input: b, 0
+                Output: 3 :-: Input: typeAnn, 5
+                Output: 4 :-: Input: typeAnn, 6
+                Output: 2 :-: Input: typeAnn, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: eqChar
+    Inputs: Input: a, -1
+            Input: b, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+               1: Box: MkChar
+                  Inputs: Input: i, 1
+               2: Box: a$
+                  Inputs: 
+               3: Box: case
+                  Inputs: Input: expr, 3
+                          Input: patt1, 3
+                          Input: alt1, 3
+               4: Box: MkChar
+                  Inputs: Input: input1, 4
+               5: Box: b$
+                  Inputs: 
+               6: Box: case
+                  Inputs: Input: expr, 6
+                          Input: patt1, 6
+                          Input: alt1, 6
+                          Input: patt2, 6
+                          Input: alt2, 6
+               7: Box: ==$
+                  Inputs: Input: a$, 7
+                          Input: b$, 7
+               8: Box: 0$
+                  Inputs: 
+               9: Box: False
+                  Inputs: 
+               10: Box: 1$
+                   Inputs: 
+               11: Box: True
+                   Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: -1 :-: Input: expr, 0
+                Output: 1 :-: Input: patt1, 0
+                Output: 2 :-: Input: i, 1
+                Output: 3 :-: Input: alt1, 0
+                Output: -1 :-: Input: expr, 3
+                Output: 4 :-: Input: patt1, 3
+                Output: 5 :-: Input: input1, 4
+                Output: 6 :-: Input: alt1, 3
+                Output: 7 :-: Input: expr, 6
+                Output: 2 :-: Input: a$, 7
+                Output: 5 :-: Input: b$, 7
+                Output: 8 :-: Input: patt1, 6
+                Output: 9 :-: Input: alt1, 6
+                Output: 10 :-: Input: patt2, 6
+                Output: 11 :-: Input: alt2, 6
+        Definitions: 
+    Box: newLine
+    Inputs: 
+        Boxes: 0: Box: MkChar
+                  Inputs: Input: c, 0
+               1: Box: 10$
+                  Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: c, 0
+        Definitions: 
+Module: Math
+    Box: MkInt
+    Inputs: Input: i, -1
+        Boxes: 0: Box: DataCons
+                  Inputs: Input: a, 0
+               1: Box: i
+                  Inputs: 
+               2: Box: Int$
+                  Inputs: 
+               3: Box: Int
+                  Inputs: 
+        Cables: Output: 1 :-: Input: a, 0
+                Output: 2 :-: Input: typeAnn, 1
+                Output: 3 :-: Input: typeAnn, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: MkFloat
+    Inputs: Input: f, -1
+        Boxes: 0: Box: DataCons
+                  Inputs: Input: a, 0
+               2: Box: Float
+                  Inputs: 
+               3: Box: f
+                  Inputs: 
+               4: Box: Float$
+                  Inputs: 
+        Cables: Output: 3 :-: Input: a, 0
+                Output: 4 :-: Input: typeAnn, 3
+                Output: 2 :-: Input: typeAnn, 0
+                Output: 0 :-: Input: endInput, -1
+        Definitions: 
+    Box: primArith
+    Inputs: Input: op, -1
+            Input: e1, -1
+            Input: e2, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+               1: Box: MkInt
+                  Inputs: Input: i, 1
+               2: Box: x$
+                  Inputs: 
+               3: Box: case
+                  Inputs: Input: expr, 3
+                          Input: patt1, 3
+                          Input: patt2, 3
+               4: Box: MkInt
+                  Inputs: Input: i, 4
+               5: Box: y$
+                  Inputs: 
+               6: Box: case
+                  Inputs: Input: expr, 6
+                          Input: patt1, 6
+                          Input: alt1, 6
+               7: Box: op
+                  Inputs: Input: x, 7
+                          Input: y, 7
+               8: Box: MkInt
+                  Inputs: Input: i, 8
+               9: Box: t$
+                  Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: patt1, 0
+                Output: 2 :-: Input: i, 1
+                Output: 3 :-: Input: alt1, 0
+                Output: 4 :-: Input: patt1, 3
+                Output: 5 :-: Input: i, 4
+                Output: 5 :-: Input: y, 7
+                Output: 2 :-: Input: x, 7
+                Output: -1 :-: Input: expr, 0
+                Output: -1 :-: Input: expr, 3
+                Output: 6 :-: Input: patt2, 3
+                Output: 7 :-: Input: expr, 6
+                Output: 8 :-: Input: alt1, 6
+                Output: 9 :-: Input: i, 8
+                Output: 9 :-: Input: patt1, 6
+        Definitions: 
+    Box: plus
+    Inputs: 
+        Boxes: 0: Box: primArith
+                  Inputs: Input: op, 0
+               1: Box: +$
+                  Inputs: Input: x$, 1
+                          Input: y$, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: op, 0
+        Definitions: 
+    Box: minus
+    Inputs: 
+        Boxes: 0: Box: -$
+                  Inputs: Input: x$, 0
+                          Input: y$, 0
+               1: Box: primArith
+                  Inputs: Input: op, 1
+        Cables: Output: 0 :-: Input: op, 1
+                Output: 1 :-: Input: endInput, -1
+        Definitions: 
+    Box: multiply
+    Inputs: 
+        Boxes: 0: Box: primArith
+                  Inputs: Input: op, 0
+               1: Box: *$
+                  Inputs: Input: x$, 1
+                          Input: y$, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: op, 0
+        Definitions: 
+    Box: divide
+    Inputs: 
+        Boxes: 0: Box: primArith
+                  Inputs: Input: op, 0
+               1: Box: /$
+                  Inputs: Input: x$, 1
+                          Input: y$, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: op, 0
+        Definitions: 
+    Box: mod
+    Inputs: 
+        Boxes: 0: Box: primArith
+                  Inputs: Input: op, 0
+               1: Box: %$
+                  Inputs: Input: x$, 1
+                          Input: y$, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: op, 0
+        Definitions: 
+Module: IO
+    Box: done
+    Inputs: 
+        Boxes: 0: Box: return
+                  Inputs: Input: x, 0
+               1: Box: Empty
+                  Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: x, 0
+        Definitions: 
+    Box: seq
+    Inputs: Input: m, -1
+            Input: n, -1
+        Boxes: 0: Box: bind
+                  Inputs: Input: ma, 0
+                          Input: f, 0
+               1: Box: const
+                  Inputs: Input: a, 1
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: -1 :-: Input: ma, 0
+                Output: 1 :-: Input: f, 0
+                Output: -1 :-: Input: a, 1
+        Definitions: 
+    Box: return
+    Inputs: Input: a, -1
+            Input: w, -1
+        Boxes: 0: Box: MkIORes
+                  Inputs: Input: a, 0
+                          Input: w, 0
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: -1 :-: Input: a, 0
+                Output: -1 :-: Input: w, 0
+        Definitions: 
+    Box: bind
+    Inputs: Input: m, -1
+            Input: k, -1
+            Input: w, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+               1: Box: m
+                  Inputs: Input: w, 1
+               2: Box: MkIORes
+                  Inputs: Input: a, 2
+                          Input: w, 2
+               3: Box: a
+                  Inputs: 
+               4: Box: ww
+                  Inputs: 
+               5: Box: k
+                  Inputs: Input: a, 5
+                          Input: w, 5
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: -1 :-: Input: w, 1
+                Output: 1 :-: Input: expr, 0
+                Output: 2 :-: Input: patt1, 0
+                Output: 3 :-: Input: a, 2
+                Output: 4 :-: Input: w, 2
+                Output: 3 :-: Input: a, 5
+                Output: 4 :-: Input: w, 5
+                Output: 5 :-: Input: alt1, 0
+        Definitions: 
+    Box: sequence
+    Inputs: 
+        Boxes: 0: Box: foldr
+                  Inputs: Input: f, 0
+                          Input: b, 0
+               1: Box: seq
+                  Inputs: 
+               2: Box: done
+                  Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: 1 :-: Input: f, 0
+                Output: 2 :-: Input: b, 0
+        Definitions: 
+    Box: getChar
+    Inputs: Input: w, -1
+        Boxes: 0: Box: ccall$
+                  Inputs: Input: proc, 0
+                          Input: w, 0
+               1: Box: getchar
+                  Inputs: 
+               2: Box: case
+                  Inputs: Input: expr, 2
+                          Input: patt1, 2
+                          Input: alt1, 2
+               3: Box: MkIORes$
+                  Inputs: Input: n, 3
+                          Input: w, 3
+               4: Box: n$
+                  Inputs: 
+               5: Box: ww
+                  Inputs: 
+               6: Box: MkIORes
+                  Inputs: Input: n, 6
+                          Input: w, 6
+               7: Box: MkChar
+                  Inputs: Input: c, 7
+        Cables: Output: 1 :-: Input: proc, 0
+                Output: 2 :-: Input: endInput, -1
+                Output: 0 :-: Input: expr, 2
+                Output: -1 :-: Input: w, 0
+                Output: 3 :-: Input: patt1, 2
+                Output: 4 :-: Input: n, 3
+                Output: 5 :-: Input: w, 3
+                Output: 6 :-: Input: alt1, 2
+                Output: 4 :-: Input: c, 7
+                Output: 7 :-: Input: n, 6
+                Output: 5 :-: Input: w, 6
+        Definitions: 
+    Box: putChar
+    Inputs: Input: c, -1
+            Input: w, -1
+        Boxes: 0: Box: ccall$
+                  Inputs: Input: proc, 0
+                          Input: e1, 0
+                          Input: w, 0
+               1: Box: putchar
+                  Inputs: 
+               2: Box: case
+                  Inputs: Input: expr, 2
+                          Input: patt1, 2
+                          Input: alt1, 2
+               3: Box: MkChar
+                  Inputs: Input: c, 3
+               4: Box: c$
+                  Inputs: 
+               5: Box: case
+                  Inputs: Input: expr, 5
+                          Input: patt1, 5
+                          Input: alt1, 5
+               6: Box: MkIORes$
+                  Inputs: Input: n, 6
+                          Input: w, 6
+               7: Box: n$
+                  Inputs: 
+               8: Box: ww
+                  Inputs: 
+               9: Box: MkIORes
+                  Inputs: Input: n, 9
+                          Input: w, 9
+               10: Box: Empty
+                   Inputs: 
+        Cables: Output: 1 :-: Input: proc, 0
+                Output: 2 :-: Input: endInput, -1
+                Output: -1 :-: Input: expr, 2
+                Output: 3 :-: Input: patt1, 2
+                Output: 4 :-: Input: c, 3
+                Output: 5 :-: Input: alt1, 2
+                Output: 0 :-: Input: expr, 5
+                Output: 4 :-: Input: e1, 0
+                Output: -1 :-: Input: w, 0
+                Output: 6 :-: Input: patt1, 5
+                Output: 7 :-: Input: n, 6
+                Output: 8 :-: Input: w, 6
+                Output: 9 :-: Input: alt1, 5
+                Output: 8 :-: Input: w, 9
+                Output: 10 :-: Input: n, 9
+        Definitions: 
+    Box: print
+    Inputs: Input: string, -1
+        Boxes: 1: Box: putChar
+                  Inputs: 
+               3: Box: mapM
+                  Inputs: Input: m, 3
+                          Input: xs, 3
+        Cables: Output: 1 :-: Input: m, 3
+                Output: -1 :-: Input: xs, 3
+                Output: 3 :-: Input: endInput, -1
+        Definitions: 
+    Box: printLn
+    Inputs: Input: string, -1
+        Boxes: 0: Box: print
+                  Inputs: Input: string, 0
+               1: Box: seq
+                  Inputs: Input: m1, 1
+                          Input: m2, 1
+               2: Box: putChar
+                  Inputs: Input: c, 2
+               3: Box: newLine
+                  Inputs: 
+        Cables: Output: 0 :-: Input: m1, 1
+                Output: 1 :-: Input: endInput, -1
+                Output: -1 :-: Input: string, 0
+                Output: 2 :-: Input: m2, 1
+                Output: 3 :-: Input: c, 2
+        Definitions: 
+    Box: getLine
+    Inputs: 
+        Boxes: 0: Box: getChar
+                  Inputs: 
+               1: Box: bind
+                  Inputs: Input: m, 1
+                          Input: k, 1
+               2: Box: getLine1
+                  Inputs: 
+        Cables: Output: 1 :-: Input: endInput, -1
+                Output: 0 :-: Input: m, 1
+                Output: 2 :-: Input: k, 1
+        Definitions: Box: getLine1
+                     Inputs: Input: c, -1
+                         Boxes: 0: Box: if
+                                   Inputs: Input: cond, 0
+                                           Input: then, 0
+                                           Input: else, 0
+                                1: Box: eqChar
+                                   Inputs: Input: a, 1
+                                           Input: b, 1
+                                2: Box: newLine
+                                   Inputs: 
+                                3: Box: return
+                                   Inputs: Input: a, 3
+                                4: Box: Nil
+                                   Inputs: 
+                                5: Box: bind
+                                   Inputs: Input: m, 5
+                                           Input: k, 5
+                                6: Box: getLine
+                                   Inputs: 
+                                7: Box: getLine2
+                                   Inputs: 
+                         Cables: Output: -1 :-: Input: a, 1
+                                 Output: 1 :-: Input: cond, 0
+                                 Output: 0 :-: Input: endInput, -1
+                                 Output: 3 :-: Input: then, 0
+                                 Output: 4 :-: Input: a, 3
+                                 Output: 5 :-: Input: else, 0
+                                 Output: 6 :-: Input: m, 5
+                                 Output: 7 :-: Input: k, 5
+                                 Output: 2 :-: Input: b, 1
+                         Definitions: Box: getLine2
+                                      Inputs: Input: line, -1
+                                          Boxes: 0: Box: Cons
+                                                    Inputs: Input: head, 0
+                                                            Input: tail, 0
+                                                 1: Box: c
+                                                    Inputs: 
+                                                 2: Box: return
+                                                    Inputs: Input: a, 2
+                                          Cables: Output: -1 :-: Input: tail, 0
+                                                  Output: 1 :-: Input: head, 0
+                                                  Output: 0 :-: Input: a, 2
+                                                  Output: 2 :-: Input: endInput, -1
+                                          Definitions: 
+    Box: forever
+    Inputs: Input: a, -1
+        Boxes: 0: Box: a1
+                  Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+        Definitions: Box: a1
+                     Inputs: 
+                         Boxes: 0: Box: seq
+                                   Inputs: Input: m1, 0
+                                           Input: m2, 0
+                                1: Box: a
+                                   Inputs: 
+                                2: Box: a1
+                                   Inputs: 
+                         Cables: Output: 0 :-: Input: endInput, -1
+                                 Output: 1 :-: Input: m1, 0
+                                 Output: 2 :-: Input: m2, 0
+                         Definitions: 
+    Box: mapM
+    Inputs: Input: m, -1
+            Input: list, -1
+        Boxes: 0: Box: map
+                  Inputs: Input: f, 0
+                          Input: list, 0
+               1: Box: sequence
+                  Inputs: Input: list, 1
+        Cables: Output: 1 :-: Input: endInput, -1
+                Output: -1 :-: Input: f, 0
+                Output: -1 :-: Input: list, 0
+                Output: 0 :-: Input: list, 1
+        Definitions: 
+    Box: putInt
+    Inputs: Input: i, -1
+            Input: w, -1
+        Boxes: 0: Box: case
+                  Inputs: Input: expr, 0
+                          Input: patt1, 0
+                          Input: alt1, 0
+               1: Box: MkInt
+                  Inputs: Input: i, 1
+               2: Box: i$
+                  Inputs: 
+               3: Box: ccall$
+                  Inputs: Input: proc, 3
+                          Input: e1, 3
+                          Input: e2, 3
+                          Input: w, 3
+               4: Box: printf
+                  Inputs: 
+               5: Box: "%d"$
+                  Inputs: 
+               6: Box: case
+                  Inputs: Input: expr, 6
+                          Input: patt1, 6
+                          Input: alt1, 6
+               7: Box: MkIORes$
+                  Inputs: Input: n, 7
+                          Input: w, 7
+               8: Box: n$
+                  Inputs: 
+               9: Box: ww
+                  Inputs: 
+               10: Box: MkIORes
+                   Inputs: Input: a, 10
+                           Input: w, 10
+               11: Box: Empty
+                   Inputs: 
+        Cables: Output: 0 :-: Input: endInput, -1
+                Output: -1 :-: Input: expr, 0
+                Output: 1 :-: Input: patt1, 0
+                Output: 2 :-: Input: i, 1
+                Output: 4 :-: Input: proc, 3
+                Output: 5 :-: Input: e1, 3
+                Output: 2 :-: Input: e2, 3
+                Output: -1 :-: Input: w, 3
+                Output: 3 :-: Input: expr, 6
+                Output: 6 :-: Input: alt1, 0
+                Output: 7 :-: Input: patt1, 6
+                Output: 8 :-: Input: n, 7
+                Output: 9 :-: Input: w, 7
+                Output: 9 :-: Input: w, 10
+                Output: 11 :-: Input: a, 10
+                Output: 10 :-: Input: alt1, 6
+        Definitions: 

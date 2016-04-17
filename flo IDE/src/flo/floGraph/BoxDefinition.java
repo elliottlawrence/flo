@@ -139,6 +139,9 @@ public class BoxDefinition extends BoxDefinitionContainer implements Jsonable {
             if (i.hasCable())
                 removeCable(i.getCable());
         });
+        final Input typeInput = bi.getTypeInput();
+        if (typeInput.hasCable())
+            removeCable(typeInput.getCable());
 
         final Output o = bi.getOutput();
         if (o.hasCable()) {

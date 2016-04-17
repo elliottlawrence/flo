@@ -29,30 +29,32 @@ main = do
   else do
     -- Read the file and convert it to a FloProgram
     let filePath = head args
+        baseName = dropExtension filePath
     byteString <- B.readFile filePath
     let fg@(FloGraph _) = fromMaybe (error "Couldn't parse file") .
                           decode $ byteString
         fp = convert fg :: FloProgram
 
-    --putStrLn (showP fp)
+    -- Write out the intermediate files
+    writeFile (baseName <.> "fg") (showP fg)
+    writeFile (baseName <.> "fp") (showP fp)
 
     (if "-hask" `elem` args
     -- Route 1: Convert to Haskell
     then useHaskellCompiler
     -- Route 2: Convert to STG
-    else useSTGCompiler) fp filePath
+    else useSTGCompiler) fp baseName
 
 {- Actually compile flo code using the STG machine. -}
 useSTGCompiler :: FloProgram -> FilePath -> IO ()
 useSTGCompiler fp filePath = do
-  let outputPath = dropExtension filePath <.> "c"
-
       -- Convert a FloProgram to STG
-      stg = convert fp :: STGProgram
-  writeFile (dropExtension filePath <.> "stg") (showP stg)
+  let stg = convert fp :: STGProgram
+  writeFile (filePath <.> "stg") (showP stg)
 
       -- Convert to C and write it to a file
   let cProg = convert stg :: CProgram
+      outputPath = filePath <.> "c"
   writeFile outputPath (showP cProg)
 
   -- Run gcc
@@ -61,14 +63,13 @@ useSTGCompiler fp filePath = do
   -- Remove the C file
   --removeFile outputPath
 
-  putStrLn $ "Successfully compiled " ++ filePath
+  putStrLn $ "Successfully compiled " ++ filePath <.> "flo"
 
 {- Convert flo code to Haskell and use GHC to compile it. -}
 useHaskellCompiler :: FloProgram -> FilePath -> IO ()
 useHaskellCompiler fp filePath = do
   let directory = takeDirectory filePath
       dump = directory </> "dump_"
-      outputPath = dropExtension filePath
       inputFilePath = dump </> "Main" <.> "hs"
 
       -- Convert a FloProgram to a HaskellProgram
@@ -80,7 +81,7 @@ useHaskellCompiler fp filePath = do
 
   -- Run GHC
   callProcess "/usr/local/bin/ghc"
-    ["-o", outputPath, "-outputdir", dump, inputFilePath]
+    ["-o", filePath, "-outputdir", dump, inputFilePath]
 
   -- Remove the dump directory
   --removeDirectoryRecursive dump

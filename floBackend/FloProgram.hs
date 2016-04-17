@@ -55,135 +55,146 @@ type RBoxDefDataConses a = Reader (BoxDef, [FloDataCons]) a
 instance Convertible FloGraph FloProgram where
   convert (FloGraph modules) = FloProgram dataConses defs
     where module' = Module "main" (concatMap mDefs modules)
-          (dataConses, defs') = partitionEithers $ convert $ mDefs module'
+          (dataConses, defs') = partitionEithers $ map convertBd $ mDefs module'
           defs = map (`runReader` dataConses) defs'
 
-instance Convertible BoxDef (Either FloDataCons (RDataConses FloDef)) where
-  convert bd | hasBox "DataCons" bd = Left $ convert bd
-             | otherwise = Right $ convert bd
+convertBd :: BoxDef -> Either FloDataCons (RDataConses FloDef)
+convertBd bd | hasBox "DataCons" bd = Left $ bdToDataCons bd
+             | otherwise = Right $ bdToFloDef bd
 
 {- Determines if a box definition contains a box with the given name -}
 hasBox :: String -> BoxDef -> Bool
 hasBox name BoxDef{..} = isJust $
   find (\bi -> bName bi == name) $ IntMap.elems (biMap boxes)
 
-instance Convertible BoxDef FloDataCons where
-  convert bd@BoxDef{..} = runReader
-    (liftM2 (FloDataCons dataConsName) fields t) (bd,[] :: [FloDataCons])
-    where bi = getConnectedBox bd endInput
-          dataConsName = bName boxInterface
-          (fields, t) | bName bi == "idMono" = (convert $ bInputs bi !! 1,
-                        convert $ head $ bInputs bi)
-                      | bName bi == "DataCons" = (convert endInput,
-                        return $ TypeCons dataConsName [])
+bdToDataCons :: BoxDef -> FloDataCons
+bdToDataCons bd@BoxDef{..} = FloDataCons dataConsName fields t
+  where dataConsName = bName boxInterface
+        (fields, t) = runReader (convertDataCons endInput) (bd, [])
 
-{- Converts "DataCons" into a list of types -}
-instance Convertible Input (RBoxDefDataConses [Type]) where
-  convert i = do
-    (bd,dataConses) <- ask
-    mapM (liftM (\(FloAnn t _) -> t) . convert) (bInputs $ getConnectedBox bd i)
+{- Converts "DataCons" into a list of fields and overall type -}
+convertDataCons :: Input -> RBoxDefDataConses ([Type], Type)
+convertDataCons i = do
+  let extractFields e = case e of
+        FloAnn t e' -> [t]
+        FloVar "DataCons" -> []
+        FloVar var -> [TypeCons var []]
+        FloAp (FloVar "DataCons") e1 -> extractFields e1
+        FloAp e1 e2 -> extractFields e1 ++ extractFields e2
+
+  dataConsName <- asks $ bName . boxInterface . fst
+  expr <- inputToExpr i
+  return $ case expr of
+    FloAnn t expr' -> (extractFields expr', t)
+    _ -> (extractFields expr, TypeCons dataConsName [])
 
 {- The expression component of a box definition is the expression determined by
    the output box. In addition, if a box has local definitions, these are
    captured by wrapping the box definition in a let expression. -}
-instance Convertible BoxDef (RDataConses FloDef) where
-  convert bd@BoxDef{..} = do
-    dataConses <- ask
-    localDefs' <- mapM convert localDefs
+bdToFloDef :: BoxDef -> RDataConses FloDef
+bdToFloDef bd@BoxDef{..} = do
+  dataConses <- ask
+  localDefs' <- mapM bdToFloDef localDefs
 
-    let BoxInterface{..} = boxInterface
-        boxExpr = runReader (convert endInput) (bd, dataConses)
+  let BoxInterface{..} = boxInterface
+      boxExpr = runReader (inputToExpr endInput) (bd, dataConses)
 
-    return $ FloDef bName (map iName bInputs) $
-      (if null localDefs' then id else FloLet localDefs') boxExpr
-
+  return $ FloDef bName (map iName bInputs) $
+    (if null localDefs' then id else FloLet localDefs') boxExpr
 
 {- Converts the input in the given box definition to an expression -}
-instance Convertible Input (RBoxDefDataConses FloExpr) where
-  convert i = do
-    (bd@BoxDef{..},dataConses) <- ask
-    let Output{..} = getConnectedOutputUnsafe bd i
-        bi@BoxInterface{..} = lookupUnsafe oParentID boxes
+inputToExpr :: Input -> RBoxDefDataConses FloExpr
+inputToExpr i = do
+  bd@BoxDef{..} <- asks fst
+  let Output{..} = getConnectedOutputUnsafe bd i
+      bi = lookupUnsafe oParentID boxes
+      typeInput = typeAnn oParentID
 
-    -- Box definition input
-    if oParentID == -1 then return $ FloVar oEndInputName
-
-    -- Used for type annotations
-    else if bName == "idMono" then
-      liftM2 FloAnn (convert $ head bInputs) (convert $ bInputs !! 1)
-
-    -- Case expressions
-    else if bName == "case" then
-      liftM2 FloCase (convert $ head bInputs)
-        (liftM pairZip $ mapM convert (tail bInputs))
-
-    -- Typical expressions
-    else do
-      let {- To create an expression out of a function or constructor, convert
-             all of its inputs to expressions and then apply them to the
-             function. For constant applicative forms, no inputs need be
-             applied. -}
-          createAp :: RBoxDefDataConses FloExpr
-          createAp = if null unappliedInputs then rhs
-                     else liftM (FloLambda unappliedInputs) rhs
-            where unappliedInputs = concatMap
-                    (mapApplied bd (const []) (replicate 1 . iName)) bInputs
-                  rhs = do aps <- mapM (mapApplied bd convert
-                                  (return . FloVar . iName)) bInputs
-                           return $ foldl1 FloAp $ floVarCons bName : aps
-
-          floVarCons :: Name -> FloExpr
-          floVarCons name | name `elem` map dcName dataConses = FloCons name
-                          | otherwise = FloVar name
-
-      ap <- createAp
-      return $ removeId $ fromMaybe ap (convert bi)
-
-    where
-      mapApplied :: BoxDef -> (Input -> b) -> (Input -> b) -> Input -> b
-      mapApplied bd t f i = if isApplied bd i then t i else f i
-
-      pairZip :: [a] -> [(a,a)]
-      pairZip [] = []
-      pairZip (x:y:xs) = (x,y) : pairZip xs
-
-      {- A simple optimization that is also useful for simulating $. -}
-      removeId :: FloExpr -> FloExpr
-      removeId (FloAp (FloVar "id") e) = e
-      removeId (FloAp e1 e2) = FloAp (removeId e1) e2
-      removeId (FloLambda is e) = FloLambda is (removeId e)
-      removeId e = e
+  -- Box definition input
+  if oParentID == -1 then return $ FloVar oEndInputName
+  -- A regular box
+  else case getConnectedOutput bd typeInput of
+        Just output -> do
+          expr <- biToExpr bi
+          ty <- inputToType typeInput
+          return $ FloAnn ty expr
+        Nothing -> biToExpr bi
 
 {- Converts the input in the given box definition to a type -}
-instance Convertible Input (RBoxDefDataConses Type) where
-  convert t = do
-    (bd,_) <- ask
-    let BoxInterface{..} = getConnectedBox bd t
-    liftM (TypeCons bName) (mapM convert bInputs)
+inputToType :: Input -> RBoxDefDataConses Type
+inputToType t = do
+  bd <- asks fst
+  let BoxInterface{..} = getConnectedBox bd t
+  liftM (TypeCons bName) (mapM inputToType bInputs)
+
+biToExpr :: BoxInterface -> RBoxDefDataConses FloExpr
+biToExpr bi@BoxInterface{..}
+  -- Case expressions
+  | bName == "case" =
+    liftM2 FloCase (inputToExpr $ head bInputs)
+      (liftM pairZip $ mapM inputToExpr (tail bInputs))
+
+  -- Typical expressions
+  | otherwise = do
+    (bd,dataConses) <- ask
+    let {- To create an expression out of a function or constructor, convert
+           all of its inputs to expressions and then apply them to the
+           function. For constant applicative forms, no inputs need be
+           applied. -}
+        createAp :: RBoxDefDataConses FloExpr
+        createAp = if null unappliedInputs then rhs
+                   else liftM (FloLambda unappliedInputs) rhs
+          where unappliedInputs = concatMap
+                  (mapApplied bd (const []) (replicate 1 . iName)) bInputs
+                rhs = do aps <- mapM (mapApplied bd inputToExpr
+                                (return . FloVar . iName)) bInputs
+                         return $ foldl1 FloAp $ floVarCons bName : aps
+
+        floVarCons :: Name -> FloExpr
+        floVarCons name | name `elem` map dcName dataConses = FloCons name
+                        | otherwise = FloVar name
+
+    ap <- createAp
+    return $ removeId $ fromMaybe ap (biToLit bi)
+
+  where
+    mapApplied :: BoxDef -> (Input -> b) -> (Input -> b) -> Input -> b
+    mapApplied bd t f i = if isApplied bd i then t i else f i
+
+    pairZip :: [a] -> [(a,a)]
+    pairZip [] = []
+    pairZip (x:y:xs) = (x,y) : pairZip xs
+
+    {- A simple optimization that is also useful for simulating $. -}
+    removeId :: FloExpr -> FloExpr
+    removeId (FloAp (FloVar "id") e) = e
+    removeId (FloAp e1 e2) = FloAp (removeId e1) e2
+    removeId (FloLambda is e) = FloLambda is (removeId e)
+    removeId e = e
 
 {- A literal is simply the box's name. -}
-instance Convertible BoxInterface (Maybe FloExpr) where
-  convert BoxInterface{..}
-      -- A string$ is converted to a regular string literal
-    | isPrimString bName = Just $ FloLit $ LitString (init $ init $ tail bName)
-      -- Strings are converted to a list of characters
-    | isLitString bName = Just $
-      foldr (\c l -> FloAp (FloAp (FloCons "Cons") (charToMkInt c)) l)
-            (FloCons "Nil") (init $ tail bName)
-      -- Characters are converted into an application of MkChar with them
-      -- corresponding integer character code
-    | isLitChar bName = Just $ charToMkInt $ bName !! 1
-      -- An Int$ is converted into a regular integer literal
-    | isPrimInt bName = justLit $ LitInt (read $ init bName)
-      -- Ints are converted into an application of MkInt
-    | isLitInt bName = Just $
-        FloAp (FloCons "MkInt") (FloLit $ LitInt $ read bName)
-    | isPrimFloat bName = justLit $ LitFloat (read $ init bName)
-    | isLitFloat bName = Just $
-        FloAp (FloCons "MkFloat") (FloLit $ LitFloat $ read bName)
-    | otherwise = Nothing
-    where justLit = Just . FloLit
-          charToMkInt = FloAp (FloCons "MkChar") . FloLit . LitInt . ord
+biToLit :: BoxInterface -> Maybe FloExpr
+biToLit BoxInterface{..}
+    -- A string$ is converted to a regular string literal
+  | isPrimString bName = Just $ FloLit $ LitString (init $ init $ tail bName)
+    -- Strings are converted to a list of characters
+  | isLitString bName = Just $
+    foldr (\c l -> FloAp (FloAp (FloCons "Cons") (charToMkInt c)) l)
+          (FloCons "Nil") (init $ tail bName)
+    -- Characters are converted into an application of MkChar with them
+    -- corresponding integer character code
+  | isLitChar bName = Just $ charToMkInt $ bName !! 1
+    -- An Int$ is converted into a regular integer literal
+  | isPrimInt bName = justLit $ LitInt (read $ init bName)
+    -- Ints are converted into an application of MkInt
+  | isLitInt bName = Just $
+      FloAp (FloCons "MkInt") (FloLit $ LitInt $ read bName)
+  | isPrimFloat bName = justLit $ LitFloat (read $ init bName)
+  | isLitFloat bName = Just $
+      FloAp (FloCons "MkFloat") (FloLit $ LitFloat $ read bName)
+  | otherwise = Nothing
+  where justLit = Just . FloLit
+        charToMkInt = FloAp (FloCons "MkChar") . FloLit . LitInt . ord
 
 isPrimString :: String -> Bool
 isPrimString = (=~ "^\".*\"\\$$")   -- ^".*"\$$
