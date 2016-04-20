@@ -7,7 +7,7 @@ Module: Main
                   Inputs: 
                3: Box: echo
                   Inputs: 
-        Cables: Output: 1 :-: Input: endInput, -1
+        Cables: Output: 2 :-: Input: endInput, -1
         Definitions: 
     Box: echo
     Inputs: 

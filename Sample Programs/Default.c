@@ -444,8 +444,8 @@ pointer True_entry() {
 
 pointer main_entry() {
     
-    Node = (pointer*)(primes_closure); /* Grab primes into Node */
-    ENTER((pointer**)Node);        /* Enter primes */
+    Node = (pointer*)(printFactorial_closure); /* Grab printFactorial into Node */
+    ENTER((pointer**)Node);        /* Enter printFactorial */
 }
 
 pointer echo_echo1_t1_t2_entry() {

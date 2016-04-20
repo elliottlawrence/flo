@@ -1,4 +1,4 @@
-main = {} \u {} -> primes
+main = {} \u {} -> printFactorial
 echo = {} \u {} -> letrec echo1 = {} \n {a} ->
                               let t1 = {a} \u {} -> let t2 = {} \n {} ->
                                                             MkChar {-1}

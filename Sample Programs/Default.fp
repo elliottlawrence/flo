@@ -10,7 +10,7 @@ data MkIORes a World :: IORes a
 data MkIORes$ Int$ World :: IORes$
 data MkInt Int$ :: Int
 data MkFloat Float$ :: Float
-main  = primes
+main  = printFactorial
 echo  = let {echo1 a = if (eqChar a (MkChar -1)) done (seq (putChar a) echo)}
         in bind getChar echo1
 primes  = let {from n = Cons n (from (plus n (MkInt 1)));
