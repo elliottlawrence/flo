@@ -593,10 +593,10 @@ assigned the address of main(), at which point execution stops.
 
 ```
 int main() {
-  function f\_main = (function)main;
-  function cont = main\_entry;
-  while (cont != f\_main) {
-    cont = (function)(\*cont)();
+  function f_main = (function)main;
+  function cont = main_entry;
+  while (cont != f_main) {
+    cont = (function)(*cont)();
   }
   return 0;
 }
